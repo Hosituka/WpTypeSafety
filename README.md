@@ -1,12 +1,14 @@
 # WpTypeSafety
 
-WpTypeSafetyは、WordPress・ACFから取得した不定形な値を、戻り値の型が決まったAPIで安全に扱うためのPHPライブラリです。
+**English** | [日本語](README.ja.md)
 
-`string`、`?ImgData`、`list<AcfGet>`などの型付きの値やDataオブジェクトとして取得でき、必要な箇所だけ段階的に導入できます。既存APIと併用でき、サイト全体の書き換えや、すべての値のData化は必要ありません。
+WpTypeSafety is a PHP library for safely handling loosely shaped values returned by WordPress and Advanced Custom Fields (ACF) through APIs with predictable return types.
 
-## 何が楽になるか
+It returns typed values and Data objects such as `string`, `?ImgData`, and `list<AcfGet>`. You can adopt it incrementally only where needed, keep using native APIs alongside it, and avoid rewriting an entire site or converting every value into a Data object.
 
-ACFの `get_field()` は、フィールド設定や未入力状態によって異なる型の値を返します。文字列が必要な場所では、通常は取得後に確認します。
+## What it simplifies
+
+ACF's `get_field()` can return different value types depending on the field configuration and whether a value has been entered. When a string is required, the result normally needs to be checked after retrieval.
 
 ```php
 <?php
@@ -14,18 +16,18 @@ $raw = get_field('title', $post->ID);
 $title = is_string($raw) && trim($raw) !== '' ? $raw : '';
 ```
 
-WpTypeSafetyでは、最初に投稿を取得対象として指定し、用途ごとに戻り値型を固定した取得メソッド（以下、取得口）から値を読みます。
+With WpTypeSafety, you first specify the retrieval subject and then read values through purpose-specific accessors with fixed return types.
 
 ```php
 <?php
 use WpTypeSafety\Acf\Get\AcfGet;
 
 $postGet = new AcfGet($post);
-$title = $postGet->Text('title'); // string。未入力・型違いなら ''
-$mainImg = $postGet->Img('main_img'); // ?ImgData。取得できなければ null
+$title = $postGet->Text('title'); // string; '' when missing or invalid
+$mainImg = $postGet->Img('main_img'); // ?ImgData; null when unavailable
 ```
 
-特に、複数階層のACFグループを読む場合に、各階層の配列確認を繰り返す必要がありません。
+This is especially useful for deeply nested ACF groups because you do not need to repeat array checks at every level.
 
 ```php
 <?php
@@ -35,11 +37,11 @@ $title = $postGet
 	->Text('title');
 ```
 
-`Nested()`は、指定したグループが未入力・配列以外でも空の取得元を返します。そのため、途中の階層ごとに`isset()`や`is_array()`で分岐せず、最後まで同じ形でたどれます。
-投稿などACFの取得先からグループをたどる場合は、未整形値と子フィールド定義も引き継ぐため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。
-`AcfGet`の派生型から`Nested()`・`Repeater()`・`Flexible()`を呼ぶと、子の取得口にも同じ派生型と注入済みの依存が引き継がれます。
+`Nested()` returns an accessor backed by an empty source even when the requested group is missing or is not an array. You can therefore traverse the full chain without adding `isset()` or `is_array()` branches at every level.
 
-リピーターの各行も、最初から`AcfGet`として扱えます。行内のグループやリピーターも同じ方法で読み取れます。
+When a group is reached from an ACF subject such as a post, the unformatted values and child field definitions are carried into the nested accessor. This allows `Date()`, `DateTime()`, and `Time()` to work inside groups as well. When `Nested()`, `Repeater()`, or `Flexible()` is called on a custom `AcfGet` subclass, its child accessors preserve the same subclass and injected dependencies.
+
+Repeater rows are also returned as `AcfGet` instances from the beginning. Nested groups and repeaters inside each row can be read in the same way.
 
 ```php
 <?php
@@ -49,43 +51,43 @@ foreach ($postGet->Repeater('sections') as $sectionGet) {
 }
 ```
 
-単純なフィールドから複雑な入れ子まで、ACFの構造に沿って安全にたどり、各地点で戻り値の型が固定された値を受け取れます。必要な箇所では、WordPress・ACFのネイティブAPIを直接使うこともできます。
+From simple fields to deeply nested structures, you can follow the shape of ACF data and receive values with predictable return types at each point. Native WordPress and ACF APIs remain available wherever they are more appropriate.
 
-- フィールドの戻り値形式や未入力・型違いの扱いを、取得口へ集約できます。
-- テンプレート側は、生のWordPressオブジェクトやACF配列を毎回検証せず、固定された戻り値の契約を利用できます。
-- 必要に応じてDataへ変換し、取得処理と表示処理を分離できます。
+- Centralize handling of field return formats, missing values, and type mismatches in accessors.
+- Let templates rely on fixed return contracts instead of repeatedly validating raw WordPress objects and ACF arrays.
+- Convert values into Data objects when useful, separating retrieval from presentation.
 
-## 特徴
+## Features
 
-- `Text(): string`、`Number(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
-- 既存のWordPress・ACF APIと併用しながら、必要な取得処理から段階的に置き換えられる。Dataは直接`new`でも生成できる。
-- WordPress・ACFに依存しないCoreの型確認と配列取得。
-- Composerコマンドや`vendor`ディレクトリを必要とせず配置できる。テーマ側Data用のPSR-4読み込みは任意。
+- Purpose-specific accessors with fixed return types, including `Text(): string`, `Number(): ?float`, `Int(): ?int`, `Img(): ?ImgData`, `Posts(): list<PostData>`, `Terms(): list<TermData>`, `Users(): list<WpUserData>`, `Repeater(): list<AcfGet>`, and `Flexible(): list<FlexibleNode>`.
+- Incremental adoption alongside existing WordPress and ACF APIs. Data objects can also be constructed directly with `new`.
+- Core type checks and array accessors that do not depend on WordPress or ACF.
+- Installation without Composer commands or a `vendor` directory. Optional PSR-4 registration is available for project-specific Data and View classes.
 
-## インストールと読み込み
+## Installation and loading
 
-PHP 8.2以上が必要です。WordPress向け機能にはWordPress、ACF向け機能にはACFが必要です。日本語ドメインなどの国際化ドメイン名をURLとして検証する場合は、PHPの`intl`拡張を推奨します。自動テストはAPIスタブを使用しており、特定のWordPress・ACFバージョンでの結合動作を保証するものではありません。
+PHP 8.2 or later is required. WordPress-specific features require WordPress, and ACF-specific features require ACF. The PHP `intl` extension is recommended when validating internationalized domain names. Automated tests use API stubs and do not guarantee integration with a particular WordPress or ACF version.
 
-### Composer経由で導入する
+### Install with Composer
 
-Composerを使用するプロジェクトでは、プロジェクトのルートで次を実行します。
+Run the following command from your project root:
 
 ```bash
 composer require hosituka/wp-type-safety
 ```
 
-プロジェクトの起動時に、Composerが生成した`vendor/autoload.php`を読み込みます。既に読み込み済みの場合は追加不要です。
+Load the `vendor/autoload.php` generated by Composer during project bootstrap. No additional include is needed if it is already loaded.
 
 ```php
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 ```
 
-Composer経由では`WpTypeSafety/autoload.php`を追加で読み込む必要はありません。ComposerのPSR-4 Autoloaderが`WpTypeSafety\`のクラスを解決します。
+When installed through Composer, you do not need to load `WpTypeSafety/autoload.php`. Composer's PSR-4 Autoloader resolves classes in the `WpTypeSafety\` namespace.
 
-### Composerを使わずに導入する
+### Install without Composer
 
-リポジトリの`WpTypeSafety/`ディレクトリ全体をテーマなどの利用先に配置し、起動時に`autoload.php`を一度読み込みます。次はテーマ直下に置いた例です。配置場所に合わせてパスを変更してください。
+Place the entire repository in your theme or another application directory and load `autoload.php` once during bootstrap. The following example assumes the library is located at `WpTypeSafety/` directly under the theme root; adjust the path to match your project.
 
 ```php
 <?php
@@ -93,30 +95,30 @@ Composer経由では`WpTypeSafety/autoload.php`を追加で読み込む必要は
 require_once __DIR__ . '/WpTypeSafety/autoload.php';
 ```
 
-`autoload.php`が`WpTypeSafety\`のPSR-4設定を登録します。Core・Wp・Acfの各クラスは、参照された時点で対応ファイルだけが読み込まれます。通常の利用にComposerコマンドや`vendor/autoload.php`は不要です。詳しい読み込み処理は[読み込みと任意PSR-4](docs/autoload.md)を参照してください。
+`autoload.php` registers the PSR-4 mapping for `WpTypeSafety\`. Classes under Core, Wp, and Acf are loaded only when referenced. Composer commands and `vendor/autoload.php` are not required for this installation method. See [Autoloading and optional PSR-4 mappings](docs/autoload.md) for details. The detailed documentation is currently written in Japanese.
 
-### 実案件での利用実績
+### Production usage
 
-WpTypeSafetyは、実際のWordPress案件で継続的に利用・改善してきたライブラリです。実装で必要になった取得処理や型の境界を整理し、一定の動作実績とAPIの成熟が得られたため公開しています。
+WpTypeSafety has been continuously used and improved in a production WordPress project. It is being published after its retrieval APIs and type boundaries reached a useful level of maturity through real-world implementation.
 
-公開時点では、次の環境で安定した動作を確認しています。
+At the time of publication, stable operation has been confirmed in the following environment:
 
 - WordPress 7.0.8
 - Advanced Custom Fields PRO 6.8.6
 
-これは実案件での利用実績であり、対応バージョンの上限・下限を保証する互換性表ではありません。自動テストは引き続きAPIスタブを使用しているため、ほかのWordPress・ACFバージョンで利用する場合は導入先でも確認してください。
+This is a record of production usage, not a compatibility guarantee for minimum or maximum supported versions. Automated tests continue to use API stubs, so verify the library in your target environment when using other WordPress or ACF versions.
 
-## クイックスタート
+## Quick start
 
-Composerまたは同梱の`autoload.php`でクラスを読み込み可能にしたテンプレートでは、次のように利用できます。
+After making the classes available through Composer or the bundled `autoload.php`, you can use them in a template as follows:
 
 ```php
 <?php
 use WpTypeSafety\Acf\Get\AcfGet;
 
 $postGet = new AcfGet($post);
-$title = $postGet->Text('title'); // string。未入力・型違いなら ''
-$mainImg = $postGet->Img('main_img'); // ?ImgData。取得できなければ null
+$title = $postGet->Text('title'); // string; '' when missing or invalid
+$mainImg = $postGet->Img('main_img'); // ?ImgData; null when unavailable
 
 foreach ($postGet->Repeater('items') as $rowGet) {
 	$label = $rowGet->Text('label'); // string
@@ -125,7 +127,7 @@ foreach ($postGet->Repeater('items') as $rowGet) {
 echo esc_html($title);
 ```
 
-WordPressの値からDataを得るにはFactoryを使います。
+Use a Factory to create Data objects from WordPress values.
 
 ```php
 <?php
@@ -135,7 +137,7 @@ $postData = WpDataFactory::PostFromWpPost($post); // PostData
 $commentData = WpDataFactory::CommentFromWpComment($comment); // CommentData
 ```
 
-ACFフィールドは用途に対応する`AcfGet`で正規化できます。ネイティブAPIの結果だけ型確認したい場合や、テンプレートパーツの`$args`を読む場合はCoreを使えます。
+ACF fields can be normalized with the accessor matching their purpose. Use Core when you only need to check the result of a native API or read template-part `$args`.
 
 ```php
 <?php
@@ -143,63 +145,65 @@ use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Core\Check\TypeCheck;
 
-$count = (new AcfGet($post))->Int('count');             // ?int
+$count = (new AcfGet($post))->Int('count');                       // ?int
 $postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
-$title = (new ArrayGet($args))->String('title');         // string
+$title = (new ArrayGet($args))->String('title');                  // string
 ```
 
-`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet::String()`は型違い・キーなしで空文字を返します。空文字だけでは「未入力」と「取得失敗」を区別できません。
+`AcfGet::Int()` normalizes integers, integer-valued floats, and integer-formatted numeric strings into `int`. `TypeCheck` performs no conversion and returns a value only when the input already has the requested PHP type. `ArrayGet::String()` returns an empty string for a type mismatch or missing key. An empty string alone cannot distinguish an intentionally empty value from a failed lookup.
 
-## 入口の選び方
+## Choosing an entry point
 
-| やりたいこと | 主な入口 |
+| Goal | Main entry point |
 |---|---|
-| ACFフィールドを型付きで取得する | `AcfGet` |
-| WordPressオブジェクトをDataへ変換する | `WpDataFactory` |
-| ACFブロック情報をDataへ変換する | `AcfDataFactory` |
-| 単独の値を型確認する | `TypeCheck` |
-| 配列の値を型付きで取得する | `ArrayGet` |
+| Read ACF fields through typed accessors | `AcfGet` |
+| Convert WordPress objects into Data objects | `WpDataFactory` |
+| Convert ACF block information into Data objects | `AcfDataFactory` |
+| Check the type of a standalone value | `TypeCheck` |
+| Read typed values from an array | `ArrayGet` |
 
-## 構成を段階的に選べます
+## Choose the level of adoption incrementally
 
-WpTypeSafetyは、既存のWordPressテーマを一度に独自構成へ変更する必要はありません。用途と複雑さに応じて、次の構成を同じテーマ内で併用できます。数字は優劣や成熟度ではなく、扱う範囲の違いを表します。単純な箇所まで専用DataやViewクラスへ移す必要はありません。
+WpTypeSafety does not require an existing WordPress theme to adopt a custom architecture all at once. The following approaches can coexist within the same theme according to the complexity and purpose of each area. The numbers describe scope, not quality or maturity. Simple code does not need to be moved into dedicated Data or View classes.
 
-| 構成 | 目的 | 主な入口 |
+| Approach | Purpose | Main entry points |
 |---|---|---|
-| 1. WordPress標準＋型確認 | テンプレート構造を変えず、生の値と`$args`を安全に扱う | `TypeCheck`、`ArrayGet` |
-| 2. Get／Factory＋テーマ固有Data | 取得・確認・変換をテンプレートから分離する | `AcfGet`、`WpDataFactory`、テーマ固有Data |
-| 3. Data＋Viewクラス | Dataの入力型に加え、テンプレートパスもクラス参照で管理する | `Psr4Autoload`、`XxxView::Render()` |
+| 1. Standard WordPress plus type checks | Keep the template structure while safely handling raw values and `$args` | `TypeCheck`, `ArrayGet` |
+| 2. Get/Factory plus project-specific Data | Separate retrieval, validation, and conversion from templates | `AcfGet`, `WpDataFactory`, project-specific Data |
+| 3. Data plus View classes | Manage template paths through class references as well as typed Data inputs | `Psr4Autoload`, `XxxView::Render()` |
 
-第1段階では、`get_template_part()`やWordPressのテンプレート階層を維持したまま、値を受け渡す境界だけを防御できます。第2段階では複雑な取得処理をData生成へ分離し、第3段階では必要なViewだけをクラス参照へ置き換えられます。WordPress標準構成を使い続けることも正式な利用方法です。各構成のコード例は[利用例](docs/examples.md)を参照してください。
+At level 1, you can keep `get_template_part()` and the standard WordPress template hierarchy while protecting only the data boundaries. Level 2 moves complex retrieval into Data construction. Level 3 lets you replace only selected Views with class references. Continuing to use the standard WordPress structure is also a supported approach. See [Examples](docs/examples.md) for code samples. The detailed documentation is currently written in Japanese.
 
-## 設計方針と保証範囲
+## Design scope and guarantees
 
-取得口は外部の値を確認・正規化します。DataのコンストラクターはPHPの型宣言で表せる型を受け取りますが、URLの形式、IDや寸法の正負などを一律には検証しません。直接Dataを作る場合は、呼び出し元が値を確認してください。画像・ファイルがURLだけで返る設定や、取得済み配列のフィールド定義を確認できない場合など、取得口ごとの制約は詳細文書に記載しています。
+Accessors validate and normalize external values. Data constructors accept types expressible through PHP declarations, but they do not universally validate conditions such as URL formats or positive IDs and dimensions. When constructing Data directly, validate those conditions at the call site. Accessor-specific restrictions, such as image and file fields configured to return only URLs or arrays whose ACF field definitions are unavailable, are documented in the detailed guides.
 
-HTMLの組み立てと出力時のエスケープは利用側で行います。通常の文字列には`esc_html()`、URLの出力には`esc_url()`など、出力先に合う処理を使ってください。
+HTML composition and output escaping remain the responsibility of the caller. Use escaping appropriate for each output context, such as `esc_html()` for plain text and `esc_url()` for URLs.
 
-## 発展的な使い方
+## Advanced usage
 
-第3段階のViewクラス構成では、任意PSR-4読み込みを案件側のDataやViewへ利用できます。設定方法とView構成例は[読み込みと任意PSR-4](docs/autoload.md)を参照してください。
+At level 3, optional PSR-4 mappings can load project-specific Data and View classes. See [Autoloading and optional PSR-4 mappings](docs/autoload.md) for configuration and View examples. The detailed documentation is currently written in Japanese.
 
-## 詳細ドキュメント
+## Detailed documentation
 
-| 内容 | 文書 | 主な対象 |
+The detailed documentation is currently available in Japanese.
+
+| Topic | Document | Audience |
 |---|---|---|
-| ACFの取得口、グループ、リピーター、参照先、ブロック | [ACF](docs/acf.md) | 利用者 |
-| WordPressの取得口とFactory | [WordPress](docs/wordpress.md) | 利用者 |
-| 型確認と配列からの取得 | [Core](docs/core.md) | 利用者 |
-| Data、Resolver、派生クラス | [Data](docs/data.md) | 利用者 |
-| `autoload.php`と任意PSR-4読み込み | [Autoload](docs/autoload.md) | 利用者 |
-| テーマ開発の補助機能 | [Support](docs/support.md) | 利用者 |
-| 入れ子のACF、派生Data、ACFブロックの実装例 | [利用例](docs/examples.md) | 利用者 |
-| 内部構造と検証手順 | [Architecture](docs/architecture.md) | 保守者 |
-| 旧APIからの移行 | [Migration](docs/migration.md) | 移行時 |
+| ACF accessors, groups, repeaters, related objects, and blocks | [ACF](docs/acf.md) | Users |
+| WordPress accessors and Factory | [WordPress](docs/wordpress.md) | Users |
+| Type checks and array access | [Core](docs/core.md) | Users |
+| Data, Resolvers, and derived classes | [Data](docs/data.md) | Users |
+| `autoload.php` and optional PSR-4 mappings | [Autoload](docs/autoload.md) | Users |
+| Theme-development helpers | [Support](docs/support.md) | Users |
+| Nested ACF, derived Data, and ACF block examples | [Examples](docs/examples.md) | Users |
+| Internal architecture and verification | [Architecture](docs/architecture.md) | Maintainers |
+| Migration from older APIs | [Migration](docs/migration.md) | Migration |
 
-## テスト
+## Tests
 
-`tests/`のPHPファイルは独立したAPIスタブのテストです。実WordPress・ACF環境での結合テストとは区別してください。全件実行と構文チェックの手順は[内部構造と検証](docs/architecture.md)にあります。
+The PHP files under `tests/` are independent API-stub tests. Treat them separately from integration tests against a real WordPress and ACF environment. See [Architecture and verification](docs/architecture.md) for commands that run all tests and syntax checks. The detailed documentation is currently written in Japanese.
 
-## ライセンス
+## License
 
-WpTypeSafety本体は[MIT License](LICENSE)です。同梱したComposerの`ClassLoader.php`は[別のライセンス表記](Autoload/Internal/Composer/LICENSE)を保持しています。
+WpTypeSafety is released under the [MIT License](LICENSE). The bundled Composer `ClassLoader.php` retains its [separate license notice](Autoload/Internal/Composer/LICENSE).
