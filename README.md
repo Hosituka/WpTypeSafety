@@ -66,16 +66,24 @@ foreach ($postGet->Repeater('sections') as $sectionGet) {
 
 PHP 8.2以上が必要です。WordPress向け機能にはWordPress、ACF向け機能にはACFが必要です。日本語ドメインなどの国際化ドメイン名をURLとして検証する場合は、PHPの`intl`拡張を推奨します。自動テストはAPIスタブを使用しており、特定のWordPress・ACFバージョンでの結合動作を保証するものではありません。
 
-### 実案件での利用実績
+### Composer経由で導入する
 
-WpTypeSafetyは、実際のWordPress案件で継続的に利用・改善してきたライブラリです。実装で必要になった取得処理や型の境界を整理し、一定の動作実績とAPIの成熟が得られたため公開しています。
+Composerを使用するプロジェクトでは、プロジェクトのルートで次を実行します。
 
-公開時点では、次の環境で安定した動作を確認しています。
+```bash
+composer require hosituka/wp-type-safety
+```
 
-- WordPress 7.0.8
-- Advanced Custom Fields PRO 6.8.6
+プロジェクトの起動時に、Composerが生成した`vendor/autoload.php`を読み込みます。既に読み込み済みの場合は追加不要です。
 
-これは実案件での利用実績であり、対応バージョンの上限・下限を保証する互換性表ではありません。自動テストは引き続きAPIスタブを使用しているため、ほかのWordPress・ACFバージョンで利用する場合は導入先でも確認してください。
+```php
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+```
+
+Composer経由では`WpTypeSafety/autoload.php`を追加で読み込む必要はありません。ComposerのPSR-4 Autoloaderが`WpTypeSafety\`のクラスを解決します。
+
+### Composerを使わずに導入する
 
 リポジトリの`WpTypeSafety/`ディレクトリ全体をテーマなどの利用先に配置し、起動時に`autoload.php`を一度読み込みます。次はテーマ直下に置いた例です。配置場所に合わせてパスを変更してください。
 
@@ -87,9 +95,20 @@ require_once __DIR__ . '/WpTypeSafety/autoload.php';
 
 `autoload.php`が`WpTypeSafety\`のPSR-4設定を登録します。Core・Wp・Acfの各クラスは、参照された時点で対応ファイルだけが読み込まれます。通常の利用にComposerコマンドや`vendor/autoload.php`は不要です。詳しい読み込み処理は[読み込みと任意PSR-4](docs/autoload.md)を参照してください。
 
+### 実案件での利用実績
+
+WpTypeSafetyは、実際のWordPress案件で継続的に利用・改善してきたライブラリです。実装で必要になった取得処理や型の境界を整理し、一定の動作実績とAPIの成熟が得られたため公開しています。
+
+公開時点では、次の環境で安定した動作を確認しています。
+
+- WordPress 7.0.8
+- Advanced Custom Fields PRO 6.8.6
+
+これは実案件での利用実績であり、対応バージョンの上限・下限を保証する互換性表ではありません。自動テストは引き続きAPIスタブを使用しているため、ほかのWordPress・ACFバージョンで利用する場合は導入先でも確認してください。
+
 ## クイックスタート
 
-`autoload.php`を読み込み済みのテンプレートでは、次のように利用できます。
+Composerまたは同梱の`autoload.php`でクラスを読み込み可能にしたテンプレートでは、次のように利用できます。
 
 ```php
 <?php
