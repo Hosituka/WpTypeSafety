@@ -105,6 +105,7 @@ AcfGet::Register(
 	},
 	link: $unused,
 	number: $unused,
+	int: $unused,
 	img: $unused,
 	imgUrl: $unused,
 	file: $unused,

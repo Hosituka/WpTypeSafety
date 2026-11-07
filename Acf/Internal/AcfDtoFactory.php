@@ -145,6 +145,21 @@ final class AcfDtoFactory
 		$alt = $value['alt'] ?? '';
 		$idValue = $value['ID'] ?? $value['id'] ?? 0;
 		$attachmentId = self::isPositiveId($idValue) ? (int) $idValue : 0;
+		$needsAttachmentResolution = $size === 'original'
+			|| ! self::isPositiveDimension($width)
+			|| ! self::isPositiveDimension($height);
+
+		if ($attachmentId > 0 && $needsAttachmentResolution) {
+			$resolved = WpDtoFactory::ImgFromAttachmentId($attachmentId, $size);
+			if ($resolved !== null) {
+				return new ImgData(
+					Url: $resolved->Url,
+					Width: $resolved->Width,
+					Height: $resolved->Height,
+					Alt: is_string($alt) ? $alt : $resolved->Alt,
+				);
+			}
+		}
 
 		if ($size === 'original' && $attachmentId > 0) {
 			$originalUrl = \wp_get_original_image_url($attachmentId);
@@ -210,6 +225,11 @@ final class AcfDtoFactory
 	private static function fileSize(mixed $value): ?int
 	{
 		return is_numeric($value) && $value >= 0 ? (int) $value : null;
+	}
+
+	private static function isPositiveDimension(mixed $value): bool
+	{
+		return is_numeric($value) && (int) $value > 0;
 	}
 
 	private static function isPositiveId(mixed $value): bool

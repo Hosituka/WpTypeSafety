@@ -52,6 +52,9 @@ class AcfGet
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): ?float */
 	private static ?\Closure $number = null;
 
+	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): ?int */
+	private static ?\Closure $int = null;
+
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null, string|array): ?ImgData */
 	private static ?\Closure $img = null;
 
@@ -155,6 +158,7 @@ class AcfGet
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null, int): list<WpUserData> $users
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?LinkData $link
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?float $number
+	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?int $int
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null, string|array): ?ImgData $img
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?string $imgUrl
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?FileData $file
@@ -180,7 +184,7 @@ class AcfGet
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?string $selectLabel
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<string> $selectValues
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<string> $selectLabels
-	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<ChoiceData> $SelectChoices
+	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<ChoiceData> $selectChoices
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?string $url
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<string> $galleryUrl
 	 */
@@ -196,6 +200,7 @@ class AcfGet
 		\Closure $users,
 		\Closure $link,
 		\Closure $number,
+		\Closure $int,
 		\Closure $img,
 		\Closure $imgUrl,
 		\Closure $file,
@@ -239,6 +244,7 @@ class AcfGet
 		self::$users = $users;
 		self::$link = $link;
 		self::$number = $number;
+		self::$int = $int;
 		self::$img = $img;
 		self::$imgUrl = $imgUrl;
 		self::$file = $file;
@@ -362,6 +368,12 @@ class AcfGet
 	public function Number(string $fieldName): ?float
 	{
 		$resolver = self::$number ?? throw new \LogicException('AcfGet implementation is not registered.');
+		return $resolver($fieldName, $this->source);
+	}
+
+	public function Int(string $fieldName): ?int
+	{
+		$resolver = self::$int ?? throw new \LogicException('AcfGet implementation is not registered.');
 		return $resolver($fieldName, $this->source);
 	}
 

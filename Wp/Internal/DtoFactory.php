@@ -5,6 +5,7 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
+use WpTypeSafety\Core\Internal\SvgDimensions;
 use WpTypeSafety\Core\Internal\UrlCheck;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\WpUserData;
@@ -131,6 +132,10 @@ final class DtoFactory
 		if ($attachmentId <= 0) {
 			return null;
 		}
+		$mimeType = \get_post_mime_type($attachmentId);
+		if (is_string($mimeType) && str_contains(strtolower($mimeType), 'svg')) {
+			return self::svgImgFromAttachmentId($attachmentId);
+		}
 		$source = \wp_get_attachment_image_src($attachmentId, $size === 'original' ? 'full' : $size);
 		if (! is_array($source)) {
 			return null;
@@ -165,6 +170,25 @@ final class DtoFactory
 			Url: $url,
 			Width: $width,
 			Height: $height,
+			Alt: (string) \get_post_meta($attachmentId, '_wp_attachment_image_alt', true),
+		);
+	}
+
+	private static function svgImgFromAttachmentId(int $attachmentId): ?ImgData
+	{
+		$url = \wp_get_attachment_url($attachmentId);
+		$path = \get_attached_file($attachmentId);
+		if (! UrlCheck::IsHttpUrl($url) || ! is_string($path)) {
+			return null;
+		}
+		$dimensions = SvgDimensions::FromFile($path);
+		if ($dimensions === null) {
+			return null;
+		}
+		return new ImgData(
+			Url: $url,
+			Width: $dimensions[0],
+			Height: $dimensions[1],
 			Alt: (string) \get_post_meta($attachmentId, '_wp_attachment_image_alt', true),
 		);
 	}

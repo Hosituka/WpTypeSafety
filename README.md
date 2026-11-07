@@ -55,14 +55,14 @@ foreach ($postGet->Repeater('sections') as $sectionGet) {
 
 ## 特徴
 
-- `Text(): string`、`Img(): ?ImgData`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
+- `Text(): string`、`Number(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
 - 既存のWordPress・ACF APIと併用しながら、必要な取得処理から段階的に置き換えられる。Dataは直接`new`でも生成できる。
 - WordPress・ACFに依存しないCoreの型確認と配列取得。
 - Composerコマンドや`vendor`ディレクトリを必要とせず配置できる。テーマ側Data用のPSR-4読み込みは任意。
 
 ## インストールと読み込み
 
-PHP 8.2以上が必要です。WordPress向け機能にはWordPress、ACF向け機能にはACFが必要です。自動テストはAPIスタブを使用しており、特定のWordPress・ACFバージョンでの結合動作を保証するものではありません。
+PHP 8.2以上が必要です。WordPress向け機能にはWordPress、ACF向け機能にはACFが必要です。日本語ドメインなどの国際化ドメイン名をURLとして検証する場合は、PHPの`intl`拡張を推奨します。自動テストはAPIスタブを使用しており、特定のWordPress・ACFバージョンでの結合動作を保証するものではありません。
 
 ### 実案件での利用実績
 
@@ -123,18 +123,20 @@ use WpTypeSafety\Wp\Get\WpDataFactory;
 $postData = WpDataFactory::PostFromWpPost($post); // PostData
 ```
 
-ネイティブAPIの結果だけ型確認したい場合や、テンプレートパーツの`$args`を読む場合はCoreを使えます。
+ACFフィールドは用途に対応する`AcfGet`で正規化できます。ネイティブAPIの結果だけ型確認したい場合や、テンプレートパーツの`$args`を読む場合はCoreを使えます。
 
 ```php
 <?php
 use WpTypeSafety\Core\Check\ArrayGet;
+use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Core\Check\TypeCheck;
 
-$count = TypeCheck::Int(get_field('count', $post->ID)); // ?int
+$count = (new AcfGet($post))->Int('count');             // ?int
+$postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
 $title = (new ArrayGet($args))->String('title');         // string
 ```
 
-`TypeCheck::String()`は型違いで`null`、`ArrayGet::String()`は型違い・キーなしで空文字を返します。空文字だけでは「未入力」と「取得失敗」を区別できません。
+`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet::String()`は型違い・キーなしで空文字を返します。空文字だけでは「未入力」と「取得失敗」を区別できません。
 
 ## 入口の選び方
 

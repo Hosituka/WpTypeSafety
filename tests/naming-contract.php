@@ -7,12 +7,14 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once __DIR__ . '/../Acf/Data/AcfBlockData.php';
+require_once __DIR__ . '/../Acf/Get/AcfGet.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 require_once __DIR__ . '/../Acf/Internal/AcfDtoFactory.php';
 require_once __DIR__ . '/../Acf/Internal/BlockAdapter.php';
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
 
 use WpTypeSafety\Acf\Data\AcfBlockData;
+use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Acf\Internal\AcfAdapter;
 use WpTypeSafety\Acf\Internal\AcfDtoFactory;
 use WpTypeSafety\Acf\Internal\BlockAdapter;
@@ -26,7 +28,7 @@ $Check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-foreach ([AcfBlockData::class, AcfAdapter::class, AcfDtoFactory::class, BlockAdapter::class, WpUserData::class] as $class) {
+foreach ([AcfBlockData::class, AcfGet::class, AcfAdapter::class, AcfDtoFactory::class, BlockAdapter::class, WpUserData::class] as $class) {
 	$reflection = new ReflectionClass($class);
 	foreach ($reflection->getMethods() as $method) {
 		if (str_starts_with($method->name, '__')) {
@@ -39,6 +41,14 @@ foreach ([AcfBlockData::class, AcfAdapter::class, AcfDtoFactory::class, BlockAda
 		$pattern = $property->isPublic() ? '/^[A-Z][A-Za-z0-9]*$/' : '/^[a-z][A-Za-z0-9]*$/';
 		$Check(preg_match($pattern, $property->name) === 1, $class . '::$' . $property->name);
 	}
+}
+
+$register = new ReflectionMethod(AcfGet::class, 'Register');
+$docComment = $register->getDocComment();
+$Check(is_string($docComment), 'AcfGet::Register has a docblock');
+foreach ($register->getParameters() as $parameter) {
+	$pattern = '/@param[^\r\n]*\$' . preg_quote($parameter->name, '/') . '(?:\s|$)/';
+	$Check(is_string($docComment) && preg_match($pattern, $docComment) === 1, 'Register $' . $parameter->name . ' docblock');
 }
 
 $block = new AcfBlockData(Name: 'test', Id: 'test-id', Classes: ['is-style-without-img']);

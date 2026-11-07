@@ -3,6 +3,7 @@
 ## 目次
 
 - [標準取得口の一覧](#標準取得口の一覧)
+- [数値フィールドの取得](#数値フィールドの取得)
 - [ACFの取得先の指定](#acfの取得先の指定)
 - [投稿・ターム・ユーザーの複数取得](#投稿タームユーザーの複数取得)
 - [ACF画像・ファイルの取得](#acf画像ファイルの取得)
@@ -20,7 +21,8 @@
 | 取得口 | 戻り値 | 用途・契約 |
 |---|---|---|
 | `Text()` | `string` | 文字列。未入力・型違いは空文字 |
-| `Number()` | `?float` | 整数・floatをfloatへ正規化。型違いは`null` |
+| `Number()` | `?float` | 整数・float・数値文字列をfloatへ正規化。数値以外は`null` |
+| `Int()` | `?int` | 整数・整数相当のfloat・整数形式の数値文字列をintへ正規化。それ以外は`null` |
 | `Bool()` | `?bool` | 真偽値。型違いは`null` |
 | `Link()` | `?LinkData` | ACFリンク配列 |
 | `Url()` | `?string` | HTTP(S)の絶対URL |
@@ -55,6 +57,18 @@ $color = $termGet->Text('display_color') ?: 'var(--black)';
 ```
 
 `?:`は文字列`'0'`も代替値の対象にします。この文言取得の運用ではそれを許容し、数値として扱う値は数値用の取得口で取得します。`Text()`自体が`'0'`を空文字へ変換するわけではありません。`ArrayGet::String()`もフォールバック引数は設けず、呼び出し側で`?:`を使います。
+
+## 数値フィールドの取得
+
+ACFのNumberフィールドはWordPressのメタ値を基にするため、`get_field()`から数値文字列が返ることがあります。小数を含む数値として扱う場合は`Number()`、整数に限定する場合は`Int()`を使用します。
+
+```php
+<?php
+$price = $postGet->Number('price'); // "12.5"も12.5へ正規化
+$count = $postGet->Int('count');    // "12"も12へ正規化
+```
+
+`Number()`はPHPの`is_numeric()`に従うため、前後に空白がある数値文字列や指数表記も受け入れて`float`へ変換します。`Int()`は整数、整数として正確に表現できるfloat、符号と数字だけで構成された整数形式の文字列を受け入れます。小数文字列・指数表記・空白を含む文字列・PHPの整数範囲外は`null`です。`TypeCheck::Int()`は変換を行わず、最初から`int`である値だけを通すCore APIです。
 
 ## ACFの取得先の指定
 
@@ -130,6 +144,12 @@ $fileUrl = $fields->FileUrl('document'); // URL返却形式のファイルは?st
 ギャラリーのURL返却形式には`GalleryUrl($fieldName): list<string>`を使用します。`AcfGet`・`AcfGetUser`・`AcfGetTerm`およびNestedに対応します。未入力・配列以外は`[]`、不正URL・ID・画像情報配列は除外します。有効なHTTP(S)絶対URLの順序と重複を保持し、エスケープは出力側で行います。画像情報が必要な場合は従来の`Gallery()`を使います。
 
 画像URL専用の入口として`AcfGet->ImgUrl()`、`AcfGetUser->ImgUrl()`、`AcfGetTerm->ImgUrl()`があります。URL返却形式の画像は`ImgData`に詰めず、寸法を取得できる画像だけを`ImgData`として返します。URLが未設定・不正なら`null`です。
+
+HTTP(S) URLの検証では、日本語ドメインを`intl`拡張のUTS #46処理で検証します。検証後も取得口が返す値は入力された元のURLです。`intl`拡張を利用できない環境では、日本語ドメインは`null`になります。日本語を含むパス・クエリ・フラグメントは`intl`の有無にかかわらず検証できます。相対URLとHTTP(S)以外のスキームは対象外です。
+
+SVG添付画像は、ローカルファイルのルート`svg`要素にある`viewBox`の幅・高さを、HTMLの`width`・`height`属性へ使える比率として`ImgData`へ保持します。`viewBox`がない場合は、単位なしまたは`px`の`width`・`height`属性を使用します。どちらからも比率を取得できないSVGは`null`です。外部URLのSVGを取得して解析することはありません。
+
+SVGにはWordPressのラスター画像サイズがないため、`Img()`へ`thumbnail`等のサイズを指定しても元のSVG URLと比率を返します。`ImgUrl()`はURLだけを返す取得口なので、レイアウトシフト対策に必要な比率は提供しません。
 
 ファイルURL専用の入口として`AcfGet->FileUrl()`、`AcfGetUser->FileUrl()`、`AcfGetTerm->FileUrl()`があります。URL返却形式のファイルは`FileData`に詰めず、IDとファイルサイズを取得できる場合だけ`FileData`として返します。URLが未設定・不正なら`null`です。
 

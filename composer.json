@@ -6,6 +6,9 @@
 	"require": {
 		"php": ">=8.2"
 	},
+	"suggest": {
+		"ext-intl": "Required to validate internationalized domain names."
+	},
 	"autoload": {
 		"psr-4": {
 			"WpTypeSafety\\": "./"

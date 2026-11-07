@@ -59,4 +59,6 @@ $image = WpDataFactory::ImgFromAttachmentId($attachmentId, 'medium_large');
 $file = WpDataFactory::FileFromAttachmentId($attachmentId);
 ```
 
+SVG添付画像は、ローカルファイルの`viewBox`、または単位なし・`px`の`width`と`height`から比率を取得します。SVGにはラスター画像のサイズバリエーションがないため、指定したサイズ名にかかわらず元のURLと比率を持つ`ImgData`を返します。比率を判定できないSVGは`null`です。
+
 案件固有の派生データクラスは、案件側の生成メソッドで組み立てます。このFactoryは共通データクラスを返します。

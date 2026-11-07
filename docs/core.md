@@ -8,10 +8,12 @@
 <?php
 use WpTypeSafety\Core\Check\TypeCheck;
 
-$count = TypeCheck::Int(get_field('count')) ?? 4;
-$title = TypeCheck::String(get_field('title')) ?? '無題';
-$enabled = TypeCheck::Bool(get_field('enabled')) ?? false;
+$count = TypeCheck::Int($args['count'] ?? null) ?? 4;
+$title = TypeCheck::String($args['title'] ?? null) ?? '無題';
+$enabled = TypeCheck::Bool($args['enabled'] ?? null) ?? false;
 ```
+
+ACFのNumberフィールドは数値文字列を返すことがあるため、`TypeCheck::Int(get_field(...))`ではなく`AcfGet::Int()`または`AcfGet::Number()`を使用します。
 
 `String()`、`Int()`、`Float()`、`Bool()`、`Array()`、`Instance($value, SomeClass::class)`を用意しています。`StringArray()`、`IntArray()`、`FloatArray()`、`BoolArray()`、`InstanceArray($value, SomeClass::class)`は、入力が配列なら型違いの要素を除いて0からキーを振り直し、配列以外ならnullを返します。配列に合う要素がない場合は空配列です。`Array()`は要素を検証しません。
 

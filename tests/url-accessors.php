@@ -39,7 +39,12 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 $cases = [
 	['https://example.com/', 'https://example.com/'],
 	['http://localhost:8080/path?x=1&y=2#anchor', 'http://localhost:8080/path?x=1&y=2#anchor'],
+	['https://user:pass@example.com:8443/path', 'https://user:pass@example.com:8443/path'],
+	['http://[::1]:8080/path', 'http://[::1]:8080/path'],
 	['https://example.com/日本語/', 'https://example.com/日本語/'],
+	['https://xn--wgv71a119e.jp/a.jpg', 'https://xn--wgv71a119e.jp/a.jpg'],
+	['https://日本語.jp/a.jpg', function_exists('idn_to_ascii') ? 'https://日本語.jp/a.jpg' : null],
+	['https://日本語.jp/画像.jpg', function_exists('idn_to_ascii') ? 'https://日本語.jp/画像.jpg' : null],
 	['HTTPS://example.com/', 'HTTPS://example.com/'],
 	['', null],
 	[' ', null],
@@ -61,6 +66,7 @@ $cases = [
 	['example.com', null],
 	['https://', null],
 	['https://exa mple.com/', null],
+	['https://my_host.test/a.jpg', null],
 	[' https://example.com/', null],
 	["https://example.com/\n", null],
 ];

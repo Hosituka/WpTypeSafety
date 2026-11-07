@@ -56,6 +56,9 @@ final class AcfAdapter
 			number: static fn ($fieldName, $source) => is_array($source)
 				? self::numberFrom($fieldName, $source)
 				: self::number($fieldName, $source),
+			int: static fn ($fieldName, $source) => is_array($source)
+				? self::intFrom($fieldName, $source)
+				: self::int($fieldName, $source),
 			img: static fn ($fieldName, $source, $size) => is_array($source)
 				? self::imgFrom($fieldName, $source, $size)
 				: self::img($fieldName, $source, $size),
@@ -240,6 +243,16 @@ final class AcfAdapter
 	private static function numberFrom(string $key, mixed $parent): ?float
 	{
 		return self::numberValue(self::valueFrom($key, $parent));
+	}
+
+	private static function int(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?int
+	{
+		return self::intValue(self::field($fieldName, $postId));
+	}
+
+	private static function intFrom(string $key, mixed $parent): ?int
+	{
+		return self::intValue(self::valueFrom($key, $parent));
 	}
 
 	private static function img(string $fieldName, \WP_Post|PostData|int|string|null $postId = null, string|array $size = 'full'): ?ImgData
@@ -488,6 +501,33 @@ final class AcfAdapter
 	private static function numberValue(mixed $value): ?float
 	{
 		return is_numeric($value) ? (float) $value : null;
+	}
+
+	private static function intValue(mixed $value): ?int
+	{
+		if (is_int($value)) {
+			return $value;
+		}
+		if (is_float($value)) {
+			if (! is_finite($value) || floor($value) !== $value) {
+				return null;
+			}
+			$integer = (int) $value;
+			return (float) $integer === $value ? $integer : null;
+		}
+		if (! is_string($value) || preg_match('/^-?\d+$/D', $value) !== 1) {
+			return null;
+		}
+		$negative = str_starts_with($value, '-');
+		$digits = ltrim($negative ? substr($value, 1) : $value, '0');
+		$digits = $digits === '' ? '0' : $digits;
+		$limit = $negative ? ltrim((string) PHP_INT_MIN, '-') : (string) PHP_INT_MAX;
+		if (strlen($digits) > strlen($limit)
+			|| (strlen($digits) === strlen($limit) && strcmp($digits, $limit) > 0)
+		) {
+			return null;
+		}
+		return (int) (($negative ? '-' : '') . $digits);
 	}
 
 	private static function httpUrl(mixed $value): ?string
