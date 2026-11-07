@@ -1,0 +1,14 @@
+{
+	"name": "hosituka/wp-type-safety",
+	"description": "Typed accessors and data objects for WordPress and ACF.",
+	"type": "library",
+	"license": "MIT",
+	"require": {
+		"php": ">=8.2"
+	},
+	"autoload": {
+		"psr-4": {
+			"WpTypeSafety\\": "./"
+		}
+	}
+}

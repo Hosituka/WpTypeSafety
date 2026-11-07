@@ -1,0 +1,81 @@
+<?php
+
+declare(strict_types=1);
+
+// WordPress・DBに接続せず、Resolver注入とFactoryの正規化を検証する。
+if (PHP_SAPI !== 'cli') {
+	exit;
+}
+
+require_once __DIR__ . '/../Wp/Data/PostData.php';
+require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
+
+use WpTypeSafety\Wp\Data\PostData;
+use WpTypeSafety\Wp\Internal\DtoFactory;
+
+class WP_Post
+{
+	public function __construct(
+		public int $ID,
+		public int $post_author = 1,
+		public string $post_content = '',
+	) {}
+}
+
+function get_permalink(WP_Post $post): string { return '/post/' . $post->ID; }
+function get_post_datetime(WP_Post $post, string $field = 'date'): false { return false; }
+function get_the_title(WP_Post $post): string { return 'title'; }
+function get_page_template_slug(int $id): mixed
+{
+	$GLOBALS['templateCalls'][] = $id;
+	return $GLOBALS['templateValues'][$id] ?? false;
+}
+
+$checks = 0;
+$check = static function (bool $ok, string $label) use (&$checks): void {
+	if (! $ok) {
+		throw new RuntimeException($label);
+	}
+	$checks++;
+};
+
+$plain = new PostData(1, '/', 'title', '');
+$check($plain->GetTemplateSlug() === '', 'Resolver省略時は空文字');
+
+$calls = 0;
+$direct = new PostData(
+	PostId: 1,
+	Url: '/',
+	Title: 'title',
+	Content: '',
+	templateSlugResolver: static function () use (&$calls): string {
+		$calls++;
+		return 'templates/custom-service-subpage.php';
+	},
+);
+$check($calls === 0, '構築時には取得しない');
+$check($direct->GetTemplateSlug() === 'templates/custom-service-subpage.php', '直接注入とパスの維持');
+$direct->GetTemplateSlug();
+$check($calls === 2, '呼び出すたびにResolverを実行');
+
+$GLOBALS['templateCalls'] = [];
+$GLOBALS['templateValues'] = [
+	1 => 'custom-service-subpage.php',
+	2 => '',
+	3 => false,
+	4 => 'templates/example-page.php',
+	5 => 123,
+	6 => [],
+];
+foreach ($GLOBALS['templateValues'] as $id => $value) {
+	$before = count($GLOBALS['templateCalls']);
+	$data = DtoFactory::PostFromWpPost(new WP_Post($id));
+	$check(count($GLOBALS['templateCalls']) === $before, 'Factory構築時は未取得');
+	$check($data->GetTemplateSlug() === (is_string($value) ? $value : ''), 'Factoryの取得・正規化');
+	$check(end($GLOBALS['templateCalls']) === $id, '投稿IDを渡す');
+}
+$GLOBALS['templateValues'][1] = 'changed-template.php';
+$check(DtoFactory::PostFromWpPost(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
+$check(DtoFactory::PostFromWpPost(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
+
+echo "Post template slug: {$checks} checks passed.\n";
