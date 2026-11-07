@@ -5,6 +5,7 @@ namespace WpTypeSafety\Wp\Get;
 
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
+use WpTypeSafety\Wp\Data\CommentData;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\WpUserData;
@@ -19,6 +20,11 @@ final class WpDataFactory
 	public static function PostFromWpPost(\WP_Post $post): PostData
 	{
 		return DtoFactory::PostFromWpPost($post);
+	}
+
+	public static function CommentFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentData
+	{
+		return DtoFactory::CommentFromWpComment($comment, $avatarSize);
 	}
 
 	public static function TermFromWpTerm(\WP_Term $term): ?TermData

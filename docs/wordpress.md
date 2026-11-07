@@ -46,13 +46,14 @@ $currentNode = WpGetMenuNode::FindByPageId($menu, $post->ID);
 
 ## WordPressの値からデータクラスを生成する
 
-`WpDataFactory`はWordPressの値から共通データクラスを生成します。`WP_Post`・`WP_User`・`WP_Term`はオブジェクトを渡します。投稿ID・ユーザーID・タームIDからの検索は行いません。添付画像とファイルはIDを渡します。ユーザー・ターム・添付ファイルを変換できない場合は`null`です。
+`WpDataFactory`はWordPressの値から共通データクラスを生成します。`WP_Post`・`WP_Comment`・`WP_User`・`WP_Term`はオブジェクトを渡します。投稿ID・コメントID・ユーザーID・タームIDからの検索は行いません。添付画像とファイルはIDを渡します。ユーザー・ターム・添付ファイルを変換できない場合は`null`です。
 
 ```php
 <?php
 use WpTypeSafety\Wp\Get\WpDataFactory;
 
 $postData = WpDataFactory::PostFromWpPost($post);
+$commentData = WpDataFactory::CommentFromWpComment($comment);
 $userData = WpDataFactory::UserFromWpUser($user);
 $termData = WpDataFactory::TermFromWpTerm($term);
 $image = WpDataFactory::ImgFromAttachmentId($attachmentId, 'medium_large');
@@ -62,3 +63,20 @@ $file = WpDataFactory::FileFromAttachmentId($attachmentId);
 SVG添付画像は、ローカルファイルの単位なし・`px`の`width`と`height`を寸法として優先します。両方を取得できない場合は、`viewBox`から比率を取得します。SVGにはラスター画像のサイズバリエーションがないため、指定したサイズ名にかかわらず元のURLと寸法または比率を持つ`ImgData`を返します。どちらも判定できないSVGは`null`です。
 
 案件固有の派生データクラスは、案件側の生成メソッドで組み立てます。このFactoryは共通データクラスを返します。
+
+## WordPressのコメント
+
+`CommentData`は匿名コメントと登録ユーザーのコメントを同じ型で表します。`AuthorName`・`AuthorUrl`はどちらでも参照でき、`AuthorUserId`が0より大きい場合だけ`HasUser()`がtrueになります。`GetUser()`は対応する`WpUserData`を返し、匿名コメント・ユーザー取得失敗では`null`です。投稿者メールアドレスは公開プロパティに保持しません。
+
+```php
+<?php
+$commentData = WpDataFactory::CommentFromWpComment($comment);
+
+echo esc_html($commentData->AuthorName);
+$user = $commentData->GetUser();
+$avatar = $commentData->GetAvatar(64);
+```
+
+`GetPost()`・`GetParent()`・`GetChildren()`は関連する投稿・親コメント・直下の子コメントを呼び出し時に取得します。`GetChildren()`の第1引数はWordPressのコメントクエリへ渡す状態（既定値`approve`）、第2引数は並び順（既定値`ASC`）です。
+
+`Status`はWordPressの`comment_approved`を正規化し、`1`は`approved`、`0`は`unapproved`になります。`spam`・`trash`など、それ以外の値は維持します。`Type`は旧データの空文字を`comment`へ正規化します。`CreatedAt`は`comment_date`をサイトのタイムゾーンで解釈した`?DateTimeImmutable`です。欠損・不正な日時は`null`になります。

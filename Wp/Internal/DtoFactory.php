@@ -7,6 +7,7 @@ use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Internal\SvgDimensions;
 use WpTypeSafety\Core\Internal\UrlCheck;
+use WpTypeSafety\Wp\Data\CommentData;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\WpUserData;
 
@@ -14,6 +15,104 @@ use WpTypeSafety\Wp\Data\WpUserData;
 final class DtoFactory
 {
 	private function __construct() {}
+
+	public static function CommentFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentData
+	{
+		$commentId = (int) $comment->comment_ID;
+		$postId = (int) $comment->comment_post_ID;
+		$parentId = (int) $comment->comment_parent;
+		$authorUserId = (int) $comment->user_id;
+		$url = \get_comment_link($comment);
+
+		return new CommentData(
+			Id: $commentId,
+			PostId: $postId,
+			ParentId: $parentId,
+			AuthorUserId: $authorUserId,
+			AuthorName: (string) $comment->comment_author,
+			AuthorUrl: UrlCheck::IsHttpUrl($comment->comment_author_url) ? $comment->comment_author_url : '',
+			Url: is_string($url) ? $url : '',
+			Content: (string) $comment->comment_content,
+			Type: self::commentType((string) $comment->comment_type),
+			Status: self::commentStatus((string) $comment->comment_approved),
+			CreatedAt: self::commentDateTime($comment->comment_date),
+			avatarSize: $avatarSize,
+			userResolver: static function () use ($authorUserId): ?WpUserData {
+				if ($authorUserId <= 0) {
+					return null;
+				}
+				$user = \get_userdata($authorUserId);
+				return $user instanceof \WP_User ? self::UserFromWpUser($user) : null;
+			},
+			avatarResolver: static function (int $size) use ($comment): ?ImgData {
+				$url = \get_avatar_url($comment, ['size' => $size]);
+				return is_string($url) && UrlCheck::IsHttpUrl($url)
+					? new ImgData(Url: $url, Width: $size, Height: $size)
+					: null;
+			},
+			postResolver: static function () use ($postId): ?PostData {
+				$post = $postId > 0 ? \get_post($postId) : null;
+				return $post instanceof \WP_Post ? self::PostFromWpPost($post) : null;
+			},
+			parentResolver: static function () use ($parentId, $avatarSize): ?CommentData {
+				$parent = $parentId > 0 ? \get_comment($parentId) : null;
+				return $parent instanceof \WP_Comment
+					? self::CommentFromWpComment($parent, $avatarSize)
+					: null;
+			},
+			childrenResolver: static fn (string $status, string $order): array =>
+				self::commentChildren($commentId, $avatarSize, $status, $order),
+		);
+	}
+
+	private static function commentType(string $type): string
+	{
+		return $type === '' ? 'comment' : $type;
+	}
+
+	private static function commentStatus(string $status): string
+	{
+		return match ($status) {
+			'1' => 'approved',
+			'0' => 'unapproved',
+			default => $status,
+		};
+	}
+
+	private static function commentDateTime(mixed $value): ?\DateTimeImmutable
+	{
+		if (! is_string($value) || $value === '' || $value === '0000-00-00 00:00:00') {
+			return null;
+		}
+		$dateTime = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $value, \wp_timezone());
+		$errors = \DateTimeImmutable::getLastErrors();
+		if ($dateTime === false || (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+			return null;
+		}
+		return $dateTime;
+	}
+
+	/** @return list<CommentData> */
+	private static function commentChildren(int $commentId, int $avatarSize, string $status, string $order): array
+	{
+		if ($commentId <= 0) {
+			return [];
+		}
+		$comments = \get_comments([
+			'parent' => $commentId,
+			'status' => $status,
+			'orderby' => 'comment_date_gmt comment_ID',
+			'order' => $order,
+			'hierarchical' => false,
+		]);
+		$children = [];
+		foreach (is_array($comments) ? $comments : [] as $child) {
+			if ($child instanceof \WP_Comment) {
+				$children[] = self::CommentFromWpComment($child, $avatarSize);
+			}
+		}
+		return $children;
+	}
 
 	public static function PostFromWpPost(\WP_Post $post): PostData
 	{

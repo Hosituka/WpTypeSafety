@@ -123,6 +123,7 @@ WordPressの値からDataを得るにはFactoryを使います。
 use WpTypeSafety\Wp\Get\WpDataFactory;
 
 $postData = WpDataFactory::PostFromWpPost($post); // PostData
+$commentData = WpDataFactory::CommentFromWpComment($comment); // CommentData
 ```
 
 ACFフィールドは用途に対応する`AcfGet`で正規化できます。ネイティブAPIの結果だけ型確認したい場合や、テンプレートパーツの`$args`を読む場合はCoreを使えます。
