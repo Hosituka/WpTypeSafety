@@ -117,6 +117,9 @@ final class AcfAdapter
 			galleryUrl: static fn ($fieldName, $source) => self::galleryUrls(is_array($source)
 				? self::valueFrom($fieldName, $source)
 				: self::field($fieldName, $source)),
+			nested: static fn ($fieldName, $source) => is_array($source)
+				? new AcfGet(self::arrayFrom($fieldName, $source))
+				: self::nested($fieldName, $source),
 		);
 	}
 
@@ -147,6 +150,29 @@ final class AcfAdapter
 	private static function arrayFrom(string $key, mixed $parent): array
 	{
 		return self::asArray(self::valueFrom($key, $parent));
+	}
+
+	private static function nested(
+		string $fieldName,
+		\WP_Post|PostData|int|string|null $postId = null,
+	): AcfGet {
+		$values = self::arrayField($fieldName, $postId);
+		if (! function_exists('get_field_object')) {
+			return new AcfGet($values);
+		}
+
+		$field = \get_field_object($fieldName, self::postId($postId), false, true);
+		if (! is_array($field) || ($field['type'] ?? null) !== 'group') {
+			return new AcfGet($values);
+		}
+
+		$rawValues = $field['value'] ?? null;
+		$subFields = $field['sub_fields'] ?? null;
+		return new AcfNestedGet(
+			values: $values,
+			rawValues: is_array($rawValues) ? $rawValues : [],
+			subFields: is_array($subFields) ? $subFields : [],
+		);
 	}
 
 	private static function text(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): string
@@ -409,50 +435,19 @@ final class AcfAdapter
 	private static function date(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?\DateTimeImmutable
 	{
 		$value = self::rawTemporalField($fieldName, $postId, 'date_picker');
-		return self::dateTimeValue($value, 'Ymd');
+		return TemporalValue::Date($value);
 	}
 
 	private static function dateTime(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?\DateTimeImmutable
 	{
 		$value = self::rawTemporalField($fieldName, $postId, 'date_time_picker');
-		return self::dateTimeValue($value, 'Y-m-d H:i:s');
+		return TemporalValue::DateTime($value);
 	}
 
 	private static function time(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?TimeData
 	{
 		$value = self::rawTemporalField($fieldName, $postId, 'time_picker');
-		if (! is_string($value) || preg_match('/^(\d{2}):(\d{2}):(\d{2})$/', $value, $matches) !== 1) {
-			return null;
-		}
-
-		$hour = (int) $matches[1];
-		$minute = (int) $matches[2];
-		$second = (int) $matches[3];
-		if ($hour > 23 || $minute > 59 || $second > 59) {
-			return null;
-		}
-
-		return new TimeData(
-			Hour: $hour,
-			Minute: $minute,
-			Second: $second,
-		);
-	}
-
-	private static function dateTimeValue(mixed $value, string $format): ?\DateTimeImmutable
-	{
-		if (! is_string($value) || $value === '') {
-			return null;
-		}
-
-		$dateTime = \DateTimeImmutable::createFromFormat(
-			'!' . $format,
-			$value,
-			\wp_timezone(),
-		);
-		return $dateTime !== false && $dateTime->format($format) === $value
-			? $dateTime
-			: null;
+		return TemporalValue::Time($value);
 	}
 
 	private static function rawTemporalField(

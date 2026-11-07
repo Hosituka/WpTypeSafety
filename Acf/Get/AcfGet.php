@@ -25,6 +25,9 @@ class AcfGet
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): array<mixed> */
 	private static ?\Closure $array = null;
 
+	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): AcfGet */
+	private static ?\Closure $nested = null;
+
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): string */
 	private static ?\Closure $text = null;
 
@@ -187,6 +190,7 @@ class AcfGet
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<ChoiceData> $selectChoices
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?string $url
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<string> $galleryUrl
+	 * @param null|\Closure(string, \WP_Post|PostData|int|string|array|null): AcfGet $nested
 	 */
 	public static function Register(
 		\Closure $raw,
@@ -229,6 +233,7 @@ class AcfGet
 		\Closure $selectChoices,
 		\Closure $url,
 		\Closure $galleryUrl,
+		?\Closure $nested = null,
 	): void {
 		if (self::$array !== null) {
 			throw new \LogicException('AcfGet implementation is already registered.');
@@ -273,6 +278,7 @@ class AcfGet
 		self::$selectChoices = $selectChoices;
 		self::$url = $url;
 		self::$galleryUrl = $galleryUrl;
+		self::$nested = $nested;
 	}
 
 	/** 派生クラスが案件固有・拡張フィールドの変換に使用する生値を返す。 */
@@ -292,7 +298,11 @@ class AcfGet
 	/** グループ内のフィールドを取得する。未設定・配列以外は空の取得元になる。 */
 	public function Nested(string $fieldName): self
 	{
-		return new self($this->Array($fieldName));
+		if (self::$nested === null) {
+			return new self($this->Array($fieldName));
+		}
+
+		return (self::$nested)($fieldName, $this->source);
 	}
 
 	public function Text(string $fieldName): string

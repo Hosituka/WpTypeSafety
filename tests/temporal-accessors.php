@@ -33,6 +33,8 @@ function get_field(string $name, mixed $source = null): mixed
 
 require_once __DIR__ . '/../Core/Data/TimeData.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
+require_once __DIR__ . '/../Acf/Internal/TemporalValue.php';
+require_once __DIR__ . '/../Acf/Internal/AcfNestedGet.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 \WpTypeSafety\Acf\Internal\AcfAdapter::Register();
 
@@ -64,6 +66,42 @@ $GLOBALS['temporalFields'] = [
 	'invalid_date_time' => ['type' => 'date_time_picker', 'value' => '2026-11-07 25:00:00'],
 	'invalid_time' => ['type' => 'time_picker', 'value' => '24:00:00'],
 	'wrong_type' => ['type' => 'text', 'value' => '20261107'],
+	'schedule' => [
+		'type' => 'group',
+		'value' => [
+			'field_schedule_date' => '20261108',
+			'field_schedule_start' => '2026-11-08 16:30:45',
+			'field_schedule_time' => '10:15:30',
+			'field_schedule_text' => '20261108',
+			'field_schedule_details' => [
+				'field_details_date' => '20261109',
+			],
+		],
+		'formatted_value' => [
+			'event_date' => '2026年11月8日',
+			'event_start' => '2026年11月8日 16時30分',
+			'opening_time' => '10:15 am',
+			'date_text' => '20261108',
+			'details' => [
+				'event_date' => '2026年11月9日',
+			],
+		],
+		'sub_fields' => [
+			['key' => 'field_schedule_date', 'name' => 'schedule_event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+			['key' => 'field_schedule_start', 'name' => 'schedule_event_start', '_name' => 'event_start', 'type' => 'date_time_picker'],
+			['key' => 'field_schedule_time', 'name' => 'schedule_opening_time', '_name' => 'opening_time', 'type' => 'time_picker'],
+			['key' => 'field_schedule_text', 'name' => 'schedule_date_text', '_name' => 'date_text', 'type' => 'text'],
+			[
+				'key' => 'field_schedule_details',
+				'name' => 'schedule_details',
+				'_name' => 'details',
+				'type' => 'group',
+				'sub_fields' => [
+					['key' => 'field_details_date', 'name' => 'details_event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+				],
+			],
+		],
+	],
 ];
 
 $get = new AcfGet(new WP_Post(123));
@@ -89,6 +127,14 @@ $check($get->DateTime('invalid_date_time') === null, 'invalid date time');
 $check($get->Time('invalid_time') === null, 'invalid time');
 $check($get->Date('wrong_type') === null, 'field type mismatch');
 $check((new AcfGet(['event_date' => '20261107']))->Date('event_date') === null, 'array source is unsupported');
-$check((new AcfGet(['group' => ['event_date' => '20261107']]))->Nested('group')->Date('event_date') === null, 'Nested source is unsupported');
+$check((new AcfGet(['group' => ['event_date' => '20261107']]))->Nested('group')->Date('event_date') === null, 'array Nested source is unsupported');
+
+$scheduleGet = $get->Nested('schedule');
+$check($scheduleGet->Text('event_date') === '2026年11月8日', 'Nested keeps formatted values for display');
+$check($scheduleGet->Date('event_date')?->format('Y-m-d') === '2026-11-08', 'Nested Date uses raw group value');
+$check($scheduleGet->DateTime('event_start')?->format('Y-m-d H:i:s') === '2026-11-08 16:30:45', 'Nested DateTime uses raw group value');
+$check($scheduleGet->Time('opening_time')?->Format() === '10:15:30', 'Nested Time uses raw group value');
+$check($scheduleGet->Date('date_text') === null, 'Nested validates temporal field type');
+$check($scheduleGet->Nested('details')->Date('event_date')?->format('Y-m-d') === '2026-11-09', 'multiple Nested levels retain raw values');
 
 echo "Temporal accessors: {$checks} checks passed.\n";

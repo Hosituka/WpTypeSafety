@@ -82,7 +82,7 @@ $label = $firstViewGet->Text('label');
 $title = $postGet->Nested('outer')->Nested('inner')->Text('title');
 ```
 
-`Nested()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。`AcfGetUser`・`AcfGetTerm`からも使え、戻り値は子の配列を取得元に持つ`AcfGet`です。
+`Nested()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。`AcfGetUser`・`AcfGetTerm`からも使え、戻り値は`AcfGet`です。
 
 単一選択のACFユーザーフィールド・タクソノミーフィールドが参照する先のACF値を読むときは、`UserFields()`・`TermFields()`を使えます。内部では既存の`User()`・`Term()`で対象を取得し、`AcfGetUser`・`AcfGetTerm`へ渡します。未選択・型違い・取得失敗なら、空の取得元を返します。`UserFields()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。`AcfGet`・`AcfGetUser`・`AcfGetTerm`のいずれからも呼べます。
 
@@ -178,7 +178,7 @@ echo esc_html($openingTime?->Format('H:i') ?? '');
 
 専用取得口は`get_field_object()`から未整形値を取得するため、管理画面のReturn Formatを変更しても戻り値の契約は変わりません。Return Formatどおりの表示文字列が必要な場合は、従来どおり`Text()`を使用できます。
 
-現在の時間系取得口は、投稿・ID・オプションページ・ユーザー・タームなど、ACFの取得先を直接指定した場合に対応します。取得済み配列を渡した`new AcfGet($array)`と、その配列から作る`Nested()`・`Repeater()`ではフィールド定義と未整形値を復元できないため、`null`を返します。
+時間系取得口は、投稿・ID・オプションページ・ユーザー・タームなど、ACFの取得先を直接指定した場合と、そこからACFグループをたどる`Nested()`に対応します。多段の`Nested()`でも未整形値と子フィールド定義を引き継ぎます。外部の取得済み配列を渡した`new AcfGet($array)`、その配列から作る`Nested()`、`Repeater()`の各行ではフィールド定義と未整形値を復元できないため、`null`を返します。
 
 ## ラジオ・ボタングループ・チェックボックスの取得口
 
