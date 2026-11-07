@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Internal;
 
-/** @internal ローカルSVGからHTMLの寸法属性に使える比率を取得する。 */
+/** @internal ローカルSVGからHTMLの寸法属性に使える寸法または比率を取得する。 */
 final class SvgDimensions
 {
 	private const NUMBER_PATTERN = '[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?';
@@ -21,18 +21,15 @@ final class SvgDimensions
 			return null;
 		}
 		$attributes = $rootMatch[1];
-		$viewBox = self::attribute($attributes, 'viewBox');
-		if ($viewBox !== null) {
-			$dimensions = self::dimensionsFromViewBox($viewBox);
-			if ($dimensions !== null) {
-				return $dimensions;
-			}
-		}
-
 		$width = self::cssPixelLength(self::attribute($attributes, 'width'));
 		$height = self::cssPixelLength(self::attribute($attributes, 'height'));
-		return $width !== null && $height !== null
-			? self::integerPair($width, $height)
+		if ($width !== null && $height !== null) {
+			return self::pixelDimensions($width, $height);
+		}
+
+		$viewBox = self::attribute($attributes, 'viewBox');
+		return $viewBox !== null
+			? self::dimensionsFromViewBox($viewBox)
 			: null;
 	}
 
@@ -66,6 +63,15 @@ final class SvgDimensions
 		}
 		$length = (float) $match[1];
 		return is_finite($length) && $length > 0 ? $length : null;
+	}
+
+	/** @return array{0: int, 1: int} */
+	private static function pixelDimensions(float $width, float $height): array
+	{
+		return [
+			max(1, (int) round($width)),
+			max(1, (int) round($height)),
+		];
 	}
 
 	/** @return null|array{0: int, 1: int} */

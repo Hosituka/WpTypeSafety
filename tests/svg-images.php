@@ -87,6 +87,8 @@ try {
 	$addSvg(2, '<svg viewBox="0 0 24.5 10.5"></svg>');
 	$addSvg(3, '<svg width="48px" height="24px"></svg>');
 	$addSvg(4, '<svg width="100%" height="auto"></svg>');
+	$addSvg(5, '<svg width="24" height="12" viewBox="0 0 512 512"></svg>');
+	$addSvg(6, '<svg width="24.5px" height="10.5px" viewBox="0 0 100 100"></svg>');
 
 	$image = DtoFactory::ImgFromAttachmentId(1, 'thumbnail');
 	$check($image instanceof ImgData, 'SVG attachment returns ImgData');
@@ -98,8 +100,14 @@ try {
 	$check([$decimal?->Width, $decimal?->Height] === [245, 105], 'decimal viewBox ratio');
 
 	$attributes = DtoFactory::ImgFromAttachmentId(3);
-	$check([$attributes?->Width, $attributes?->Height] === [48, 24], 'width and height fallback');
+	$check([$attributes?->Width, $attributes?->Height] === [48, 24], 'width and height dimensions');
 	$check(DtoFactory::ImgFromAttachmentId(4) === null, 'SVG without usable ratio returns null');
+
+	$attributesWithViewBox = DtoFactory::ImgFromAttachmentId(5);
+	$check([$attributesWithViewBox?->Width, $attributesWithViewBox?->Height] === [24, 12], 'width and height take precedence over viewBox');
+
+	$decimalAttributes = DtoFactory::ImgFromAttachmentId(6);
+	$check([$decimalAttributes?->Width, $decimalAttributes?->Height] === [25, 11], 'decimal width and height are rounded as dimensions');
 
 	$acfImage = AcfDtoFactory::ImgFromAcf([
 		'ID' => 1,

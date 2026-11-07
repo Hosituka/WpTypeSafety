@@ -147,9 +147,9 @@ $fileUrl = $fields->FileUrl('document'); // URL返却形式のファイルは?st
 
 HTTP(S) URLの検証では、日本語ドメインを`intl`拡張のUTS #46処理で検証します。検証後も取得口が返す値は入力された元のURLです。`intl`拡張を利用できない環境では、日本語ドメインは`null`になります。日本語を含むパス・クエリ・フラグメントは`intl`の有無にかかわらず検証できます。相対URLとHTTP(S)以外のスキームは対象外です。
 
-SVG添付画像は、ローカルファイルのルート`svg`要素にある`viewBox`の幅・高さを、HTMLの`width`・`height`属性へ使える比率として`ImgData`へ保持します。`viewBox`がない場合は、単位なしまたは`px`の`width`・`height`属性を使用します。どちらからも比率を取得できないSVGは`null`です。外部URLのSVGを取得して解析することはありません。
+SVG添付画像は、ローカルファイルのルート`svg`要素にある単位なしまたは`px`の`width`・`height`属性を寸法として優先し、HTMLの同名属性へ使える整数として`ImgData`へ保持します。両方を取得できない場合は、`viewBox`の幅・高さを比率として使用します。どちらからも寸法または比率を取得できないSVGは`null`です。外部URLのSVGを取得して解析することはありません。
 
-SVGにはWordPressのラスター画像サイズがないため、`Img()`へ`thumbnail`等のサイズを指定しても元のSVG URLと比率を返します。`ImgUrl()`はURLだけを返す取得口なので、レイアウトシフト対策に必要な比率は提供しません。
+SVGにはWordPressのラスター画像サイズがないため、`Img()`へ`thumbnail`等のサイズを指定しても元のSVG URLと寸法または比率を返します。`ImgUrl()`はURLだけを返す取得口なので、レイアウトシフト対策に必要な寸法や比率は提供しません。
 
 ファイルURL専用の入口として`AcfGet->FileUrl()`、`AcfGetUser->FileUrl()`、`AcfGetTerm->FileUrl()`があります。URL返却形式のファイルは`FileData`に詰めず、IDとファイルサイズを取得できる場合だけ`FileData`として返します。URLが未設定・不正なら`null`です。
 
