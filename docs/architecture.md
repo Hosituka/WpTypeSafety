@@ -4,7 +4,7 @@
 
 `Wp/Get/WpDataFactory.php`は通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`と`TermAdapter`へ処理を委譲します。
 
-起動処理は領域別の入口へ分かれています。`autoload.php`はPSR-4登録だけ、`Core/entry.php`はAutoloader、`Wp/entry.php`はCoreとWp Adapter、`Acf/entry.php`はWpとAcf Adapterを準備します。最上位`entry.php`は`Acf/entry.php`を読む全機能用の入口です。上位入口が下位入口を`require_once`するため、入口を段階的に読み込んでも登録は一度だけ実行されます。
+起動処理は領域別の入口へ分かれています。`autoload.php`はPSR-4登録、`Core/entry.php`はAutoloader、`Wp/entry.php`はCore、`Acf/entry.php`はWpを準備します。最上位`entry.php`は`Acf/entry.php`を読む全機能用の入口です。上位入口が下位入口を`require_once`するため、呼び出し側で依存順を管理する必要はありません。
 
 ```text
 entry.php
@@ -14,7 +14,7 @@ entry.php
                  └─ autoload.php
 ```
 
-公開Get系は登録済みの取得関数を呼びます。Wpは`Wp/entry.php`、ACFは`Acf/entry.php`が各Internalの`Register()`を呼んで登録します。登録前の呼び出しと二重登録は`LogicException`になります。`AcfGet`は各公開メソッドに対応する関数を個別登録します。`AcfGetUser`・`AcfGetTerm`はACFの参照先IDを組み立てる関数を登録し、コンストラクターで`AcfGet`を一度生成して保持します。
+公開Get系は対応するAdapterへ直接委譲し、staticなClosure登録や登録順への依存を持ちません。`AcfGet`は`AcfAdapter`をインスタンスに1個保持し、`Nested()`・`Repeater()`・`Flexible()`が作る子取得口にも同じAdapterを引き継ぎます。`AcfGetUser`・`AcfGetTerm`も同じAdapterでACFの参照先IDを組み立てます。Wpのstatic取得口は、対応するInternal Adapterのstaticメソッドへ直接委譲します。
 
 `Wp/Internal/DtoFactory.php`はWordPressの値をWp固有またはCore共通のDTOへ変換し、必要なResolverをDTOへ渡します。`Acf/Internal/AcfDtoFactory.php`はACFの戻り値をDTOへ変換します。ターム階層は`TermAdapter`、メニューツリーは`MenuAdapter`、ACF値の正規化は`AcfAdapter`が担当します。依存方向は`Acf → Wp → Core`および`Acf → Core`です。CoreはWp・Acfを参照しません。
 

@@ -43,13 +43,12 @@ foreach ([AcfBlockData::class, AcfGet::class, AcfAdapter::class, AcfDtoFactory::
 	}
 }
 
-$register = new ReflectionMethod(AcfGet::class, 'Register');
-$docComment = $register->getDocComment();
-$Check(is_string($docComment), 'AcfGet::Register has a docblock');
-foreach ($register->getParameters() as $parameter) {
-	$pattern = '/@param[^\r\n]*\$' . preg_quote($parameter->name, '/') . '(?:\s|$)/';
-	$Check(is_string($docComment) && preg_match($pattern, $docComment) === 1, 'Register $' . $parameter->name . ' docblock');
-}
+$Check(!method_exists(AcfGet::class, 'Register'), 'AcfGet does not require static registration');
+$Check(!method_exists(AcfAdapter::class, 'Register'), 'AcfAdapter does not require static registration');
+$constructor = new ReflectionMethod(AcfGet::class, '__construct');
+$adapterParameter = $constructor->getParameters()[1] ?? null;
+$Check($adapterParameter?->getName() === 'adapter', 'AcfGet accepts an adapter');
+$Check($adapterParameter?->isOptional() === true, 'AcfGet adapter is optional');
 
 $block = new AcfBlockData(Name: 'test', Id: 'test-id', Classes: ['is-style-without-img']);
 $Check($block->HasClass('is-style-without-img'), 'HasClass preserves exact matching');

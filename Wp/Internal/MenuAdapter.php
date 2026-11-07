@@ -5,7 +5,6 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Wp\Data\MenuItemType;
 use WpTypeSafety\Wp\Data\MenuNodeData;
-use WpTypeSafety\Wp\Get\WpGetMenuNode;
 
 /** @internal */
 final class MenuAdapter
@@ -15,13 +14,8 @@ final class MenuAdapter
 
 	private function __construct() {}
 
-	public static function Register(): void
-	{
-		WpGetMenuNode::Register(self::treeFromLocation(...), self::findByPageId(...));
-	}
-
 	/** @return list<MenuNodeData> */
-	private static function treeFromLocation(string $location): array
+	public static function TreeFromLocation(string $location): array
 	{
 		if (array_key_exists($location, self::$treeCache)) {
 			return self::$treeCache[$location];
@@ -38,7 +32,7 @@ final class MenuAdapter
 	/**
 	 * @param list<MenuNodeData> $nodes
 	 */
-	private static function findByPageId(array $nodes, int $pageId): ?MenuNodeData
+	public static function FindByPageId(array $nodes, int $pageId): ?MenuNodeData
 	{
 		if ($pageId <= 0) {
 			return null;
@@ -50,7 +44,7 @@ final class MenuAdapter
 			if ($node->Type === MenuItemType::PostType && $node->Object === 'page' && $node->ObjectId === $pageId) {
 				return $node;
 			}
-			$found = self::findByPageId($node->Children, $pageId);
+			$found = self::FindByPageId($node->Children, $pageId);
 			if ($found !== null) {
 				return $found;
 			}

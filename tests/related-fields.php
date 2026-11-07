@@ -6,8 +6,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Acf\Get\AcfGetTerm;
-use WpTypeSafety\Acf\Get\AcfGetUser;
+use WpTypeSafety\Acf\Internal\AcfAdapter;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\WpUserData;
@@ -18,12 +17,119 @@ require_once __DIR__ . '/../Wp/Data/PostData.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
 require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
 require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
+require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 
 final class ProjectAcfGet extends AcfGet
 {
 	public function RawValue(string $fieldName): mixed
 	{
 		return $this->raw($fieldName);
+	}
+}
+
+final class ProjectAcfAdapter extends AcfAdapter
+{
+	/** @param array<string, array<string, mixed>> $values */
+	public function __construct(
+		private array $values,
+		private \Closure $avatarSizeRecorder,
+	) {}
+
+	public function GetRaw(string $fieldName, \WP_Post|PostData|int|string|array|null $source): mixed
+	{
+		$fields = is_array($source) ? $source : ($this->values[(string) $source] ?? []);
+		return $fields[$fieldName] ?? null;
+	}
+
+	/** @return array<mixed> */
+	public function GetArray(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		$value = $this->GetRaw($fieldName, $source);
+		return is_array($value) ? $value : [];
+	}
+
+	/** @return array{values: array<mixed>, rawValues: null, subFields: null} */
+	public function GetNested(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return [
+			'values' => $this->GetArray($fieldName, $source),
+			'rawValues' => null,
+			'subFields' => null,
+		];
+	}
+
+	public function GetText(string $fieldName, \WP_Post|PostData|int|string|array|null $source): string
+	{
+		$value = $this->GetRaw($fieldName, $source);
+		return is_string($value) ? $value : '';
+	}
+
+	/** @return list<PostData> */
+	public function GetPosts(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		$result = [];
+		foreach ($this->GetArray($fieldName, $source) as $id) {
+			if (is_int($id) && $id > 0) {
+				$result[] = new PostData(PostId: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: '');
+			}
+		}
+		return $result;
+	}
+
+	public function GetTerm(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?TermData
+	{
+		$id = $this->GetRaw($fieldName, $source);
+		return is_int($id) && $id > 0
+			? new TermData($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id)
+			: null;
+	}
+
+	/** @return list<TermData> */
+	public function GetTerms(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		$result = [];
+		foreach ($this->GetArray($fieldName, $source) as $id) {
+			if (is_int($id) && $id > 0) {
+				$result[] = new TermData($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id);
+			}
+		}
+		return $result;
+	}
+
+	public function GetUser(
+		string $fieldName,
+		\WP_Post|PostData|int|string|array|null $source,
+		int $avatarSize,
+	): ?WpUserData {
+		($this->avatarSizeRecorder)($avatarSize);
+		$id = $this->GetRaw($fieldName, $source);
+		return is_int($id) && $id > 0 ? new WpUserData($id, 'User ' . $id) : null;
+	}
+
+	/** @return list<WpUserData> */
+	public function GetUsers(
+		string $fieldName,
+		\WP_Post|PostData|int|string|array|null $source,
+		int $avatarSize,
+	): array {
+		($this->avatarSizeRecorder)($avatarSize);
+		$result = [];
+		foreach ($this->GetArray($fieldName, $source) as $id) {
+			if (is_int($id) && $id > 0) {
+				$result[] = new WpUserData($id, 'User ' . $id);
+			}
+		}
+		return $result;
+	}
+
+	public function UserPostId(\WP_User|WpUserData $user): string
+	{
+		return 'user_' . ($user instanceof WpUserData ? $user->Id : $user->ID);
+	}
+
+	public function TermPostId(\WP_Term|TermData $term): string
+	{
+		return 'term_' . ($term instanceof TermData ? $term->Id : $term->term_id);
 	}
 }
 
@@ -41,102 +147,13 @@ $values = [
 	'term_5' => ['label' => 'Blue', 'author' => 7, 'parent' => 6],
 	'term_6' => ['label' => 'Parent'],
 ];
-$read = static function (string $name, mixed $source) use (&$values): mixed {
-	$fields = is_array($source) ? $source : ($values[$source] ?? []);
-	return $fields[$name] ?? null;
-};
-$unused = static fn (): mixed => null;
 $avatarSizes = [];
-AcfGet::Register(
-	raw: $read,
-	array: static fn (string $name, mixed $source): array => is_array($read($name, $source)) ? $read($name, $source) : [],
-	text: static fn (string $name, mixed $source): string => is_string($read($name, $source)) ? $read($name, $source) : '',
-	post: $unused,
-	posts: static function (string $name, mixed $source) use ($read): array {
-		$ids = $read($name, $source);
-		if (!is_array($ids)) {
-			return [];
-		}
-		$result = [];
-		foreach ($ids as $id) {
-			if (is_int($id) && $id > 0) {
-				$result[] = new PostData(PostId: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: '');
-			}
-		}
-		return $result;
-	},
-	term: static function (string $name, mixed $source) use ($read): ?TermData {
-		$id = $read($name, $source);
-		return is_int($id) && $id > 0
-			? new TermData($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id)
-			: null;
-	},
-	terms: static function (string $name, mixed $source) use ($read): array {
-		$ids = $read($name, $source);
-		if (!is_array($ids)) {
-			return [];
-		}
-		$result = [];
-		foreach ($ids as $id) {
-			if (is_int($id) && $id > 0) {
-				$result[] = new TermData($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id);
-			}
-		}
-		return $result;
-	},
-	user: static function (string $name, mixed $source, int $avatarSize) use ($read, &$avatarSizes): ?WpUserData {
+$adapter = new ProjectAcfAdapter(
+	values: $values,
+	avatarSizeRecorder: static function (int $avatarSize) use (&$avatarSizes): void {
 		$avatarSizes[] = $avatarSize;
-		$id = $read($name, $source);
-		return is_int($id) && $id > 0 ? new WpUserData($id, 'User ' . $id) : null;
 	},
-	users: static function (string $name, mixed $source, int $avatarSize) use ($read, &$avatarSizes): array {
-		$avatarSizes[] = $avatarSize;
-		$ids = $read($name, $source);
-		if (!is_array($ids)) {
-			return [];
-		}
-		$result = [];
-		foreach ($ids as $id) {
-			if (is_int($id) && $id > 0) {
-				$result[] = new WpUserData($id, 'User ' . $id);
-			}
-		}
-		return $result;
-	},
-	link: $unused,
-	number: $unused,
-	int: $unused,
-	img: $unused,
-	imgUrl: $unused,
-	file: $unused,
-	fileUrl: $unused,
-	gallery: $unused,
-	repeater: $unused,
-	flexible: $unused,
-	checkbox: $unused,
-	radio: $unused,
-	buttonGroup: $unused,
-	bool: $unused,
-	date: $unused,
-	dateTime: $unused,
-	time: $unused,
-	radioValue: $unused,
-	radioLabel: $unused,
-	buttonGroupValue: $unused,
-	buttonGroupLabel: $unused,
-	checkboxValues: $unused,
-	checkboxLabels: $unused,
-	select: $unused,
-	selectValue: $unused,
-	selectLabel: $unused,
-	selectValues: $unused,
-	selectLabels: $unused,
-	selectChoices: $unused,
-	url: $unused,
-	galleryUrl: $unused,
 );
-AcfGetUser::RegisterIdResolver(static fn (WpUserData $user): string => 'user_' . $user->Id);
-AcfGetTerm::RegisterIdResolver(static fn (TermData $term): string => 'term_' . $term->Id);
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -145,8 +162,8 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	}
 	$checks++;
 };
-$post = new AcfGet('post');
-$check((new ProjectAcfGet('post'))->RawValue('author') === 7, 'subclass accesses raw field value');
+$post = new AcfGet('post', $adapter);
+$check((new ProjectAcfGet('post', $adapter))->RawValue('author') === 7, 'subclass accesses raw field value');
 $check($post->UserFields('author')->Text('label') === 'Alice', 'post to user fields');
 $check($post->TermFields('category')->Text('label') === 'Blue', 'post to term fields');
 $check($post->Nested('group')->UserFields('author')->Text('label') === 'Alice', 'group to user fields');
@@ -158,8 +175,8 @@ $check($post->TermFields('category')->TermFields('parent')->Text('label') === 'P
 $check($post->UserFields('missing')->Text('label') === '', 'missing user has empty fields');
 $check($post->TermFields('missing')->Text('label') === '', 'missing term has empty fields');
 $check($post->UserFields('multiple_users')->Text('label') === '', 'multiple users are not treated as one');
-$check((new AcfGet([]))->UserFields('missing')->Text('label') === '', 'array source missing user');
-$check((new AcfGet([]))->TermFields('missing')->Text('label') === '', 'array source missing term');
+$check((new AcfGet([], $adapter))->UserFields('missing')->Text('label') === '', 'array source missing user');
+$check((new AcfGet([], $adapter))->TermFields('missing')->Text('label') === '', 'array source missing term');
 $check(array_map(static fn (PostData $item): int => $item->PostId, $post->Posts('multiple_posts')) === [3, 4], 'multiple posts');
 $check(array_map(static fn (TermData $item): int => $item->Id, $post->Terms('multiple_terms')) === [5, 6], 'multiple terms');
 $check(array_map(static fn (WpUserData $item): int => $item->Id, $post->Users('multiple_users', 160)) === [7, 8], 'multiple users');

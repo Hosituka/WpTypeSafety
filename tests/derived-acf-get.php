@@ -49,7 +49,6 @@ final class ProjectAcfGet extends AcfGet
 	}
 }
 
-\WpTypeSafety\Acf\Internal\AcfAdapter::Register();
 
 $GLOBALS['derivedFields'] = [
 	'settings' => [

@@ -26,9 +26,6 @@ require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
 require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 
-\WpTypeSafety\Acf\Internal\AcfAdapter::Register();
-AcfGetTerm::RegisterIdResolver(static fn ($term): string => 'term_' . $term->term_id);
-AcfGetUser::RegisterIdResolver(static fn ($user): string => 'user_' . $user->ID);
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {

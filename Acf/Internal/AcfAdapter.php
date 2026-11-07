@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Acf\Internal;
 
-use WpTypeSafety\Acf\Data\FlexibleNode;
-use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Core\Data\ChoiceData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
@@ -15,119 +13,275 @@ use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Core\Internal\UrlCheck;
 
-/** @internal */
-final class AcfAdapter
+/** ACFの値取得とWpTypeSafetyの型への変換を担当するAdapter。 */
+class AcfAdapter
 {
-	private function __construct() {}
-
-	public static function Register(): void
+	public function GetRaw(string $fieldName, \WP_Post|PostData|int|string|array|null $source): mixed
 	{
-		AcfGet::Register(
-			raw: static fn ($fieldName, $source) => is_array($source)
-				? self::valueFrom($fieldName, $source)
-				: self::field($fieldName, $source),
-			array: static fn ($fieldName, $source) => is_array($source)
-				? self::arrayFrom($fieldName, $source)
-				: self::arrayField($fieldName, $source),
-			text: static fn ($fieldName, $source) => is_array($source)
-				? self::textFrom($fieldName, $source)
-				: self::text($fieldName, $source),
-			post: static fn ($fieldName, $source) => is_array($source)
-				? self::postFrom($fieldName, $source)
-				: self::post($fieldName, $source),
-			posts: static fn ($fieldName, $source) => is_array($source)
-				? self::postsFrom($fieldName, $source)
-				: self::posts($fieldName, $source),
-			term: static fn ($fieldName, $source) => is_array($source)
-				? self::termFrom($fieldName, $source)
-				: self::term($fieldName, $source),
-			terms: static fn ($fieldName, $source) => is_array($source)
-				? self::termsFrom($fieldName, $source)
-				: self::terms($fieldName, $source),
-			user: static fn ($fieldName, $source, $avatarSize) => is_array($source)
-				? self::userFrom($fieldName, $source, $avatarSize)
-				: self::user($fieldName, $source, $avatarSize),
-			users: static fn ($fieldName, $source, $avatarSize) => is_array($source)
-				? self::usersFrom($fieldName, $source, $avatarSize)
-				: self::users($fieldName, $source, $avatarSize),
-			link: static fn ($fieldName, $source) => is_array($source)
-				? self::linkFrom($fieldName, $source)
-				: self::link($fieldName, $source),
-			number: static fn ($fieldName, $source) => is_array($source)
-				? self::numberFrom($fieldName, $source)
-				: self::number($fieldName, $source),
-			int: static fn ($fieldName, $source) => is_array($source)
-				? self::intFrom($fieldName, $source)
-				: self::int($fieldName, $source),
-			img: static fn ($fieldName, $source, $size) => is_array($source)
-				? self::imgFrom($fieldName, $source, $size)
-				: self::img($fieldName, $source, $size),
-			imgUrl: static fn ($fieldName, $source) => is_array($source)
-				? self::imgUrlFrom($fieldName, $source)
-				: self::imgUrl($fieldName, $source),
-			file: static fn ($fieldName, $source) => is_array($source)
-				? self::fileFrom($fieldName, $source)
-				: self::file($fieldName, $source),
-			fileUrl: static fn ($fieldName, $source) => is_array($source)
-				? self::fileUrlFrom($fieldName, $source)
-				: self::fileUrl($fieldName, $source),
-			gallery: static fn ($fieldName, $source, $size) => is_array($source)
-				? self::galleryFrom($fieldName, $source, $size)
-				: self::gallery($fieldName, $source, $size),
-			repeater: static fn ($fieldName, $source) => is_array($source)
-				? self::repeaterFrom($fieldName, $source)
-				: self::repeater($fieldName, $source),
-			flexible: static fn ($fieldName, $source) => is_array($source)
-				? self::flexibleFrom($fieldName, $source)
-				: self::flexible($fieldName, $source),
-			checkbox: static fn ($fieldName, $source) => is_array($source)
-				? self::checkboxFrom($fieldName, $source)
-				: self::checkbox($fieldName, $source),
-			radio: static fn ($fieldName, $source) => is_array($source)
-				? self::radioFrom($fieldName, $source)
-				: self::radio($fieldName, $source),
-			buttonGroup: static fn ($fieldName, $source) => self::buttonGroup($fieldName, $source),
-			bool: static fn ($fieldName, $source) => is_array($source)
-				? self::boolFrom($fieldName, $source)
-				: self::bool($fieldName, $source),
-			date: static fn ($fieldName, $source) => is_array($source)
-				? null
-				: self::date($fieldName, $source),
-			dateTime: static fn ($fieldName, $source) => is_array($source)
-				? null
-				: self::dateTime($fieldName, $source),
-			time: static fn ($fieldName, $source) => is_array($source)
-				? null
-				: self::time($fieldName, $source),
-			radioValue: static fn ($fieldName, $source) => self::radioText($fieldName, $source, 'value'),
-			radioLabel: static fn ($fieldName, $source) => self::radioText($fieldName, $source, 'label'),
-			buttonGroupValue: static fn ($fieldName, $source) => self::buttonGroupText($fieldName, $source, 'value'),
-			buttonGroupLabel: static fn ($fieldName, $source) => self::buttonGroupText($fieldName, $source, 'label'),
-			checkboxValues: static fn ($fieldName, $source) => self::checkboxTexts($fieldName, $source, 'value'),
-			checkboxLabels: static fn ($fieldName, $source) => self::checkboxTexts($fieldName, $source, 'label'),
-			select: static fn ($fieldName, $source) => self::selectChoice($fieldName, $source),
-			selectValue: static fn ($fieldName, $source) => self::selectText($fieldName, $source, 'value'),
-			selectLabel: static fn ($fieldName, $source) => self::selectText($fieldName, $source, 'label'),
-			selectValues: static fn ($fieldName, $source) => self::selectTexts($fieldName, $source, 'value'),
-			selectLabels: static fn ($fieldName, $source) => self::selectTexts($fieldName, $source, 'label'),
-			selectChoices: static fn ($fieldName, $source) => self::selectChoices($fieldName, $source),
-			url: static fn ($fieldName, $source) => self::httpUrl(is_array($source)
-				? self::valueFrom($fieldName, $source)
-				: self::field($fieldName, $source)),
-			galleryUrl: static fn ($fieldName, $source) => self::galleryUrls(is_array($source)
-				? self::valueFrom($fieldName, $source)
-				: self::field($fieldName, $source)),
-			nested: static fn ($fieldName, $source) => is_array($source)
-				? [
-					'values' => self::arrayFrom($fieldName, $source),
-					'rawValues' => null,
-					'subFields' => null,
-				]
-				: self::nested($fieldName, $source),
-			dateFromRaw: static fn ($value) => TemporalValue::Date($value),
-			dateTimeFromRaw: static fn ($value) => TemporalValue::DateTime($value),
-			timeFromRaw: static fn ($value) => TemporalValue::Time($value),
-		);
+		return is_array($source)
+			? self::valueFrom($fieldName, $source)
+			: self::field($fieldName, $source);
+	}
+
+	/** @return array<mixed> */
+	public function GetArray(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return is_array($source)
+			? self::arrayFrom($fieldName, $source)
+			: self::arrayField($fieldName, $source);
+	}
+
+	/** @return array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>} */
+	public function GetNested(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return is_array($source)
+			? ['values' => self::arrayFrom($fieldName, $source), 'rawValues' => null, 'subFields' => null]
+			: self::nested($fieldName, $source);
+	}
+
+	public function GetText(string $fieldName, \WP_Post|PostData|int|string|array|null $source): string
+	{
+		return is_array($source) ? self::textFrom($fieldName, $source) : self::text($fieldName, $source);
+	}
+
+	public function GetPost(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?PostData
+	{
+		return is_array($source) ? self::postFrom($fieldName, $source) : self::post($fieldName, $source);
+	}
+
+	/** @return list<PostData> */
+	public function GetPosts(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return is_array($source) ? self::postsFrom($fieldName, $source) : self::posts($fieldName, $source);
+	}
+
+	public function GetTerm(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?TermData
+	{
+		return is_array($source) ? self::termFrom($fieldName, $source) : self::term($fieldName, $source);
+	}
+
+	/** @return list<TermData> */
+	public function GetTerms(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return is_array($source) ? self::termsFrom($fieldName, $source) : self::terms($fieldName, $source);
+	}
+
+	public function GetUser(string $fieldName, \WP_Post|PostData|int|string|array|null $source, int $avatarSize): ?WpUserData
+	{
+		return is_array($source)
+			? self::userFrom($fieldName, $source, $avatarSize)
+			: self::user($fieldName, $source, $avatarSize);
+	}
+
+	/** @return list<WpUserData> */
+	public function GetUsers(string $fieldName, \WP_Post|PostData|int|string|array|null $source, int $avatarSize): array
+	{
+		return is_array($source)
+			? self::usersFrom($fieldName, $source, $avatarSize)
+			: self::users($fieldName, $source, $avatarSize);
+	}
+
+	public function GetLink(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?LinkData
+	{
+		return is_array($source) ? self::linkFrom($fieldName, $source) : self::link($fieldName, $source);
+	}
+
+	public function GetNumber(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?float
+	{
+		return is_array($source) ? self::numberFrom($fieldName, $source) : self::number($fieldName, $source);
+	}
+
+	public function GetInt(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?int
+	{
+		return is_array($source) ? self::intFrom($fieldName, $source) : self::int($fieldName, $source);
+	}
+
+	public function GetImg(string $fieldName, \WP_Post|PostData|int|string|array|null $source, string|array $size): ?ImgData
+	{
+		return is_array($source) ? self::imgFrom($fieldName, $source, $size) : self::img($fieldName, $source, $size);
+	}
+
+	public function GetImgUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return is_array($source) ? self::imgUrlFrom($fieldName, $source) : self::imgUrl($fieldName, $source);
+	}
+
+	public function GetFile(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?FileData
+	{
+		return is_array($source) ? self::fileFrom($fieldName, $source) : self::file($fieldName, $source);
+	}
+
+	public function GetFileUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return is_array($source) ? self::fileUrlFrom($fieldName, $source) : self::fileUrl($fieldName, $source);
+	}
+
+	/** @return list<ImgData> */
+	public function GetGallery(string $fieldName, \WP_Post|PostData|int|string|array|null $source, string|array $size): array
+	{
+		return is_array($source)
+			? self::galleryFrom($fieldName, $source, $size)
+			: self::gallery($fieldName, $source, $size);
+	}
+
+	/** @return list<string> */
+	public function GetGalleryUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return self::galleryUrls($this->GetRaw($fieldName, $source));
+	}
+
+	/** @return list<array<mixed>> */
+	public function GetRepeater(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return self::rows($this->GetRaw($fieldName, $source));
+	}
+
+	/** @return list<array{layout: string, values: array<mixed>}> */
+	public function GetFlexible(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		$nodes = [];
+		foreach (self::rows($this->GetRaw($fieldName, $source)) as $row) {
+			$layout = self::textValue($row['acf_fc_layout'] ?? null);
+			if ($layout === '')
+			{continue;}
+
+			$nodes[] = ['layout' => $layout, 'values' => $row];
+		}
+		return $nodes;
+	}
+
+	/** @return list<ChoiceData> */
+	public function GetCheckbox(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return is_array($source) ? self::checkboxFrom($fieldName, $source) : self::checkbox($fieldName, $source);
+	}
+
+	public function GetRadio(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?ChoiceData
+	{
+		return is_array($source) ? self::radioFrom($fieldName, $source) : self::radio($fieldName, $source);
+	}
+
+	public function GetButtonGroup(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?ChoiceData
+	{
+		return self::buttonGroup($fieldName, $source);
+	}
+
+	public function GetBool(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?bool
+	{
+		return is_array($source) ? self::boolFrom($fieldName, $source) : self::bool($fieldName, $source);
+	}
+
+	public function GetDate(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?\DateTimeImmutable
+	{
+		return is_array($source) ? null : self::date($fieldName, $source);
+	}
+
+	public function GetDateTime(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?\DateTimeImmutable
+	{
+		return is_array($source) ? null : self::dateTime($fieldName, $source);
+	}
+
+	public function GetTime(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?TimeData
+	{
+		return is_array($source) ? null : self::time($fieldName, $source);
+	}
+
+	public function ConvertDate(mixed $value): ?\DateTimeImmutable
+	{
+		return TemporalValue::Date($value);
+	}
+
+	public function ConvertDateTime(mixed $value): ?\DateTimeImmutable
+	{
+		return TemporalValue::DateTime($value);
+	}
+
+	public function ConvertTime(mixed $value): ?TimeData
+	{
+		return TemporalValue::Time($value);
+	}
+
+	public function GetRadioValue(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return self::radioText($fieldName, $source, 'value');
+	}
+
+	public function GetRadioLabel(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return self::radioText($fieldName, $source, 'label');
+	}
+
+	public function GetButtonGroupValue(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return self::buttonGroupText($fieldName, $source, 'value');
+	}
+
+	public function GetButtonGroupLabel(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return self::buttonGroupText($fieldName, $source, 'label');
+	}
+
+	/** @return list<string> */
+	public function GetCheckboxValues(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return self::checkboxTexts($fieldName, $source, 'value');
+	}
+
+	/** @return list<string> */
+	public function GetCheckboxLabels(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return self::checkboxTexts($fieldName, $source, 'label');
+	}
+
+	public function GetSelect(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?ChoiceData
+	{
+		return self::selectChoice($fieldName, $source);
+	}
+
+	public function GetSelectValue(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return self::selectText($fieldName, $source, 'value');
+	}
+
+	public function GetSelectLabel(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return self::selectText($fieldName, $source, 'label');
+	}
+
+	/** @return list<string> */
+	public function GetSelectValues(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return self::selectTexts($fieldName, $source, 'value');
+	}
+
+	/** @return list<string> */
+	public function GetSelectLabels(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return self::selectTexts($fieldName, $source, 'label');
+	}
+
+	/** @return list<ChoiceData> */
+	public function GetSelectChoices(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return self::selectChoices($fieldName, $source);
+	}
+
+	public function GetUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return self::httpUrl($this->GetRaw($fieldName, $source));
+	}
+
+	public function UserPostId(\WP_User|WpUserData $user): string
+	{
+		$id = $user instanceof WpUserData ? $user->Id : (int) $user->ID;
+		return 'user_' . $id;
+	}
+
+	public function TermPostId(\WP_Term|TermData $term): string
+	{
+		$id = $term instanceof TermData ? $term->Id : (int) $term->term_id;
+		$taxonomy = $term instanceof TermData ? $term->Taxonomy : (string) ($term->taxonomy ?? '');
+		return ($taxonomy !== '' ? $taxonomy : 'term') . '_' . $id;
 	}
 
 	/** @return list<string> */
@@ -341,20 +495,8 @@ final class AcfAdapter
 		return self::galleryValue(self::valueFrom($key, $parent), $size);
 	}
 
-	/** @return list<AcfGet> */
-	private static function repeater(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): array
-	{
-		return self::rowGets(self::field($fieldName, $postId));
-	}
-
-	/** @return list<AcfGet> */
-	private static function repeaterFrom(string $key, mixed $parent): array
-	{
-		return self::rowGets(self::valueFrom($key, $parent));
-	}
-
-	/** @return list<AcfGet> */
-	private static function rowGets(mixed $value): array
+	/** @return list<array<mixed>> */
+	private static function rows(mixed $value): array
 	{
 		if (! is_array($value))
 		{return [];}
@@ -362,40 +504,10 @@ final class AcfAdapter
 		$rows = [];
 		foreach ($value as $row) {
 			if (is_array($row)) {
-				$rows[] = new AcfGet($row);
+				$rows[] = $row;
 			}
 		}
 		return $rows;
-	}
-
-	/** @return list<FlexibleNode> */
-	private static function flexible(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): array
-	{
-		return self::flexibleNodes(self::field($fieldName, $postId));
-	}
-
-	/** @return list<FlexibleNode> */
-	private static function flexibleFrom(string $key, mixed $parent): array
-	{
-		return self::flexibleNodes(self::valueFrom($key, $parent));
-	}
-
-	/** @return list<FlexibleNode> */
-	private static function flexibleNodes(mixed $value): array
-	{
-		$nodes = [];
-		foreach (self::rowGets($value) as $rowGet) {
-			$layout = $rowGet->Text('acf_fc_layout');
-			if ($layout === '')
-			{continue;}
-
-			$nodes[] = new FlexibleNode(
-				Layout: $layout,
-				Get: $rowGet,
-			);
-		}
-
-		return $nodes;
 	}
 
 	/** @return list<ChoiceData> */

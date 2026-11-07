@@ -9,8 +9,6 @@ if (PHP_SAPI !== 'cli') {
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Acf\Get\AcfGetTerm;
 use WpTypeSafety\Acf\Get\AcfGetUser;
-use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\WpUserData;
 
 class WP_Term {
 	public function __construct(public int $term_id, public string $taxonomy = 'area') {}
@@ -39,7 +37,6 @@ require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
 require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
 require_once __DIR__ . '/../Acf/Internal/AcfDtoFactory.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
-require_once __DIR__ . '/../Acf/Internal/SubjectAdapter.php';
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -49,28 +46,9 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-// nullの構築は対象IDのResolverが未登録でも可能。
+// nullの構築は空の取得元、対象ありはAdapterから参照先IDを生成する。
 $termEmpty = new AcfGetTerm(null);
 $userEmpty = new AcfGetUser(null);
-foreach ([static fn () => new AcfGetTerm(new WP_Term(7)), static fn () => new AcfGetUser(new WP_User(8))] as $create) {
-	try {
-		$create();
-		throw new RuntimeException('Non-null subject accepted without resolver');
-	} catch (LogicException) {
-		$check(true, 'non-null still requires registration');
-	}
-}
-\WpTypeSafety\Acf\Internal\AcfAdapter::Register();
-$termResolverCalls = 0;
-$userResolverCalls = 0;
-AcfGetTerm::RegisterIdResolver(static function ($term) use (&$termResolverCalls): string {
-	$termResolverCalls++;
-	return $term instanceof TermData ? $term->Taxonomy . '_' . $term->Id : $term->taxonomy . '_' . $term->term_id;
-});
-AcfGetUser::RegisterIdResolver(static function ($user) use (&$userResolverCalls): string {
-	$userResolverCalls++;
-	return 'user_' . ($user instanceof WpUserData ? $user->Id : $user->ID);
-});
 $expected = [
 	'Text' => '', 'Array' => [], 'Repeater' => [], 'Gallery' => [],
 	'Checkbox' => [], 'CheckboxValues' => [], 'CheckboxLabels' => [],
@@ -89,13 +67,11 @@ foreach ([$termEmpty, $userEmpty, new AcfGetTerm(null), new AcfGetUser(null)] as
 		$check($get->Nested('missing')->Nested('nested')->$method('missing') === $value, $method . ' nested empty value');
 	}
 }
-$check($termResolverCalls === 0 && $userResolverCalls === 0, 'null skips ID resolvers');
 $check($GLOBALS['fieldCalls'] === [] && $GLOBALS['fieldObjectCalls'] === [], 'null never reads ACF/current post');
 $term = new AcfGetTerm(new WP_Term(7));
 $user = new AcfGetUser(new WP_User(8));
 $check($term->Text('text') === 'target text', 'normal term unchanged');
 $check($user->Text('text') === 'target text', 'normal user unchanged');
 $check($GLOBALS['fieldCalls'] === [['text', 'area_7'], ['text', 'user_8']], 'subject source unchanged');
-$check($termResolverCalls === 1 && $userResolverCalls === 1, 'normal subjects resolve once');
 $check((new AcfGet(null))->Text('text') === 'current post sentinel', 'AcfGet(null) keeps current-post semantics');
 echo "Nullable subjects: {$checks} checks passed\n";

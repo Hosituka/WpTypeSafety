@@ -262,12 +262,12 @@ if ($url !== null) {
 `AcfGetTerm`・`AcfGetUser`は明示的な`null`を受け取れます。
 `AcfGetTerm`・`AcfGetUser`は`AcfGet`を継承しています。
 `new AcfGetTerm(null)`・`new AcfGetUser(null)`は空配列を親の取得元として使い、
-対象IDのResolverやACFの取得関数を呼ばず、既存の取得口ごとの空値を返します。
+対象IDの組み立てやACFの取得関数を呼ばず、既存の取得口ごとの空値を返します。
 `Text()`は空文字、`Array()`・`Repeater()`・複数選択は空配列、
 画像・URL・単一選択などは`null`です。`Nested()`も空の取得元を引き継ぎます。
 現在の投稿へのフォールバックは行いません。
-有効なターム・ユーザーを渡した場合の取得先や登録必須の契約は変わりません。
-フィールド取得時には従来どおりACF用エントリの初期登録が必要です。
+有効なターム・ユーザーを渡すと、保持しているAdapterが参照先IDを組み立てます。
+Get系のstaticな初期登録は不要です。
 `new AcfGet(null)`は従来どおり現在の投稿を参照し、この変更の対象外です。
 検証は`php tests/nullable-subjects.php`で実行できます。
 
@@ -293,7 +293,7 @@ $price = $postGet->Price('price');
 `raw()`は未検証の生値を返すため、派生クラスの公開メソッドで型確認・正規化してから返してください。
 利用側テンプレートから直接呼ぶことはできません。
 
-`Nested()`・`Repeater()`・`FlexibleNode::Get`が生成する子取得口は、呼び出し元の派生型とコンストラクターで注入された依存を引き継ぎます。内部では`protected createChild()`が現在の取得口を複製し、取得元だけを子配列へ差し替えます。通常は派生クラス側で子生成処理を書く必要はありません。複製時に追加の初期化が必要な派生型だけ、`createChild()`をオーバーライドしてください。
+`Nested()`・`Repeater()`・`FlexibleNode::Get`が生成する子取得口は、呼び出し元の派生型とコンストラクターで注入された依存・Adapterを引き継ぎます。内部では`protected createChild()`が現在の取得口を複製し、取得元だけを子配列へ差し替えます。通常は派生クラス側で子生成処理を書く必要はありません。複製時に追加の初期化が必要な派生型だけ、`createChild()`をオーバーライドしてください。
 
 ```php
 <?php
@@ -394,4 +394,4 @@ Factoryは、プレビューなら基本クラスと生成時のClassesを結合
 
 独自に直接生成する場合は、`wrapperAttributesResolver: static fn (string $className): string => ...`のように描画処理を渡せます。処理は属性取得時に毎回呼ばれ、コンストラクターでは実行しません。独自Resolverもエスケープ済みの属性文字列を返す責務を持ちます。ACFフィールドの取得・その他のHTML描画は引き続きテンプレート側に残します。
 
-旧`new AcfBlockData($block, isPreview: ...)`は、`AcfDataFactory::BlockFromAcf($block, isPreview: ...)`へ置き換えてください。この実装方針はルートの`AGENTS.md`に固定しています。Get系APIの既存の静的登録は別の仕組みとして維持します。
+旧`new AcfBlockData($block, isPreview: ...)`は、`AcfDataFactory::BlockFromAcf($block, isPreview: ...)`へ置き換えてください。この実装方針はルートの`AGENTS.md`に固定しています。Get系APIもstaticなClosure登録を必要としません。

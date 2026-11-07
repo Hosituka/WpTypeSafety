@@ -5,25 +5,14 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Get\WpGetTerm;
 
 /** @internal WordPressのタームをCoreのTermDataへ変換する。 */
 final class TermAdapter
 {
 	private function __construct() {}
 
-	public static function Register(): void
-	{
-		WpGetTerm::Register(
-			self::fromPost(...),
-			self::roots(...),
-			self::deepest(...),
-			self::shallowest(...),
-		);
-	}
-
 	/** @return list<TermData> */
-	private static function fromPost(\WP_Post|PostData|int $post, string $taxonomy): array
+	public static function FromPost(\WP_Post|PostData|int $post, string $taxonomy): array
 	{
 		if ($post instanceof \WP_Post) {
 			$postId = $post->ID;
@@ -54,7 +43,7 @@ final class TermAdapter
 	 * @param list<TermData> $terms
 	 * @return list<TermData>
 	 */
-	private static function roots(array $terms): array
+	public static function Roots(array $terms): array
 	{
 		$roots = [];
 		foreach ($terms as $term) {
@@ -83,7 +72,7 @@ final class TermAdapter
 	 * @param list<TermData> $terms
 	 * @return list<TermData>
 	 */
-	private static function deepest(array $terms): array
+	public static function Deepest(array $terms): array
 	{
 		$selected = [];
 		$deepestLevel = -1;
@@ -106,7 +95,7 @@ final class TermAdapter
 	 * @param list<TermData> $terms
 	 * @return list<TermData>
 	 */
-	private static function shallowest(array $terms): array
+	public static function Shallowest(array $terms): array
 	{
 		$selected = [];
 		$shallowestLevel = null;

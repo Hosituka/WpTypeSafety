@@ -19,13 +19,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-$check(WpGet::CurrentPageNumber() === 3, 'Wp API is registered');
-
-try {
-	(new AcfGet())->Text('title');
-	throw new RuntimeException('Acf must not be registered by Wp entry.');
-} catch (LogicException $exception) {
-	$checks++;
-}
+$check(WpGet::CurrentPageNumber() === 3, 'Wp API works without registration');
+$check((new AcfGet(['title' => 'Example']))->Text('title') === 'Example', 'Acf API works without registration');
 
 echo "Wp entry: {$checks} checks passed.\n";

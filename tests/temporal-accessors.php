@@ -35,7 +35,6 @@ require_once __DIR__ . '/../Core/Data/TimeData.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
 require_once __DIR__ . '/../Acf/Internal/TemporalValue.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
-\WpTypeSafety\Acf\Internal\AcfAdapter::Register();
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
