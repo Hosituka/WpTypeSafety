@@ -130,22 +130,65 @@ class AcfAdapter
 		return self::galleryUrls($this->GetRaw($fieldName, $source));
 	}
 
-	/** @return list<array<mixed>> */
+	/** @return list<array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
 	public function GetRepeater(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
 	{
-		return self::rows($this->GetRaw($fieldName, $source));
+		$values = $this->GetRaw($fieldName, $source);
+		if (is_array($source) || ! function_exists('get_field_object'))
+		{return $this->ConvertRepeater($values);}
+
+		$field = \get_field_object($fieldName, self::postId($source), false, true);
+		if (! is_array($field) || ($field['type'] ?? null) !== 'repeater')
+		{return $this->ConvertRepeater($values);}
+
+		return $this->ConvertRepeater(
+			values: $values,
+			rawValues: $field['value'] ?? null,
+			subFields: $field['sub_fields'] ?? null,
+		);
 	}
 
-	/** @return list<array{layout: string, values: array<mixed>}> */
+	/** @return list<array{layout: string, values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
 	public function GetFlexible(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
 	{
+		$values = $this->GetRaw($fieldName, $source);
+		if (is_array($source) || ! function_exists('get_field_object'))
+		{return $this->ConvertFlexible($values);}
+
+		$field = \get_field_object($fieldName, self::postId($source), false, true);
+		if (! is_array($field) || ($field['type'] ?? null) !== 'flexible_content')
+		{return $this->ConvertFlexible($values);}
+
+		return $this->ConvertFlexible(
+			values: $values,
+			rawValues: $field['value'] ?? null,
+			layouts: $field['layouts'] ?? null,
+		);
+	}
+
+	/** @return list<array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
+	public function ConvertRepeater(mixed $values, mixed $rawValues = null, mixed $subFields = null): array
+	{
+		return self::rowContexts($values, $rawValues, $subFields);
+	}
+
+	/** @return list<array{layout: string, values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
+	public function ConvertFlexible(mixed $values, mixed $rawValues = null, mixed $layouts = null): array
+	{
 		$nodes = [];
-		foreach (self::rows($this->GetRaw($fieldName, $source)) as $row) {
-			$layout = self::textValue($row['acf_fc_layout'] ?? null);
+		$contextFields = is_array($layouts) ? [] : null;
+		foreach (self::rowContexts($values, $rawValues, $contextFields) as $row) {
+			$layout = self::textValue($row['values']['acf_fc_layout'] ?? null);
 			if ($layout === '')
 			{continue;}
 
-			$nodes[] = ['layout' => $layout, 'values' => $row];
+			$subFields = self::layoutSubFields($layouts, $layout);
+			$nodes[] = [
+				'layout' => $layout,
+				'values' => $row['values'],
+				'rawValues' => $subFields === null ? null : ($row['rawValues'] ?? []),
+				'subFields' => $subFields,
+			];
 		}
 		return $nodes;
 	}
@@ -495,19 +538,42 @@ class AcfAdapter
 		return self::galleryValue(self::valueFrom($key, $parent), $size);
 	}
 
-	/** @return list<array<mixed>> */
-	private static function rows(mixed $value): array
+	/** @return list<array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
+	private static function rowContexts(mixed $values, mixed $rawValues = null, mixed $subFields = null): array
 	{
-		if (! is_array($value))
+		if (! is_array($values))
 		{return [];}
 
+		$hasContext = is_array($subFields);
+		$rawRows = is_array($rawValues) ? $rawValues : [];
 		$rows = [];
-		foreach ($value as $row) {
-			if (is_array($row)) {
-				$rows[] = $row;
-			}
+		foreach ($values as $key => $row) {
+			if (! is_array($row))
+			{continue;}
+
+			$rawRow = $rawRows[$key] ?? null;
+			$rows[] = [
+				'values' => $row,
+				'rawValues' => $hasContext ? (is_array($rawRow) ? $rawRow : []) : null,
+				'subFields' => $hasContext ? $subFields : null,
+			];
 		}
 		return $rows;
+	}
+
+	/** @return null|array<mixed> */
+	private static function layoutSubFields(mixed $layouts, string $layoutName): ?array
+	{
+		if (! is_array($layouts))
+		{return null;}
+		foreach ($layouts as $layout) {
+			if (! is_array($layout) || self::textValue($layout['name'] ?? null) !== $layoutName)
+			{continue;}
+
+			$subFields = $layout['sub_fields'] ?? null;
+			return is_array($subFields) ? $subFields : [];
+		}
+		return null;
 	}
 
 	/** @return list<ChoiceData> */

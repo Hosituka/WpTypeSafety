@@ -64,13 +64,32 @@ $GLOBALS['derivedFields'] = [
 		],
 	],
 	'rows' => [
+		'type' => 'repeater',
+		'value' => [
+			['field_row_date' => '20261111'],
+		],
 		'formatted_value' => [
-			['title' => 'Row'],
+			['title' => 'Row', 'event_date' => '2026年11月11日'],
+		],
+		'sub_fields' => [
+			['key' => 'field_row_date', 'name' => 'event_date', '_name' => 'event_date', 'type' => 'date_picker'],
 		],
 	],
 	'contents' => [
+		'type' => 'flexible_content',
+		'value' => [
+			['acf_fc_layout' => 'text', 'field_flexible_date' => '20261112'],
+		],
 		'formatted_value' => [
-			['acf_fc_layout' => 'text', 'title' => 'Flexible'],
+			['acf_fc_layout' => 'text', 'title' => 'Flexible', 'event_date' => '2026年11月12日'],
+		],
+		'layouts' => [
+			[
+				'name' => 'text',
+				'sub_fields' => [
+					['key' => 'field_flexible_date', 'name' => 'event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+				],
+			],
 		],
 	],
 ];
@@ -94,11 +113,13 @@ $rows = $get->Repeater('rows');
 $check(($rows[0] ?? null) instanceof ProjectAcfGet, 'Repeater preserves derived type');
 $check($rows[0]->Dependency() === 'injected dependency', 'Repeater preserves injected dependency');
 $check($rows[0]->Text('title') === 'Row', 'Repeater child reads row');
+$check($rows[0]->Date('event_date')?->format('Y-m-d') === '2026-11-11', 'Repeater preserves temporal context');
 
 $nodes = $get->Flexible('contents');
 $check(($nodes[0] ?? null) instanceof FlexibleNode, 'Flexible returns node');
 $check($nodes[0]->Get instanceof ProjectAcfGet, 'Flexible Get preserves derived type');
 $check($nodes[0]->Get->Dependency() === 'injected dependency', 'Flexible preserves injected dependency');
 $check($nodes[0]->Get->Text('title') === 'Flexible', 'Flexible child reads row');
+$check($nodes[0]->Get->Date('event_date')?->format('Y-m-d') === '2026-11-12', 'Flexible preserves temporal context');
 
 echo "Derived AcfGet: {$checks} checks passed.\n";

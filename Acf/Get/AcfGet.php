@@ -192,8 +192,15 @@ class AcfGet
 	public function Repeater(string $fieldName): array
 	{
 		$rows = [];
-		foreach ($this->adapter->GetRepeater($fieldName, $this->source) as $row) {
-			$rows[] = $this->createChild($row);
+		$data = $this->hasNestedContext
+			? $this->repeaterData($fieldName)
+			: $this->adapter->GetRepeater($fieldName, $this->source);
+		foreach ($data as $row) {
+			$rows[] = $this->createChild(
+				source: $row['values'],
+				rawValues: $row['rawValues'],
+				subFields: $row['subFields'],
+			);
 		}
 		return $rows;
 	}
@@ -202,10 +209,17 @@ class AcfGet
 	public function Flexible(string $fieldName): array
 	{
 		$nodes = [];
-		foreach ($this->adapter->GetFlexible($fieldName, $this->source) as $node) {
+		$data = $this->hasNestedContext
+			? $this->flexibleData($fieldName)
+			: $this->adapter->GetFlexible($fieldName, $this->source);
+		foreach ($data as $node) {
 			$nodes[] = new FlexibleNode(
 				Layout: $node['layout'],
-				Get: $this->createChild($node['values']),
+				Get: $this->createChild(
+					source: $node['values'],
+					rawValues: $node['rawValues'],
+					subFields: $node['subFields'],
+				),
 			);
 		}
 		return $nodes;
@@ -346,6 +360,36 @@ class AcfGet
 			'rawValues' => is_array($rawValues) ? $rawValues : [],
 			'subFields' => is_array($subFields) ? $subFields : [],
 		];
+	}
+
+	/** @return list<array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
+	private function repeaterData(string $fieldName): array
+	{
+		$values = $this->Array($fieldName);
+		$field = $this->nestedField($fieldName);
+		if ($field === null || ($field['type'] ?? null) !== 'repeater')
+		{return $this->adapter->ConvertRepeater($values);}
+
+		return $this->adapter->ConvertRepeater(
+			values: $values,
+			rawValues: $this->nestedRawValue($field),
+			subFields: $field['sub_fields'] ?? null,
+		);
+	}
+
+	/** @return list<array{layout: string, values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
+	private function flexibleData(string $fieldName): array
+	{
+		$values = $this->Array($fieldName);
+		$field = $this->nestedField($fieldName);
+		if ($field === null || ($field['type'] ?? null) !== 'flexible_content')
+		{return $this->adapter->ConvertFlexible($values);}
+
+		return $this->adapter->ConvertFlexible(
+			values: $values,
+			rawValues: $this->nestedRawValue($field),
+			layouts: $field['layouts'] ?? null,
+		);
 	}
 
 	/** @return null|array<mixed> */

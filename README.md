@@ -39,7 +39,7 @@ $title = $postGet
 
 `Nested()` returns an accessor backed by an empty source even when the requested group is missing or is not an array. You can therefore traverse the full chain without adding `isset()` or `is_array()` branches at every level.
 
-When a group is reached from an ACF subject such as a post, the unformatted values and child field definitions are carried into the nested accessor. This allows `Date()`, `DateTime()`, and `Time()` to work inside groups as well. When `Nested()`, `Repeater()`, or `Flexible()` is called on a custom `AcfGet` subclass, its child accessors preserve the same subclass and injected dependencies.
+When `Nested()`, `Repeater()`, or `Flexible()` is reached from an ACF subject such as a post, unformatted values and child field definitions are carried into the child accessors. This allows `Date()`, `DateTime()`, and `Time()` to work inside groups, repeater rows, and flexible-content layouts, including nested combinations. When these methods are called on a custom `AcfGet` subclass, their child accessors preserve the same subclass and injected dependencies.
 
 Repeater rows are also returned as `AcfGet` instances from the beginning. Nested groups and repeaters inside each row can be read in the same way.
 

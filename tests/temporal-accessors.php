@@ -6,6 +6,7 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+use WpTypeSafety\Acf\Data\FlexibleNode;
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Core\Data\TimeData;
 
@@ -32,6 +33,7 @@ function get_field(string $name, mixed $source = null): mixed
 }
 
 require_once __DIR__ . '/../Core/Data/TimeData.php';
+require_once __DIR__ . '/../Acf/Data/FlexibleNode.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
 require_once __DIR__ . '/../Acf/Internal/TemporalValue.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
@@ -74,6 +76,12 @@ $GLOBALS['temporalFields'] = [
 			'field_schedule_details' => [
 				'field_details_date' => '20261109',
 			],
+			'field_schedule_events' => [
+				['field_schedule_event_date' => '20261112'],
+			],
+			'field_schedule_blocks' => [
+				['acf_fc_layout' => 'event', 'field_schedule_block_date' => '20261113'],
+			],
 		],
 		'formatted_value' => [
 			'event_date' => '2026年11月8日',
@@ -82,6 +90,12 @@ $GLOBALS['temporalFields'] = [
 			'date_text' => '20261108',
 			'details' => [
 				'event_date' => '2026年11月9日',
+			],
+			'events' => [
+				['event_date' => '2026年11月12日'],
+			],
+			'blocks' => [
+				['acf_fc_layout' => 'event', 'event_date' => '2026年11月13日'],
 			],
 		],
 		'sub_fields' => [
@@ -96,6 +110,83 @@ $GLOBALS['temporalFields'] = [
 				'type' => 'group',
 				'sub_fields' => [
 					['key' => 'field_details_date', 'name' => 'details_event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+				],
+			],
+			[
+				'key' => 'field_schedule_events',
+				'name' => 'schedule_events',
+				'_name' => 'events',
+				'type' => 'repeater',
+				'sub_fields' => [
+					['key' => 'field_schedule_event_date', 'name' => 'event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+				],
+			],
+			[
+				'key' => 'field_schedule_blocks',
+				'name' => 'schedule_blocks',
+				'_name' => 'blocks',
+				'type' => 'flexible_content',
+				'layouts' => [
+					[
+						'name' => 'event',
+						'sub_fields' => [
+							['key' => 'field_schedule_block_date', 'name' => 'event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+						],
+					],
+				],
+			],
+		],
+	],
+	'events' => [
+		'type' => 'repeater',
+		'value' => [
+			[
+				'field_event_date' => '20261110',
+				'field_event_start' => '2026-11-10 14:30:45',
+				'field_event_time' => '08:45:30',
+				'field_event_details' => [
+					'field_event_details_date' => '20261111',
+				],
+			],
+		],
+		'formatted_value' => [
+			[
+				'event_date' => '2026年11月10日',
+				'event_start' => '2026年11月10日 14時30分',
+				'opening_time' => '8:45 am',
+				'details' => [
+					'event_date' => '2026年11月11日',
+				],
+			],
+		],
+		'sub_fields' => [
+			['key' => 'field_event_date', 'name' => 'event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+			['key' => 'field_event_start', 'name' => 'event_start', '_name' => 'event_start', 'type' => 'date_time_picker'],
+			['key' => 'field_event_time', 'name' => 'opening_time', '_name' => 'opening_time', 'type' => 'time_picker'],
+			[
+				'key' => 'field_event_details',
+				'name' => 'details',
+				'_name' => 'details',
+				'type' => 'group',
+				'sub_fields' => [
+					['key' => 'field_event_details_date', 'name' => 'event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+				],
+			],
+		],
+	],
+	'content_blocks' => [
+		'type' => 'flexible_content',
+		'value' => [
+			['acf_fc_layout' => 'event', 'field_block_date' => '20261114'],
+		],
+		'formatted_value' => [
+			['acf_fc_layout' => 'event', 'event_date' => '2026年11月14日'],
+		],
+		'layouts' => [
+			[
+				'name' => 'event',
+				'sub_fields' => [
+					['key' => 'field_block_date', 'name' => 'event_date', '_name' => 'event_date', 'type' => 'date_picker'],
 				],
 			],
 		],
@@ -134,5 +225,24 @@ $check($scheduleGet->DateTime('event_start')?->format('Y-m-d H:i:s') === '2026-1
 $check($scheduleGet->Time('opening_time')?->Format() === '10:15:30', 'Nested Time uses raw group value');
 $check($scheduleGet->Date('date_text') === null, 'Nested validates temporal field type');
 $check($scheduleGet->Nested('details')->Date('event_date')?->format('Y-m-d') === '2026-11-09', 'multiple Nested levels retain raw values');
+$check($scheduleGet->Repeater('events')[0]->Date('event_date')?->format('Y-m-d') === '2026-11-12', 'Nested Repeater retains temporal context');
+$check($scheduleGet->Flexible('blocks')[0]->Get->Date('event_date')?->format('Y-m-d') === '2026-11-13', 'Nested Flexible retains temporal context');
+
+$eventGet = $get->Repeater('events')[0];
+$check($eventGet->Text('event_date') === '2026年11月10日', 'Repeater keeps formatted values for display');
+$check($eventGet->Date('event_date')?->format('Y-m-d') === '2026-11-10', 'Repeater Date uses raw row value');
+$check($eventGet->DateTime('event_start')?->format('Y-m-d H:i:s') === '2026-11-10 14:30:45', 'Repeater DateTime uses raw row value');
+$check($eventGet->Time('opening_time')?->Format() === '08:45:30', 'Repeater Time uses raw row value');
+$check($eventGet->Nested('details')->Date('event_date')?->format('Y-m-d') === '2026-11-11', 'Repeater Nested retains temporal context');
+
+$block = $get->Flexible('content_blocks')[0] ?? null;
+$check($block instanceof FlexibleNode && $block->Layout === 'event', 'Flexible keeps layout');
+$check($block?->Get->Text('event_date') === '2026年11月14日', 'Flexible keeps formatted values for display');
+$check($block?->Get->Date('event_date')?->format('Y-m-d') === '2026-11-14', 'Flexible Date uses raw row value');
+
+$arrayEventGet = (new AcfGet(['events' => $GLOBALS['temporalFields']['events']['formatted_value']]))->Repeater('events')[0];
+$check($arrayEventGet->Date('event_date') === null, 'array Repeater source remains unsupported');
+$arrayBlock = (new AcfGet(['content_blocks' => $GLOBALS['temporalFields']['content_blocks']['formatted_value']]))->Flexible('content_blocks')[0];
+$check($arrayBlock->Get->Date('event_date') === null, 'array Flexible source remains unsupported');
 
 echo "Temporal accessors: {$checks} checks passed.\n";
