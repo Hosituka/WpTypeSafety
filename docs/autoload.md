@@ -6,33 +6,23 @@ PHP 8.2以上。データクラスに`readonly class`を使用します。Compos
 
 ```php
 <?php
-require_once __DIR__ . '/WpTypeSafety/entry.php';
+require_once __DIR__ . '/WpTypeSafety/autoload.php';
 ```
 
-最上位`entry.php`は`Acf/entry.php`を読み、依存先をたどってCore・Wp・Acfを準備します。各クラスはPSR-4で必要になった時点に読み込まれます。通常は最上位`entry.php`を`require_once`すれば、全機能を使用できます。
+`autoload.php`が`WpTypeSafety\`のPSR-4設定を登録します。Core・Wp・Acfの全ファイルをその場で読み込むのではなく、クラスが参照された時点で対応するファイルだけを読み込みます。Get系はAdapterへ直接委譲するため、別途の初期登録や登録順の管理は不要です。
 
-依存関係を明示する場合は、領域別の入口を直接読み込めます。上位領域の入口は依存する下位領域を自動的に準備するため、呼び出し側で読み込み順を管理する必要はありません。
-
-| 入口 | 読み込まれる入口 |
-|---|---|
-| `autoload.php` | なし（PSR-4だけ） |
-| `Core/entry.php` | `autoload.php` |
-| `Wp/entry.php` | `Core/entry.php` |
-| `Acf/entry.php` | `Wp/entry.php` |
-| `entry.php` | `Acf/entry.php` |
-
-各入口は`require_once`で接続されています。Get系はAdapterへ直接委譲するため、別途の初期登録や登録順の管理は不要です。`Core/entry.php`はPSR-4の対応範囲そのものをCoreへ制限する入口ではありません。
+Core・Wp・Acfごとの入口は設けていません。PSR-4登録後はすべて同じAutoloaderから必要なクラスだけが解決されるため、領域別の中継ファイルを読み分けても実際の読み込み範囲は制限できないためです。
 
 公開クラスの名前空間は`WpTypeSafety\Core\Check`・`WpTypeSafety\Core\Data`などです。名前空間とディレクトリ階層を一致させ、内部処理は各領域の`Internal/`に置きます。
 
 ## テーマ側クラスの任意PSR-4読み込み
 
-いずれかの入口を読むとWpTypeSafety自身のPSR-4設定が登録されます。案件側のDataやViewなどのクラスも自動で読み込む場合は、案件側の`composer.json`を追加で`Psr4Autoload::RegisterFromComposerJson()`へ渡します。Composerコマンドや生成済み`vendor/autoload.php`は不要です。
+`autoload.php`を読むとWpTypeSafety自身のPSR-4設定が登録されます。案件側のDataやViewなどのクラスも自動で読み込む場合は、案件側の`composer.json`を追加で`Psr4Autoload::RegisterFromComposerJson()`へ渡します。Composerコマンドや生成済み`vendor/autoload.php`は不要です。
 
 ```php
 <?php
 // テーマの functions.php など、リクエストごとに一度通る場所
-require_once __DIR__ . '/WpTypeSafety/entry.php';
+require_once __DIR__ . '/WpTypeSafety/autoload.php';
 \WpTypeSafety\Autoload\Psr4Autoload::RegisterFromComposerJson(__DIR__ . '/composer.json');
 ```
 

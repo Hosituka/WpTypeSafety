@@ -4,14 +4,13 @@
 
 `Wp/Get/WpDataFactory.php`は通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`と`TermAdapter`へ処理を委譲します。
 
-起動処理は領域別の入口へ分かれています。`autoload.php`はPSR-4登録、`Core/entry.php`はAutoloader、`Wp/entry.php`はCore、`Acf/entry.php`はWpを準備します。最上位`entry.php`は`Acf/entry.php`を読む全機能用の入口です。上位入口が下位入口を`require_once`するため、呼び出し側で依存順を管理する必要はありません。
+起動処理は`autoload.php`へ集約しています。`autoload.php`が`WpTypeSafety\`のPSR-4設定を登録し、Core・Wp・Acfのクラスは参照された時点で個別に読み込まれます。領域別の中継入口や、取得処理の初期登録はありません。
 
 ```text
-entry.php
-  └─ Acf/entry.php
-       └─ Wp/entry.php
-            └─ Core/entry.php
-                 └─ autoload.php
+autoload.php
+  ├─ Autoload/Internal/ComposerJsonReader.php
+  └─ Autoload/Psr4Autoload.php
+       └─ composer.jsonのWpTypeSafety\\を登録
 ```
 
 公開Get系は対応するAdapterへ直接委譲し、staticなClosure登録や登録順への依存を持ちません。`AcfGet`は`AcfAdapter`をインスタンスに1個保持し、`Nested()`・`Repeater()`・`Flexible()`が作る子取得口にも同じAdapterを引き継ぎます。`AcfGetUser`・`AcfGetTerm`も同じAdapterでACFの参照先IDを組み立てます。Wpのstatic取得口は、対応するInternal Adapterのstaticメソッドへ直接委譲します。

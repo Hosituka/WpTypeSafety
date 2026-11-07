@@ -386,7 +386,7 @@ $blockData = new AcfBlockData(
 );
 ```
 
-Data単独での生成・プロパティ参照・クラス判定にWordPress・ACF・Internal・`entry.php`は不要です。`Classes`の要素を含む正規化済み入力の用意は、直接生成する呼び出し元の責務です。生成用・取得用処理をDataへ静的登録する方式は使いません。
+Data単独での生成・プロパティ参照・クラス判定にWordPress・ACF・Internal・`autoload.php`は不要です。`Classes`の要素を含む正規化済み入力の用意は、直接生成する呼び出し元の責務です。生成用・取得用処理をDataへ静的登録する方式は使いません。
 
 `GetWrapperAttributes(string $className = ''): string`は、コンストラクターの任意引数`wrapperAttributesResolver`（`Closure(string): string`）へ処理を委譲します。原則DataにHTML生成を持たせませんが、このラッパー属性取得のみ、注入した描画処理への委譲を例外として許可します。Data自身はWordPress関数・エスケープ処理・プレビュー分岐を持ちません。Resolver未指定でも直接構築できますが、属性取得を呼ぶと`LogicException`になります。
 

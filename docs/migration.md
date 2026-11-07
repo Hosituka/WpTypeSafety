@@ -1,5 +1,20 @@
 # 旧APIからの移行
 
+## entry.phpからautoload.phpへの移行
+
+ルートおよびCore・Wp・Acfごとの`entry.php`は廃止しました。起動時の読み込みを`autoload.php`へ変更してください。
+
+```php
+<?php
+// 変更前
+require_once __DIR__ . '/WpTypeSafety/entry.php';
+
+// 変更後
+require_once __DIR__ . '/WpTypeSafety/autoload.php';
+```
+
+`autoload.php`は`WpTypeSafety\`のPSR-4設定を登録し、参照されたクラスだけを読み込みます。領域別`entry.php`による実際の読み込み範囲の違いはなかったため、代替の領域別入口はありません。
+
 ## 旧取得口からの移行
 
 - 値形式の`Radio('field')?->Value`は`RadioValue('field')`へ変更します。

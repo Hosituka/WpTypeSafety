@@ -77,29 +77,19 @@ WpTypeSafetyは、実際のWordPress案件で継続的に利用・改善して�
 
 これは実案件での利用実績であり、対応バージョンの上限・下限を保証する互換性表ではありません。自動テストは引き続きAPIスタブを使用しているため、ほかのWordPress・ACFバージョンで利用する場合は導入先でも確認してください。
 
-リポジトリの`WpTypeSafety/`ディレクトリ全体をテーマなどの利用先に配置し、起動時に`entry.php`を一度読み込みます。次はテーマ直下に置いた例です。配置場所に合わせてパスを変更してください。
+リポジトリの`WpTypeSafety/`ディレクトリ全体をテーマなどの利用先に配置し、起動時に`autoload.php`を一度読み込みます。次はテーマ直下に置いた例です。配置場所に合わせてパスを変更してください。
 
 ```php
 <?php
 // functions.php
-require_once __DIR__ . '/WpTypeSafety/entry.php';
+require_once __DIR__ . '/WpTypeSafety/autoload.php';
 ```
 
-`entry.php`がCore・Wp・Acfのクラスと取得処理を準備します。通常の利用にComposerコマンドや`vendor/autoload.php`は不要です。通常は最上位の`entry.php`だけを読み込んでください。詳しい読み込み処理は[読み込みと任意PSR-4](docs/autoload.md)を参照してください。
-
-必要な領域だけを準備する個別入口も利用できます。
-
-| 読み込むファイル | 準備する範囲 |
-|---|---|
-| `autoload.php` | WpTypeSafety自身のPSR-4だけ |
-| `Core/entry.php` | Core |
-| `Wp/entry.php` | Core＋Wp |
-| `Acf/entry.php` | Core＋Wp＋Acf |
-| `entry.php` | 全機能。`Acf/entry.php`の便利な入口 |
+`autoload.php`が`WpTypeSafety\`のPSR-4設定を登録します。Core・Wp・Acfの各クラスは、参照された時点で対応ファイルだけが読み込まれます。通常の利用にComposerコマンドや`vendor/autoload.php`は不要です。詳しい読み込み処理は[読み込みと任意PSR-4](docs/autoload.md)を参照してください。
 
 ## クイックスタート
 
-`entry.php`を読み込み済みのテンプレートでは、次のように利用できます。
+`autoload.php`を読み込み済みのテンプレートでは、次のように利用できます。
 
 ```php
 <?php
@@ -181,7 +171,7 @@ HTMLの組み立てと出力時のエスケープは利用側で行います。�
 | WordPressの取得口とFactory | [WordPress](docs/wordpress.md) | 利用者 |
 | 型確認と配列からの取得 | [Core](docs/core.md) | 利用者 |
 | Data、Resolver、派生クラス | [Data](docs/data.md) | 利用者 |
-| `entry.php`と任意PSR-4読み込み | [Autoload](docs/autoload.md) | 利用者 |
+| `autoload.php`と任意PSR-4読み込み | [Autoload](docs/autoload.md) | 利用者 |
 | テーマ開発の補助機能 | [Support](docs/support.md) | 利用者 |
 | 入れ子のACF、派生Data、ACFブロックの実装例 | [利用例](docs/examples.md) | 利用者 |
 | 内部構造と検証手順 | [Architecture](docs/architecture.md) | 保守者 |
