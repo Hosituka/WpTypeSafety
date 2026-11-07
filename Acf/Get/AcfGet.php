@@ -17,7 +17,15 @@ use WpTypeSafety\Wp\Data\WpUserData;
 class AcfGet
 {
 	/** @var \WP_Post|PostData|int|string|array<mixed>|null */
-	private readonly \WP_Post|PostData|int|string|array|null $source;
+	private \WP_Post|PostData|int|string|array|null $source;
+
+	private bool $hasNestedContext = false;
+
+	/** @var array<mixed> */
+	private array $nestedRawValues = [];
+
+	/** @var array<mixed> */
+	private array $nestedSubFields = [];
 
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): mixed */
 	private static ?\Closure $raw = null;
@@ -25,7 +33,7 @@ class AcfGet
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): array<mixed> */
 	private static ?\Closure $array = null;
 
-	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): AcfGet */
+	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>} */
 	private static ?\Closure $nested = null;
 
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): string */
@@ -99,6 +107,15 @@ class AcfGet
 
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): ?TimeData */
 	private static ?\Closure $time = null;
+
+	/** @var null|\Closure(mixed): ?\DateTimeImmutable */
+	private static ?\Closure $dateFromRaw = null;
+
+	/** @var null|\Closure(mixed): ?\DateTimeImmutable */
+	private static ?\Closure $dateTimeFromRaw = null;
+
+	/** @var null|\Closure(mixed): ?TimeData */
+	private static ?\Closure $timeFromRaw = null;
 
 	/** @var null|\Closure(string, \WP_Post|PostData|int|string|array|null): ?string */
 	private static ?\Closure $radioValue = null;
@@ -190,7 +207,10 @@ class AcfGet
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<ChoiceData> $selectChoices
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): ?string $url
 	 * @param \Closure(string, \WP_Post|PostData|int|string|array|null): list<string> $galleryUrl
-	 * @param null|\Closure(string, \WP_Post|PostData|int|string|array|null): AcfGet $nested
+	 * @param null|\Closure(string, \WP_Post|PostData|int|string|array|null): array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>} $nested
+	 * @param null|\Closure(mixed): ?\DateTimeImmutable $dateFromRaw
+	 * @param null|\Closure(mixed): ?\DateTimeImmutable $dateTimeFromRaw
+	 * @param null|\Closure(mixed): ?TimeData $timeFromRaw
 	 */
 	public static function Register(
 		\Closure $raw,
@@ -234,6 +254,9 @@ class AcfGet
 		\Closure $url,
 		\Closure $galleryUrl,
 		?\Closure $nested = null,
+		?\Closure $dateFromRaw = null,
+		?\Closure $dateTimeFromRaw = null,
+		?\Closure $timeFromRaw = null,
 	): void {
 		if (self::$array !== null) {
 			throw new \LogicException('AcfGet implementation is already registered.');
@@ -279,6 +302,9 @@ class AcfGet
 		self::$url = $url;
 		self::$galleryUrl = $galleryUrl;
 		self::$nested = $nested;
+		self::$dateFromRaw = $dateFromRaw;
+		self::$dateTimeFromRaw = $dateTimeFromRaw;
+		self::$timeFromRaw = $timeFromRaw;
 	}
 
 	/** 派生クラスが案件固有・拡張フィールドの変換に使用する生値を返す。 */
@@ -286,6 +312,26 @@ class AcfGet
 	{
 		$resolver = self::$raw ?? throw new \LogicException('AcfGet implementation is not registered.');
 		return $resolver($fieldName, $this->source);
+	}
+
+	/**
+	 * 派生型と注入済みの依存を維持した子取得口を作る。
+	 *
+	 * @param array<mixed> $source
+	 * @param null|array<mixed> $rawValues
+	 * @param null|array<mixed> $subFields
+	 */
+	protected function createChild(
+		array $source,
+		?array $rawValues = null,
+		?array $subFields = null,
+	): static {
+		$child = clone $this;
+		$child->source = $source;
+		$child->hasNestedContext = $rawValues !== null && $subFields !== null;
+		$child->nestedRawValues = $rawValues ?? [];
+		$child->nestedSubFields = $subFields ?? [];
+		return $child;
 	}
 
 	/** @return array<mixed> */
@@ -296,13 +342,25 @@ class AcfGet
 	}
 
 	/** グループ内のフィールドを取得する。未設定・配列以外は空の取得元になる。 */
-	public function Nested(string $fieldName): self
+	public function Nested(string $fieldName): static
 	{
-		if (self::$nested === null) {
-			return new self($this->Array($fieldName));
+		if ($this->hasNestedContext) {
+			$data = $this->nestedData($fieldName);
+		} elseif (self::$nested !== null) {
+			$data = (self::$nested)($fieldName, $this->source);
+		} else {
+			$data = [
+				'values' => $this->Array($fieldName),
+				'rawValues' => null,
+				'subFields' => null,
+			];
 		}
 
-		return (self::$nested)($fieldName, $this->source);
+		return $this->createChild(
+			source: $data['values'],
+			rawValues: $data['rawValues'],
+			subFields: $data['subFields'],
+		);
 	}
 
 	public function Text(string $fieldName): string
@@ -425,18 +483,35 @@ class AcfGet
 		return $resolver($fieldName, $this->source);
 	}
 
-	/** @return list<AcfGet> */
+	/** @return list<static> */
 	public function Repeater(string $fieldName): array
 	{
 		$resolver = self::$repeater ?? throw new \LogicException('AcfGet implementation is not registered.');
-		return $resolver($fieldName, $this->source);
+		$rows = [];
+		foreach ($resolver($fieldName, $this->source) as $rowGet) {
+			if (is_array($rowGet->source)) {
+				$rows[] = $this->createChild($rowGet->source);
+			}
+		}
+		return $rows;
 	}
 
-	/** @return list<FlexibleNode> */
+	/** @return list<FlexibleNode<static>> */
 	public function Flexible(string $fieldName): array
 	{
 		$resolver = self::$flexible ?? throw new \LogicException('AcfGet implementation is not registered.');
-		return $resolver($fieldName, $this->source);
+		$nodes = [];
+		foreach ($resolver($fieldName, $this->source) as $node) {
+			if (! is_array($node->Get->source)) {
+				continue;
+			}
+
+			$nodes[] = new FlexibleNode(
+				Layout: $node->Layout,
+				Get: $this->createChild($node->Get->source),
+			);
+		}
+		return $nodes;
 	}
 
 	/** @return list<ChoiceData> */
@@ -544,6 +619,14 @@ class AcfGet
 	/** Date Pickerをサイトタイムゾーンの00:00:00として返す。 */
 	public function Date(string $fieldName): ?\DateTimeImmutable
 	{
+		if ($this->hasNestedContext) {
+			$field = $this->temporalField($fieldName, 'date_picker');
+			$resolver = self::$dateFromRaw;
+			return $field !== null && $resolver !== null
+				? $resolver($this->nestedRawValue($field))
+				: null;
+		}
+
 		$resolver = self::$date ?? throw new \LogicException('AcfGet implementation is not registered.');
 		return $resolver($fieldName, $this->source);
 	}
@@ -551,6 +634,14 @@ class AcfGet
 	/** Date Time Pickerをサイトタイムゾーンの日時として返す。 */
 	public function DateTime(string $fieldName): ?\DateTimeImmutable
 	{
+		if ($this->hasNestedContext) {
+			$field = $this->temporalField($fieldName, 'date_time_picker');
+			$resolver = self::$dateTimeFromRaw;
+			return $field !== null && $resolver !== null
+				? $resolver($this->nestedRawValue($field))
+				: null;
+		}
+
 		$resolver = self::$dateTime ?? throw new \LogicException('AcfGet implementation is not registered.');
 		return $resolver($fieldName, $this->source);
 	}
@@ -558,8 +649,72 @@ class AcfGet
 	/** Time Pickerを日付・タイムゾーンを含まない時刻として返す。 */
 	public function Time(string $fieldName): ?TimeData
 	{
+		if ($this->hasNestedContext) {
+			$field = $this->temporalField($fieldName, 'time_picker');
+			$resolver = self::$timeFromRaw;
+			return $field !== null && $resolver !== null
+				? $resolver($this->nestedRawValue($field))
+				: null;
+		}
+
 		$resolver = self::$time ?? throw new \LogicException('AcfGet implementation is not registered.');
 		return $resolver($fieldName, $this->source);
+	}
+
+	/** @return array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>} */
+	private function nestedData(string $fieldName): array
+	{
+		$values = $this->Array($fieldName);
+		$field = $this->nestedField($fieldName);
+		if ($field === null || ($field['type'] ?? null) !== 'group') {
+			return ['values' => $values, 'rawValues' => null, 'subFields' => null];
+		}
+
+		$rawValues = $this->nestedRawValue($field);
+		$subFields = $field['sub_fields'] ?? null;
+		return [
+			'values' => $values,
+			'rawValues' => is_array($rawValues) ? $rawValues : [],
+			'subFields' => is_array($subFields) ? $subFields : [],
+		];
+	}
+
+	/** @return null|array<mixed> */
+	private function temporalField(string $fieldName, string $expectedType): ?array
+	{
+		$field = $this->nestedField($fieldName);
+		return $field !== null && ($field['type'] ?? null) === $expectedType
+			? $field
+			: null;
+	}
+
+	/** @return null|array<mixed> */
+	private function nestedField(string $fieldName): ?array
+	{
+		foreach ($this->nestedSubFields as $field) {
+			if (! is_array($field)) {
+				continue;
+			}
+
+			$name = $field['_name'] ?? $field['name'] ?? null;
+			if ($name === $fieldName) {
+				return $field;
+			}
+		}
+
+		return null;
+	}
+
+	/** @param array<mixed> $field */
+	private function nestedRawValue(array $field): mixed
+	{
+		foreach ([$field['key'] ?? null, $field['_name'] ?? null, $field['name'] ?? null] as $key) {
+			if (is_string($key) && array_key_exists($key, $this->nestedRawValues)) {
+				return $this->nestedRawValues[$key];
+			}
+		}
+
+		return null;
 	}
 
 }

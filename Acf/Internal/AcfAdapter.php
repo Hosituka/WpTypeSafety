@@ -118,8 +118,15 @@ final class AcfAdapter
 				? self::valueFrom($fieldName, $source)
 				: self::field($fieldName, $source)),
 			nested: static fn ($fieldName, $source) => is_array($source)
-				? new AcfGet(self::arrayFrom($fieldName, $source))
+				? [
+					'values' => self::arrayFrom($fieldName, $source),
+					'rawValues' => null,
+					'subFields' => null,
+				]
 				: self::nested($fieldName, $source),
+			dateFromRaw: static fn ($value) => TemporalValue::Date($value),
+			dateTimeFromRaw: static fn ($value) => TemporalValue::DateTime($value),
+			timeFromRaw: static fn ($value) => TemporalValue::Time($value),
 		);
 	}
 
@@ -152,27 +159,28 @@ final class AcfAdapter
 		return self::asArray(self::valueFrom($key, $parent));
 	}
 
+	/** @return array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>} */
 	private static function nested(
 		string $fieldName,
 		\WP_Post|PostData|int|string|null $postId = null,
-	): AcfGet {
+	): array {
 		$values = self::arrayField($fieldName, $postId);
 		if (! function_exists('get_field_object')) {
-			return new AcfGet($values);
+			return ['values' => $values, 'rawValues' => null, 'subFields' => null];
 		}
 
 		$field = \get_field_object($fieldName, self::postId($postId), false, true);
 		if (! is_array($field) || ($field['type'] ?? null) !== 'group') {
-			return new AcfGet($values);
+			return ['values' => $values, 'rawValues' => null, 'subFields' => null];
 		}
 
 		$rawValues = $field['value'] ?? null;
 		$subFields = $field['sub_fields'] ?? null;
-		return new AcfNestedGet(
-			values: $values,
-			rawValues: is_array($rawValues) ? $rawValues : [],
-			subFields: is_array($subFields) ? $subFields : [],
-		);
+		return [
+			'values' => $values,
+			'rawValues' => is_array($rawValues) ? $rawValues : [],
+			'subFields' => is_array($subFields) ? $subFields : [],
+		];
 	}
 
 	private static function text(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): string

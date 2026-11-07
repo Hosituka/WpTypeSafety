@@ -293,9 +293,17 @@ $price = $postGet->Price('price');
 `raw()`は未検証の生値を返すため、派生クラスの公開メソッドで型確認・正規化してから返してください。
 利用側テンプレートから直接呼ぶことはできません。
 
-現状、`Nested()`・`Repeater()`・`FlexibleNode::Get`が生成する取得口は基底の`AcfGet`です。
-派生クラス独自のアクセサーはネスト先へ自動的には引き継がれません。
-ネストした独自フィールドへ同じ変換を適用する場合は、派生クラス側で用途に合う取得メソッドを用意してください。
+`Nested()`・`Repeater()`・`FlexibleNode::Get`が生成する子取得口は、呼び出し元の派生型とコンストラクターで注入された依存を引き継ぎます。内部では`protected createChild()`が現在の取得口を複製し、取得元だけを子配列へ差し替えます。通常は派生クラス側で子生成処理を書く必要はありません。複製時に追加の初期化が必要な派生型だけ、`createChild()`をオーバーライドしてください。
+
+```php
+<?php
+$projectGet = new ProjectAcfGet($postId);
+$groupGet = $projectGet->Nested('settings'); // ProjectAcfGet
+
+foreach ($projectGet->Repeater('items') as $rowGet) {
+	$price = $rowGet->Price('price'); // 派生クラスのメソッドを利用可能
+}
+```
 
 ## 生配列の取得
 
@@ -303,12 +311,12 @@ $price = $postGet->Price('price');
 グループ・リピーターなど、取得値が配列なら加工せず返し、未設定・配列以外は`[]`です。
 返り値は`array<mixed>`で、キー・要素の型は保証しません。
 各フィールドを型付きで読む場合は`Nested()`を使います。
-`Repeater()`は`list<AcfGet>`を返します。生の行配列が必要な場合は`Array()`を使います。
+`Repeater()`は基底型から呼ぶと`list<AcfGet>`、派生型から呼ぶと同じ派生型のリストを返します。生の行配列が必要な場合は`Array()`を使います。
 検証は`php tests/array-accessors.php`で実行できます。
 
 ## リピーター行の取得
 
-`Repeater('items')`は`list<AcfGet>`を返します。
+`Repeater('items')`は呼び出し元と同じ`AcfGet`派生型のリストを返します。
 `AcfGet`・`AcfGetUser`・`AcfGetTerm`で共通です。
 未入力・配列以外の取得値は`[]`、配列以外の行は除外し、
 残った行を入力順の連番リストにします。空の行配列は空の`AcfGet`として保持します。
@@ -330,7 +338,7 @@ $rawRows = $postGet->Array('items'); // 生配列が必要な場合
 
 ## フレキシブルコンテンツの取得
 
-`Flexible('contents')`は`list<FlexibleNode>`を返します。`FlexibleNode`は、ACFが各行の`acf_fc_layout`へ保存するレイアウト名を`Layout`、同じ行の取得口を`Get`として保持します。`AcfGet`・`AcfGetUser`・`AcfGetTerm`で共通です。
+`Flexible('contents')`は`list<FlexibleNode>`を返します。`FlexibleNode`は、ACFが各行の`acf_fc_layout`へ保存するレイアウト名を`Layout`、同じ行の取得口を`Get`として保持します。`Get`は呼び出し元と同じ`AcfGet`派生型です。`AcfGet`・`AcfGetUser`・`AcfGetTerm`で共通です。
 
 ```php
 <?php
@@ -343,7 +351,7 @@ foreach ($postGet->Flexible('contents') as $node) {
 }
 ```
 
-内部では`Repeater()`と同じ行配列の正規化を利用します。`acf_fc_layout`が未入力・空文字・文字列以外の行は除外します。`Get`は取得済み行配列を保持する`AcfGet`であり、行内のフィールドを`Text()`・`Img()`・`Nested()`・`Repeater()`・`Flexible()`などで取得できます。
+内部では`Repeater()`と同じ行配列の正規化を利用します。`acf_fc_layout`が未入力・空文字・文字列以外の行は除外します。`Get`は取得済み行配列を保持する取得口であり、行内のフィールドを`Text()`・`Img()`・`Nested()`・`Repeater()`・`Flexible()`などで取得できます。
 
 `FlexibleNode`はreadonlyですが、利用側から`new FlexibleNode(Layout: ..., Get: ...)`で直接構築できます。検証は`php tests/flexible-content.php`で実行できます。
 
