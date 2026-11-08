@@ -99,6 +99,11 @@ final class ArrayGet
 		return new self($this->value($key));
 	}
 
+	public function NestedObject(string $key): ObjectGet
+	{
+		return new ObjectGet($this->value($key));
+	}
+
 	/** @return list<self> */
 	public function NestedArray(string $key): array
 	{

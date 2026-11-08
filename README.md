@@ -65,7 +65,7 @@ From simple fields to deeply nested structures, you can follow the shape of ACF 
 - `Native(): mixed` as an explicit escape hatch that returns the normal ACF value without WpTypeSafety conversion for unsupported or custom field types.
 - `PostData` retains the post status, post type, slug, password-protection state, and WordPress public-viewability result without exposing the password itself.
 - Incremental adoption alongside existing WordPress and ACF APIs. Data objects can also be constructed directly with `new`.
-- Core type checks and array accessors that do not depend on WordPress or ACF.
+- Core type checks and accessors for arrays and public object properties that do not depend on WordPress or ACF.
 - Installation without Composer commands or a `vendor` directory. Optional PSR-4 registration is available for project-specific Data and View classes.
 
 ## Installation and loading
@@ -147,18 +147,21 @@ ACF fields can be normalized with the accessor matching their purpose. Use Core 
 <?php
 use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Acf\Get\AcfGet;
+use WpTypeSafety\Core\Check\ObjectGet;
 use WpTypeSafety\Core\Check\TypeCheck;
 
 $postGet = new AcfGet($post);
 $argsGet = new ArrayGet($args);
+$resultGet = new ObjectGet($resultObject);
 
 $count = $postGet->Int('count');                                  // ?int
 $postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
 $title = $argsGet->String('title');                                // string
 $items = $argsGet->NestedArray('items');                           // list<ArrayGet>
+$status = $resultGet->String('status');                            // string
 ```
 
-`AcfGet::Int()` normalizes integers, integer-valued floats, and integer-formatted numeric strings into `int`. `TypeCheck` performs no conversion and returns a value only when the input already has the requested PHP type. `ArrayGet::String()` returns an empty string for a type mismatch or missing key, while `NestedArray()` wraps each array item as a `list<ArrayGet>`. Passing `get_fields($postId)` to `ArrayGet` provides a lightweight chain over ACF's formatted Group and Repeater values without additional conversion. See [Core type checks and array access](docs/core.md) and [Examples](docs/examples.md) for details. An empty string alone cannot distinguish an intentionally empty value from a failed lookup.
+`AcfGet::Int()` normalizes integers, integer-valued floats, and integer-formatted numeric strings into `int`. `TypeCheck` performs no conversion and returns a value only when the input already has the requested PHP type. `ArrayGet` reads array keys, while `ObjectGet` reads public instance properties with the same fallback rules. `ObjectGet` reads the current value from the same object on every accessor call and ignores private, protected, static, uninitialized, and magic-only properties. See [Core type checks and array/object access](docs/core.md) and [Examples](docs/examples.md) for details. An empty string alone cannot distinguish an intentionally empty value from a failed lookup.
 
 ## Choosing an entry point
 
@@ -169,6 +172,7 @@ $items = $argsGet->NestedArray('items');                           // list<Array
 | Convert ACF block information into Data objects | `AcfDataFactory` |
 | Check the type of a standalone value | `TypeCheck` |
 | Read typed values from an array | `ArrayGet` |
+| Read typed values from public object properties | `ObjectGet` |
 
 ## Choose the level of adoption incrementally
 
@@ -176,7 +180,7 @@ WpTypeSafety does not require an existing WordPress theme to adopt a custom arch
 
 | Approach | Purpose | Main entry points |
 |---|---|---|
-| 1. Standard WordPress plus type checks | Keep the template structure while safely handling raw values and `$args` | `TypeCheck`, `ArrayGet` |
+| 1. Standard WordPress plus type checks | Keep the template structure while safely handling raw values and `$args` | `TypeCheck`, `ArrayGet`, `ObjectGet` |
 | 2. Get/Factory plus project-specific Data | Separate retrieval, validation, and conversion from templates | `AcfGet`, `WpDataFactory`, project-specific Data |
 | 3. Data plus View classes | Manage template paths through class references as well as typed Data inputs | `Psr4Autoload`, `XxxView::Render()` |
 
@@ -200,7 +204,7 @@ The detailed documentation is currently available in Japanese.
 |---|---|---|
 | ACF accessors, groups, repeaters, related objects, and blocks | [ACF](docs/acf.md) | Users |
 | WordPress accessors and Factory | [WordPress](docs/wordpress.md) | Users |
-| Type checks and array access | [Core](docs/core.md) | Users |
+| Type checks and array/object access | [Core](docs/core.md) | Users |
 | Data, Resolvers, and derived classes | [Data](docs/data.md) | Users |
 | `autoload.php` and optional PSR-4 mappings | [Autoload](docs/autoload.md) | Users |
 | Theme-development helpers | [Support](docs/support.md) | Users |

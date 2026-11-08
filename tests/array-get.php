@@ -20,6 +20,9 @@ $get = new ArrayGet([
 	'group' => [
 		'title' => 'Group',
 	],
+	'object' => (object) [
+		'title' => 'Object',
+	],
 	'items' => [
 		['title' => 'First'],
 		'invalid',
@@ -35,6 +38,8 @@ $get = new ArrayGet([
 ]);
 
 $check($get->Nested('group')->String('title') === 'Group', 'Nested reads an associative array');
+$check($get->NestedObject('object')->String('title') === 'Object', 'NestedObject reads an object value');
+$check($get->NestedObject('group')->String('title') === '', 'NestedObject returns an empty ObjectGet for a non-object value');
 
 $items = $get->NestedArray('items');
 $check(count($items) === 2, 'NestedArray filters non-array items');

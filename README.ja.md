@@ -64,7 +64,7 @@ foreach ($postGet->Repeater('sections') as $sectionGet) {
 - 未対応・独自ACFフィールド向けの明示的な拡張口`Native(): mixed`。通常のACF戻り値をWpTypeSafetyで変換せず返す。
 - `PostData`は投稿状態・投稿タイプ・スラッグ・パスワード保護の有無・WordPressの公開閲覧可否を保持し、パスワード自体は公開しない。
 - 既存のWordPress・ACF APIと併用しながら、必要な取得処理から段階的に置き換えられる。Dataは直接`new`でも生成できる。
-- WordPress・ACFに依存しないCoreの型確認と配列取得。
+- WordPress・ACFに依存しないCoreの型確認と、配列・オブジェクトのpublicプロパティからの取得。
 - Composerコマンドや`vendor`ディレクトリを必要とせず配置できる。テーマ側Data用のPSR-4読み込みは任意。
 
 ## インストールと読み込み
@@ -146,18 +146,21 @@ ACFフィールドは用途に対応する`AcfGet`で正規化できます。ネ
 <?php
 use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Acf\Get\AcfGet;
+use WpTypeSafety\Core\Check\ObjectGet;
 use WpTypeSafety\Core\Check\TypeCheck;
 
 $postGet = new AcfGet($post);
 $argsGet = new ArrayGet($args);
+$resultGet = new ObjectGet($resultObject);
 
 $count = $postGet->Int('count');                        // ?int
 $postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
 $title = $argsGet->String('title');                      // string
 $items = $argsGet->NestedArray('items');                 // list<ArrayGet>
+$status = $resultGet->String('status');                  // string
 ```
 
-`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet::String()`は型違い・キーなしで空文字を返し、`NestedArray()`は配列である各要素を`list<ArrayGet>`として返します。`new ArrayGet(get_fields($postId))`とすれば、ACF標準APIの整形済み結果をGroupやRepeaterの階層も含めてチェーンできます。詳しくは[Coreの型確認と配列取得](docs/core.md)と[利用例](docs/examples.md)を参照してください。空文字だけでは「未入力」と「取得失敗」を区別できません。
+`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet`は配列のキー、`ObjectGet`はpublicインスタンスプロパティを同じ戻り値規則で読みます。`ObjectGet`はアクセサーを呼ぶたびに同じオブジェクトの現在値を読み、private・protected・static・未初期化・マジックプロパティは対象にしません。詳しくは[Coreの型確認と配列・オブジェクト取得](docs/core.md)と[利用例](docs/examples.md)を参照してください。空文字だけでは「未入力」と「取得失敗」を区別できません。
 
 ## 入口の選び方
 
@@ -168,6 +171,7 @@ $items = $argsGet->NestedArray('items');                 // list<ArrayGet>
 | ACFブロック情報をDataへ変換する | `AcfDataFactory` |
 | 単独の値を型確認する | `TypeCheck` |
 | 配列の値を型付きで取得する | `ArrayGet` |
+| オブジェクトのpublicプロパティを型付きで取得する | `ObjectGet` |
 
 ## 構成を段階的に選べます
 
@@ -175,7 +179,7 @@ WpTypeSafetyは、既存のWordPressテーマを一度に独自構成へ変更�
 
 | 構成 | 目的 | 主な入口 |
 |---|---|---|
-| 1. WordPress標準＋型確認 | テンプレート構造を変えず、生の値と`$args`を安全に扱う | `TypeCheck`、`ArrayGet` |
+| 1. WordPress標準＋型確認 | テンプレート構造を変えず、生の値と`$args`を安全に扱う | `TypeCheck`、`ArrayGet`、`ObjectGet` |
 | 2. Get／Factory＋テーマ固有Data | 取得・確認・変換をテンプレートから分離する | `AcfGet`、`WpDataFactory`、テーマ固有Data |
 | 3. Data＋Viewクラス | Dataの入力型に加え、テンプレートパスもクラス参照で管理する | `Psr4Autoload`、`XxxView::Render()` |
 
@@ -197,7 +201,7 @@ HTMLの組み立てと出力時のエスケープは利用側で行います。�
 |---|---|---|
 | ACFの取得口、グループ、リピーター、参照先、ブロック | [ACF](docs/acf.md) | 利用者 |
 | WordPressの取得口とFactory | [WordPress](docs/wordpress.md) | 利用者 |
-| 型確認と配列からの取得 | [Core](docs/core.md) | 利用者 |
+| 型確認と配列・オブジェクトからの取得 | [Core](docs/core.md) | 利用者 |
 | Data、Resolver、派生クラス | [Data](docs/data.md) | 利用者 |
 | `autoload.php`と任意PSR-4読み込み | [Autoload](docs/autoload.md) | 利用者 |
 | テーマ開発の補助機能 | [Support](docs/support.md) | 利用者 |
