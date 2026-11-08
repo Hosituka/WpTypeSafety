@@ -168,7 +168,7 @@ $status = $resultGet->String('status');                  // string
 | やりたいこと | 主な入口 |
 |---|---|
 | ACFフィールドを型付きで取得する | `AcfGet` |
-| WordPressオブジェクトをDataへ変換する | `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory` |
+| WordPressオブジェクトをDataへ変換する | `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory` |
 | ACFブロック情報をDataへ変換する | `AcfDataFactory` |
 | 単独の値を型確認する | `TypeCheck` |
 | 配列の値を型付きで取得する | `ArrayGet` |

@@ -6,26 +6,37 @@ namespace WpTypeSafety\Wp\Data;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 
-final readonly class MenuNodeData
+readonly class MenuNodeData
 {
-	/**
-	 * @param list<MenuNodeData> $Children
-	 * @param null|\Closure(string|array): ?ImgData $thumbnailResolver
-	 */
-	public function __construct(
-		public int $Id,
-		public int $ParentId,
-		public string $Title,
-		public string $Url,
-		public string $Description,
-		public array $Classes,
-		public int $Order,
-		public MenuItemType $Type,
-		public string $Object,
-		public int $ObjectId,
-		public array $Children = [],
-		private ?\Closure $thumbnailResolver = null,
-	) {
+	public int $Id;
+	public int $ParentId;
+	public string $Title;
+	public string $Url;
+	public string $Description;
+	/** @var list<string> */
+	public array $Classes;
+	public int $Order;
+	public MenuItemType $Type;
+	public string $Object;
+	public int $ObjectId;
+	/** @var list<MenuNodeData> */
+	public array $Children;
+	private ?\Closure $thumbnailResolver;
+
+	public function __construct(MenuNodeMembers $members)
+	{
+		$this->Id = $members->Id;
+		$this->ParentId = $members->ParentId;
+		$this->Title = $members->Title;
+		$this->Url = $members->Url;
+		$this->Description = $members->Description;
+		$this->Classes = $members->Classes;
+		$this->Order = $members->Order;
+		$this->Type = $members->Type;
+		$this->Object = $members->Object;
+		$this->ObjectId = $members->ObjectId;
+		$this->Children = $members->Children;
+		$this->thumbnailResolver = $members->ThumbnailResolver;
 	}
 
 	/** @param string|array{0: int, 1: int} $size */

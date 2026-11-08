@@ -94,7 +94,7 @@ $template = $postData->GetTemplateSlug();
 
 ## 案件用サブクラスのコンストラクター
 
-継承可能なWordPress Dataには、対応する構築用Membersがあります。`PostData`には`PostMembers`、`WpUserData`には`UserMembers`、`CommentData`には`CommentMembers`、`TermData`には`TermMembers`を渡します。Membersは生成前に型付きプロパティを変更でき、Dataは受け取った時点の値をreadonlyプロパティへコピーします。
+継承可能なWordPress Dataには、対応する構築用Membersがあります。`PostData`には`PostMembers`、`WpUserData`には`UserMembers`、`CommentData`には`CommentMembers`、`TermData`には`TermMembers`、`MenuNodeData`には`MenuNodeMembers`を渡します。Membersは生成前に型付きプロパティを変更でき、Dataは受け取った時点の値をreadonlyプロパティへコピーします。
 
 この形なら、派生クラスは親の値やResolverを個別に再宣言・転送する必要がありません。値の取得は`FromWpPost()`等の生成メソッドへ分け、コンストラクターではWordPressやACFへ問い合わせません。以下のクラス名・フィールド名は説明用の例です。
 
@@ -186,7 +186,7 @@ final readonly class AuthorProfileData extends WpUserData
 }
 ```
 
-`CommentData`と`TermData`を拡張する場合も、対応する`CommentMembers`と`TermMembers`を子で受け取り、親へそのまま渡します。さらに下のサブクラスを作る場合も、同じMembersを受け渡します。上の`final`クラスをさらに継承する場合は、`final`を外し、生成メソッドの戻り値・生成先も見直してください。
+`CommentData`・`TermData`・`MenuNodeData`を拡張する場合も、対応する`CommentMembers`・`TermMembers`・`MenuNodeMembers`を子で受け取り、親へそのまま渡します。さらに下のサブクラスを作る場合も、同じMembersを受け渡します。上の`final`クラスをさらに継承する場合は、`final`を外し、生成メソッドの戻り値・生成先も見直してください。
 
 ## タームの親取得
 

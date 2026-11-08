@@ -52,19 +52,21 @@ $currentNode = WpGetMenuNode::FindByPageId($menu, $post->ID);
 <?php
 use WpTypeSafety\Wp\Get\AttachmentFactory;
 use WpTypeSafety\Wp\Get\CommentFactory;
+use WpTypeSafety\Wp\Get\MenuNodeFactory;
 use WpTypeSafety\Wp\Get\PostFactory;
 use WpTypeSafety\Wp\Get\TermFactory;
 use WpTypeSafety\Wp\Get\UserFactory;
 
 $postData = PostFactory::From($post);
 $commentData = CommentFactory::From($comment);
+$menuNodeData = MenuNodeFactory::From($menuItem);
 $userData = UserFactory::From($user);
 $termData = TermFactory::From($term);
 $image = AttachmentFactory::ImgFromId($attachmentId, 'medium_large');
 $file = AttachmentFactory::FileFromId($attachmentId);
 ```
 
-`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`の`Members()`は、対応する`PostMembers`・`CommentMembers`・`UserMembers`・`TermMembers`を返します。Membersは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。
+`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`の`Members()`は、対応する`PostMembers`・`CommentMembers`・`UserMembers`・`TermMembers`・`MenuNodeMembers`を返します。Membersは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。`MenuNodeFactory`は`wp_get_nav_menu_items()`等でセットアップ済みのメニュー項目`WP_Post`を対象とし、必要なら構築済みの子ノードを第2引数で受け取ります。
 
 ```php
 <?php

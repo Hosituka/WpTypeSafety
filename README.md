@@ -169,7 +169,7 @@ $status = $resultGet->String('status');                            // string
 | Goal | Main entry point |
 |---|---|
 | Read ACF fields through typed accessors | `AcfGet` |
-| Convert WordPress objects into Data objects | `PostFactory`, `CommentFactory`, `UserFactory`, and `TermFactory` |
+| Convert WordPress objects into Data objects | `PostFactory`, `CommentFactory`, `UserFactory`, `TermFactory`, and `MenuNodeFactory` |
 | Convert ACF block information into Data objects | `AcfDataFactory` |
 | Check the type of a standalone value | `TypeCheck` |
 | Read typed values from an array | `ArrayGet` |

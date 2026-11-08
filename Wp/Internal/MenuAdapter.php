@@ -5,6 +5,7 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Wp\Data\MenuItemType;
 use WpTypeSafety\Wp\Data\MenuNodeData;
+use WpTypeSafety\Wp\Data\MenuNodeMembers;
 
 /** @internal */
 final class MenuAdapter
@@ -52,6 +53,37 @@ final class MenuAdapter
 		return null;
 	}
 
+	/** @param list<MenuNodeData> $children */
+	public static function MembersFromWpPost(\WP_Post $item, array $children = []): MenuNodeMembers
+	{
+		$objectId = (int) $item->object_id;
+		$type = MenuItemType::tryFrom((string) $item->type) ?? MenuItemType::Unknown;
+
+		return new MenuNodeMembers(
+			Id: (int) $item->ID,
+			ParentId: (int) $item->menu_item_parent,
+			Title: (string) $item->title,
+			Url: (string) $item->url,
+			Description: (string) $item->description,
+			Classes: array_values(array_filter((array) $item->classes, 'is_string')),
+			Order: (int) $item->menu_order,
+			Type: $type,
+			Object: (string) $item->object,
+			ObjectId: $objectId,
+			Children: $children,
+			ThumbnailResolver: static fn (string|array $size) =>
+				$type === MenuItemType::PostType && (string) $item->object === 'page' && $objectId > 0
+					? DtoFactory::ImgFromAttachmentId((int) \get_post_thumbnail_id($objectId), $size)
+					: null,
+		);
+	}
+
+	/** @param list<MenuNodeData> $children */
+	public static function FromWpPost(\WP_Post $item, array $children = []): MenuNodeData
+	{
+		return new MenuNodeData(self::MembersFromWpPost($item, $children));
+	}
+
 	/**
 	 * @param array<mixed> $items
 	 * @return list<MenuNodeData>
@@ -86,25 +118,7 @@ final class MenuAdapter
 					$children[] = $child;
 				}
 			}
-			$objectId = (int) $item->object_id;
-			$type = MenuItemType::tryFrom((string) $item->type) ?? MenuItemType::Unknown;
-			return new MenuNodeData(
-				Id: $id,
-				ParentId: (int) $item->menu_item_parent,
-				Title: (string) $item->title,
-				Url: (string) $item->url,
-				Description: (string) $item->description,
-				Classes: array_values(array_filter((array) $item->classes, 'is_string')),
-				Order: (int) $item->menu_order,
-				Type: $type,
-				Object: (string) $item->object,
-				ObjectId: $objectId,
-				Children: $children,
-				thumbnailResolver: static fn (string|array $size) =>
-					$type === MenuItemType::PostType && (string) $item->object === 'page' && $objectId > 0
-						? DtoFactory::ImgFromAttachmentId((int) \get_post_thumbnail_id($objectId), $size)
-						: null,
-			);
+			return self::FromWpPost($item, $children);
 		};
 
 		$roots = [];
