@@ -149,12 +149,16 @@ use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Core\Check\TypeCheck;
 
-$count = (new AcfGet($post))->Int('count');                       // ?int
+$postGet = new AcfGet($post);
+$argsGet = new ArrayGet($args);
+
+$count = $postGet->Int('count');                                  // ?int
 $postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
-$title = (new ArrayGet($args))->String('title');                  // string
+$title = $argsGet->String('title');                                // string
+$items = $argsGet->NestedArray('items');                           // list<ArrayGet>
 ```
 
-`AcfGet::Int()` normalizes integers, integer-valued floats, and integer-formatted numeric strings into `int`. `TypeCheck` performs no conversion and returns a value only when the input already has the requested PHP type. `ArrayGet::String()` returns an empty string for a type mismatch or missing key. An empty string alone cannot distinguish an intentionally empty value from a failed lookup.
+`AcfGet::Int()` normalizes integers, integer-valued floats, and integer-formatted numeric strings into `int`. `TypeCheck` performs no conversion and returns a value only when the input already has the requested PHP type. `ArrayGet::String()` returns an empty string for a type mismatch or missing key, while `NestedArray()` wraps each array item as a `list<ArrayGet>`. Passing `get_fields($postId)` to `ArrayGet` provides a lightweight chain over ACF's formatted Group and Repeater values without additional conversion. See [Core type checks and array access](docs/core.md) and [Examples](docs/examples.md) for details. An empty string alone cannot distinguish an intentionally empty value from a failed lookup.
 
 ## Choosing an entry point
 

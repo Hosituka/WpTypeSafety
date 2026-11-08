@@ -148,12 +148,16 @@ use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Core\Check\TypeCheck;
 
-$count = (new AcfGet($post))->Int('count');             // ?int
+$postGet = new AcfGet($post);
+$argsGet = new ArrayGet($args);
+
+$count = $postGet->Int('count');                        // ?int
 $postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
-$title = (new ArrayGet($args))->String('title');         // string
+$title = $argsGet->String('title');                      // string
+$items = $argsGet->NestedArray('items');                 // list<ArrayGet>
 ```
 
-`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet::String()`は型違い・キーなしで空文字を返します。空文字だけでは「未入力」と「取得失敗」を区別できません。
+`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet::String()`は型違い・キーなしで空文字を返し、`NestedArray()`は配列である各要素を`list<ArrayGet>`として返します。`new ArrayGet(get_fields($postId))`とすれば、ACF標準APIの整形済み結果をGroupやRepeaterの階層も含めてチェーンできます。詳しくは[Coreの型確認と配列取得](docs/core.md)と[利用例](docs/examples.md)を参照してください。空文字だけでは「未入力」と「取得失敗」を区別できません。
 
 ## 入口の選び方
 

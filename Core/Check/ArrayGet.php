@@ -7,6 +7,7 @@ use WpTypeSafety\Core\Data\ChoiceData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
+use WpTypeSafety\Core\Data\TimeData;
 
 /** 連想配列からキーを指定して値の型を確認します。値の変換は行いません。 */
 final class ArrayGet
@@ -98,6 +99,19 @@ final class ArrayGet
 		return new self($this->value($key));
 	}
 
+	/** @return list<self> */
+	public function NestedArray(string $key): array
+	{
+		$items = [];
+		foreach ($this->Array($key) as $value) {
+			if (!is_array($value))
+			{continue;}
+
+			$items[] = new self($value);
+		}
+		return $items;
+	}
+
 	public function ImgData(string $key): ?ImgData
 	{
 		return $this->Instance($key, ImgData::class);
@@ -116,6 +130,11 @@ final class ArrayGet
 	public function FileData(string $key): ?FileData
 	{
 		return $this->Instance($key, FileData::class);
+	}
+
+	public function TimeData(string $key): ?TimeData
+	{
+		return $this->Instance($key, TimeData::class);
 	}
 
 	/** @return list<ImgData> */
@@ -140,5 +159,11 @@ final class ArrayGet
 	public function FileDataArray(string $key): array
 	{
 		return $this->InstanceArray($key, FileData::class);
+	}
+
+	/** @return list<TimeData> */
+	public function TimeDataArray(string $key): array
+	{
+		return $this->InstanceArray($key, TimeData::class);
 	}
 }

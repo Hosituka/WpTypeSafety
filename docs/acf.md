@@ -53,8 +53,11 @@
 
 ```php
 <?php
-$title = (new AcfGet($post))->Text('title') ?: '代替タイトル';
-$label = (new AcfGet($row))->Text('label') ?: '代替ラベル';
+$postGet = new AcfGet($post);
+$rowGet = new AcfGet($row);
+
+$title = $postGet->Text('title') ?: '代替タイトル';
+$label = $rowGet->Text('label') ?: '代替ラベル';
 $color = $termGet->Text('display_color') ?: 'var(--black)';
 ```
 
@@ -118,15 +121,25 @@ $members = $postGet->Users('members', avatarSize: 160);
 
 ```php
 <?php
-(new AcfGet($post))->Text('title');          // WP_Post
-(new AcfGet($postData))->Text('title');      // PostData・案件用の派生DTO
-(new AcfGet($user))->Text('profile_name');   // WP_User・WpUserData
-(new AcfGet($term))->Text('display_color');  // WP_Term・TermData
-(new AcfGet($postData->PostId))->Text('title');
-(new AcfGet('site_options'))->Array('settings'); // オプションページの取得先ID
-(new AcfGet())->Text('title');                // null：ACFの現在のコンテキストを使う
-$group = (new AcfGet($post))->Array('settings');
-(new AcfGet($group))->Text('label');          // 取得済みの配列内のキーを読む
+$postGet = new AcfGet($post);                    // WP_Post
+$postDataGet = new AcfGet($postData);            // PostData・案件用の派生DTO
+$userGet = new AcfGet($user);                    // WP_User・WpUserData
+$termGet = new AcfGet($term);                    // WP_Term・TermData
+$postIdGet = new AcfGet($postData->PostId);
+$optionGet = new AcfGet('site_options');          // オプションページの取得先ID
+$currentPostGet = new AcfGet();                   // null：ACFの現在のコンテキストを使う
+
+$postGet->Text('title');
+$postDataGet->Text('title');
+$userGet->Text('profile_name');
+$termGet->Text('display_color');
+$postIdGet->Text('title');
+$optionGet->Array('settings');
+$currentPostGet->Text('title');
+
+$group = $postGet->Array('settings');
+$groupGet = new AcfGet($group);
+$groupGet->Text('label');                         // 取得済みの配列内のキーを読む
 ```
 
 `Repeater()`の各行はすでに`AcfGet`です。包み直さず、そのまま取得メソッドを呼びます。
@@ -239,7 +252,14 @@ $values = $acfGet->CheckboxValues('items');
 複数取得はリスト配列のみを受け入れ、不正な要素を除去します。
 
 取得済み配列や`Nested()`はフィールド定義を参照できないため、形状のみ検証します。
-例えばSNSのリピーター行は`(new AcfGet($row))->SelectValue('type')`で取得できます。
+例えばSNSのリピーター行は、取得元が分かる名前で包んでから値を取得できます。
+
+```php
+<?php
+$rowGet = new AcfGet($row);
+$type = $rowGet->SelectValue('type');
+```
+
 値とラベルの逆引きや、単一・複数間の自動変換は行いません。
 
 検証は`php tests/select-accessors.php`で実行できます（APIスタブ、DB接続なし）。

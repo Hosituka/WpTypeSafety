@@ -151,13 +151,14 @@ final readonly class ArticlePostData extends PostData
 	public static function FromWpPost(\WP_Post $post): self
 	{
 		$common = WpDataFactory::PostFromWpPost($post);
+		$postGet = new AcfGet($post->ID);
 
 		return new self(
 			PostId: $common->PostId,
 			Url: $common->Url,
 			Title: $common->Title,
 			Content: $common->Content,
-			Subtitle: (new AcfGet($post->ID))->Text('subtitle'),
+			Subtitle: $postGet->Text('subtitle'),
 			PublishedAt: $common->PublishedAt,
 			ModifiedAt: $common->ModifiedAt,
 			Status: $common->Status,
@@ -237,10 +238,12 @@ final readonly class AuthorProfileData extends WpUserData
 	public static function FromWpUser(\WP_User $user, int $avatarSize = 96): ?self
 	{
 		$common = WpDataFactory::UserFromWpUser($user, $avatarSize);
+		$userGet = new AcfGet($user);
+
 		return $common === null ? null : new self(
 			Id: $common->Id,
 			DisplayName: $common->DisplayName,
-			RoleLabel: (new AcfGet($user))->Text('role_label'),
+			RoleLabel: $userGet->Text('role_label'),
 			avatarSize: $avatarSize,
 			avatarResolver: $common->GetAvatar(...),
 			AuthorUrl: $common->AuthorUrl,

@@ -35,6 +35,31 @@ $title = $argsGet->String('title');
 </article>
 ```
 
+### ACF標準APIの結果をチェーンして型確認する
+
+第1段階のまま複数のACFフィールドを扱う場合は、`get_fields()`の結果を`ArrayGet`へ渡せます。ACFのGroupは`Nested()`、Repeaterなど配列行のリストは`NestedArray()`でたどります。`get_fields()`がフィールド未登録時に返す`false`も、空の取得元として扱われます。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ArrayGet;
+
+$fieldsGet = new ArrayGet(get_fields($post->ID));
+$heroGet = $fieldsGet->Nested('hero');
+$heading = $heroGet->String('heading');
+?>
+<section>
+	<h2><?= esc_html($heading) ?></h2>
+	<dl>
+		<?php foreach ($fieldsGet->NestedArray('faq') as $faqGet): ?>
+			<dt><?= esc_html($faqGet->String('question')) ?></dt>
+			<dd><?= esc_html($faqGet->String('answer')) ?></dd>
+		<?php endforeach; ?>
+	</dl>
+</section>
+```
+
+この方法はACFが整形した値を、追加変換せずPHP型として確認する軽量な使い方です。画像・日付・投稿参照などをWpTypeSafetyのDataへ変換したい場合や、ACFのフィールド定義を引き継いで入れ子を処理したい場合は`AcfGet`を使用します。フィールド名自体は文字列なので、フィールド名まで型安全になるわけではありません。
+
 ## 2. 取得と変換をDataへ分離する
 
 取得処理が複雑になった箇所では、`WpDataFactory`と`AcfGet`を使ってテーマ固有Dataを生成します。次の`ArticleData`は、この文書の[PostDataの案件用派生クラス](#postdataの案件用派生クラス)で定義します。
@@ -56,7 +81,8 @@ get_template_part(
 <?php
 use WpTypeSafety\Core\Check\ArrayGet;
 
-$article = (new ArrayGet($args))->Instance('article', ArticleData::class);
+$argsGet = new ArrayGet($args);
+$article = $argsGet->Instance('article', ArticleData::class);
 if ($article === null)
 	{return;}
 ?>
@@ -180,13 +206,14 @@ final readonly class ArticleData extends PostData
 	public static function FromWpPost(\WP_Post $post): self
 	{
 		$common = WpDataFactory::PostFromWpPost($post);
+		$postGet = new AcfGet($post);
 
 		return new self(
 			PostId: $common->PostId,
 			Url: $common->Url,
 			Title: $common->Title,
 			Content: $common->Content,
-			Subtitle: (new AcfGet($post))->Text('subtitle'),
+			Subtitle: $postGet->Text('subtitle'),
 			PublishedAt: $common->PublishedAt,
 			ModifiedAt: $common->ModifiedAt,
 			Status: $common->Status,
