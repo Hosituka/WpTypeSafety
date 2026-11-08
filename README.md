@@ -135,10 +135,11 @@ Use a Factory to create Data objects from WordPress values.
 
 ```php
 <?php
-use WpTypeSafety\Wp\Get\WpDataFactory;
+use WpTypeSafety\Wp\Get\CommentFactory;
+use WpTypeSafety\Wp\Get\PostFactory;
 
-$postData = WpDataFactory::PostFromWpPost($post); // PostData
-$commentData = WpDataFactory::CommentFromWpComment($comment); // CommentData
+$postData = PostFactory::From($post); // PostData
+$commentData = CommentFactory::From($comment); // CommentData
 ```
 
 ACF fields can be normalized with the accessor matching their purpose. Use Core when you only need to check the result of a native API or read template-part `$args`.
@@ -168,7 +169,7 @@ $status = $resultGet->String('status');                            // string
 | Goal | Main entry point |
 |---|---|
 | Read ACF fields through typed accessors | `AcfGet` |
-| Convert WordPress objects into Data objects | `WpDataFactory` |
+| Convert WordPress objects into Data objects | `PostFactory`, `CommentFactory`, `UserFactory`, and `TermFactory` |
 | Convert ACF block information into Data objects | `AcfDataFactory` |
 | Check the type of a standalone value | `TypeCheck` |
 | Read typed values from an array | `ArrayGet` |
@@ -181,7 +182,7 @@ WpTypeSafety does not require an existing WordPress theme to adopt a custom arch
 | Approach | Purpose | Main entry points |
 |---|---|---|
 | 1. Standard WordPress plus type checks | Keep the template structure while safely handling raw values and `$args` | `TypeCheck`, `ArrayGet`, `ObjectGet` |
-| 2. Get/Factory plus project-specific Data | Separate retrieval, validation, and conversion from templates | `AcfGet`, `WpDataFactory`, project-specific Data |
+| 2. Get/Factory plus project-specific Data | Separate retrieval, validation, and conversion from templates | `AcfGet`, target-specific factories, project-specific Data |
 | 3. Data plus View classes | Manage template paths through class references as well as typed Data inputs | `Psr4Autoload`, `XxxView::Render()` |
 
 At level 1, you can keep `get_template_part()` and the standard WordPress template hierarchy while protecting only the data boundaries. Level 2 moves complex retrieval into Data construction. Level 3 lets you replace only selected Views with class references. Continuing to use the standard WordPress structure is also a supported approach. See [Examples](docs/examples.md) for code samples. The detailed documentation is currently written in Japanese.

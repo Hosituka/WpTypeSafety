@@ -8,40 +8,47 @@ use WpTypeSafety\Core\Data\LinkData;
 
 readonly class PostData
 {
-	/**
-	 * 取得関数は案件側で用意し、通常の引数として渡します。
-	 * 取得関数を指定しなかったGet系は空値を返します。
-	 *
-	 * @param null|\Closure(): ?WpUserData $authorResolver
-	 * @param null|\Closure(): string $excerptResolver
-	 * @param null|\Closure(): bool $excerptPresenceResolver
-	 * @param null|\Closure(string|array): ?ImgData $thumbnailResolver
-	 * @param null|\Closure(string|array, string): list<PostData> $childrenResolver
-	 * @param null|\Closure(): ?PostData $previousPostResolver
-	 * @param null|\Closure(): ?PostData $nextPostResolver
-	 * @param null|\Closure(): string $templateSlugResolver
-	 */
-	public function __construct(
-		public int $PostId,
-		public string $Url,
-		public string $Title,
-		public string $Content,
-		public ?\DateTimeImmutable $PublishedAt = null,
-		public ?\DateTimeImmutable $ModifiedAt = null,
-		private ?\Closure $authorResolver = null,
-		private ?\Closure $excerptResolver = null,
-		private ?\Closure $excerptPresenceResolver = null,
-		private ?\Closure $thumbnailResolver = null,
-		private ?\Closure $childrenResolver = null,
-		private ?\Closure $previousPostResolver = null,
-		private ?\Closure $nextPostResolver = null,
-		private ?\Closure $templateSlugResolver = null,
-		public string $Status = '',
-		public string $PostType = '',
-		public string $Slug = '',
-		public bool $IsPasswordProtected = false,
-		public bool $IsPubliclyViewable = false,
-	) {
+	public int $PostId;
+	public string $Url;
+	public string $Title;
+	public string $Content;
+	public ?\DateTimeImmutable $PublishedAt;
+	public ?\DateTimeImmutable $ModifiedAt;
+	private ?\Closure $authorResolver;
+	private ?\Closure $excerptResolver;
+	private ?\Closure $excerptPresenceResolver;
+	private ?\Closure $thumbnailResolver;
+	private ?\Closure $childrenResolver;
+	private ?\Closure $previousPostResolver;
+	private ?\Closure $nextPostResolver;
+	private ?\Closure $templateSlugResolver;
+	public string $Status;
+	public string $PostType;
+	public string $Slug;
+	public bool $IsPasswordProtected;
+	public bool $IsPubliclyViewable;
+
+	public function __construct(PostMembers $members)
+	{
+		$this->PostId = $members->PostId;
+		$this->Url = $members->Url;
+		$this->Title = $members->Title;
+		$this->Content = $members->Content;
+		$this->PublishedAt = $members->PublishedAt;
+		$this->ModifiedAt = $members->ModifiedAt;
+		$this->authorResolver = $members->AuthorResolver;
+		$this->excerptResolver = $members->ExcerptResolver;
+		$this->excerptPresenceResolver = $members->ExcerptPresenceResolver;
+		$this->thumbnailResolver = $members->ThumbnailResolver;
+		$this->childrenResolver = $members->ChildrenResolver;
+		$this->previousPostResolver = $members->PreviousPostResolver;
+		$this->nextPostResolver = $members->NextPostResolver;
+		$this->templateSlugResolver = $members->TemplateSlugResolver;
+		$this->Status = $members->Status;
+		$this->PostType = $members->PostType;
+		$this->Slug = $members->Slug;
+		$this->IsPasswordProtected = $members->IsPasswordProtected;
+		$this->IsPubliclyViewable = $members->IsPubliclyViewable;
 	}
 
 	/** 選択済みテンプレートの相対パス。デフォルト・取得失敗は空文字。実際の適用ファイルの判定ではありません。 */

@@ -7,7 +7,8 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use WpTypeSafety\Wp\Data\WpUserData;
-use WpTypeSafety\Wp\Get\WpDataFactory;
+use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Get\UserFactory;
 
 class WP_User
 {
@@ -26,9 +27,10 @@ function get_author_posts_url(int $id): mixed
 }
 
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
+require_once __DIR__ . '/../Wp/Data/UserMembers.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
-require_once __DIR__ . '/../Wp/Get/WpDataFactory.php';
+require_once __DIR__ . '/../Wp/Get/UserFactory.php';
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -37,12 +39,12 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	}
 	$checks++;
 };
-$plain = new WpUserData(1, '名前');
+$plain = new WpUserData(new UserMembers(1, '名前'));
 $check($plain->AuthorUrl === '', 'direct construction default');
-$direct = new WpUserData(Id: 2, DisplayName: '名前', AuthorUrl: 'https://example.com/author/test/');
+$direct = new WpUserData(new UserMembers(Id: 2, DisplayName: '名前', AuthorUrl: 'https://example.com/author/test/'));
 $check($direct->AuthorUrl === 'https://example.com/author/test/', 'direct construction with URL');
-$legacy = new WpUserData(3, '名前', 64, null);
-$check($legacy->AuthorUrl === '' && $legacy->GetAvatar() === null, 'legacy positional arguments');
+$withAvatarSize = new WpUserData(new UserMembers(3, '名前', 64, null));
+$check($withAvatarSize->AuthorUrl === '' && $withAvatarSize->GetAvatar() === null, 'Membersの位置引数を利用する');
 foreach ([
 	['https://example.com/author/test/', 'https://example.com/author/test/'],
 	['http://localhost:8080/?author=7', 'http://localhost:8080/?author=7'],
@@ -58,23 +60,26 @@ foreach ([
 ] as [$value, $expected]) {
 	$GLOBALS['authorCalls'] = [];
 	$GLOBALS['authorResult'] = $value;
-	$user = WpDataFactory::UserFromWpUser(new WP_User(7));
+	$user = UserFactory::From(new WP_User(7));
 	$check($GLOBALS['authorCalls'] === [7], 'URL acquired once at construction');
 	$check($user->AuthorUrl === $expected, 'factory URL normalization');
 	$check($user->Id === 7 && $user->DisplayName === '名前', 'existing fields preserved');
 	$url = $user->AuthorUrl;
 	$check($GLOBALS['authorCalls'] === [7], 'reading does not reacquire URL');
 }
+$GLOBALS['authorResult'] = 'https://example.com/author/7/';
+$members = UserFactory::Members(new WP_User(7));
+$check($members instanceof UserMembers && $members->Id === 7, 'public factory creates UserMembers');
 $GLOBALS['authorCalls'] = [];
-$check(WpDataFactory::UserFromWpUser(new WP_User(0)) === null, 'nonexistent user');
+$check(UserFactory::From(new WP_User(0)) === null, 'nonexistent user');
 $check($GLOBALS['authorCalls'] === [], 'nonexistent user does not acquire URL');
 $check((new ReflectionProperty(WpUserData::class, 'AuthorUrl'))->isReadOnly(), 'readonly URL');
-$check((new WpUserData(1, '名前'))->Description === '', 'description defaults to empty');
-$direct = new WpUserData(1, '名前', Description: "自己紹介\n2行目");
+$check((new WpUserData(new UserMembers(1, '名前')))->Description === '', 'description defaults to empty');
+$direct = new WpUserData(new UserMembers(1, '名前', Description: "自己紹介\n2行目"));
 $check($direct->Description === "自己紹介\n2行目", 'description direct construction');
 $check((new ReflectionProperty(WpUserData::class, 'Description'))->isReadOnly(), 'readonly description');
 foreach (["自己紹介\n2行目", '<strong>紹介文</strong>', '', '0', null, false, 123, []] as $value) {
-	$user = WpDataFactory::UserFromWpUser(new WP_User(7, '名前', $value));
+	$user = UserFactory::From(new WP_User(7, '名前', $value));
 	$check($user->Description === (is_string($value) ? $value : ''), 'factory description normalization');
 }
 echo "User data: {$checks} checks passed.\n";

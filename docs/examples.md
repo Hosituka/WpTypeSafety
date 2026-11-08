@@ -62,7 +62,7 @@ $heading = $heroGet->String('heading');
 
 ## 2. 取得と変換をDataへ分離する
 
-取得処理が複雑になった箇所では、`WpDataFactory`と`AcfGet`を使ってテーマ固有Dataを生成します。次の`ArticleData`は、この文書の[PostDataの案件用派生クラス](#postdataの案件用派生クラス)で定義します。
+取得処理が複雑になった箇所では、対象別Factoryと`AcfGet`を使ってテーマ固有Dataを生成します。次の`ArticleData`は、この文書の[PostDataの案件用派生クラス](#postdataの案件用派生クラス)で定義します。
 
 ```php
 <?php
@@ -162,66 +162,32 @@ $contentGet = $postGet->Nested('content');
 
 ### PostDataの案件用派生クラス
 
-共通の投稿情報は`WpDataFactory`で作り、案件固有の値を加えた派生クラスへ渡せます。派生クラスのコンストラクターではWordPressやACFへ問い合わせず、正規化済みの値を受け取ります。
+共通の投稿情報は`PostFactory::Members()`で作り、案件固有の値と一緒に派生クラスへ渡せます。派生クラスのコンストラクターではWordPressやACFへ問い合わせず、正規化済みの値を受け取ります。
 
 ```php
 <?php
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Get\WpDataFactory;
+use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Get\PostFactory;
 
 final readonly class ArticleData extends PostData
 {
 	public function __construct(
-		int $PostId,
-		string $Url,
-		string $Title,
-		string $Content,
+		PostMembers $members,
 		public string $Subtitle,
-		?\DateTimeImmutable $PublishedAt = null,
-		?\DateTimeImmutable $ModifiedAt = null,
-		string $Status = '',
-		string $PostType = '',
-		string $Slug = '',
-		bool $IsPasswordProtected = false,
-		bool $IsPubliclyViewable = false,
-		?\Closure $thumbnailResolver = null,
 	) {
-		parent::__construct(
-			PostId: $PostId,
-			Url: $Url,
-			Title: $Title,
-			Content: $Content,
-			PublishedAt: $PublishedAt,
-			ModifiedAt: $ModifiedAt,
-			Status: $Status,
-			PostType: $PostType,
-			Slug: $Slug,
-			IsPasswordProtected: $IsPasswordProtected,
-			IsPubliclyViewable: $IsPubliclyViewable,
-			thumbnailResolver: $thumbnailResolver,
-		);
+		parent::__construct($members);
 	}
 
 	public static function FromWpPost(\WP_Post $post): self
 	{
-		$common = WpDataFactory::PostFromWpPost($post);
+		$members = PostFactory::Members($post);
 		$postGet = new AcfGet($post);
 
 		return new self(
-			PostId: $common->PostId,
-			Url: $common->Url,
-			Title: $common->Title,
-			Content: $common->Content,
+			members: $members,
 			Subtitle: $postGet->Text('subtitle'),
-			PublishedAt: $common->PublishedAt,
-			ModifiedAt: $common->ModifiedAt,
-			Status: $common->Status,
-			PostType: $common->PostType,
-			Slug: $common->Slug,
-			IsPasswordProtected: $common->IsPasswordProtected,
-			IsPubliclyViewable: $common->IsPubliclyViewable,
-			thumbnailResolver: $common->GetThumbnail(...),
 		);
 	}
 }
@@ -229,7 +195,7 @@ final readonly class ArticleData extends PostData
 $article = ArticleData::FromWpPost($post);
 ```
 
-この例では必要な`thumbnailResolver`だけを引き継いでいます。投稿者、抜粋、子投稿なども使う場合は、対応する親コンストラクター引数へResolverを渡します。詳しい継承例は[Dataと派生クラス](data.md)を参照してください。
+`PostMembers`には投稿者、抜粋、サムネイル、子投稿などのResolverも含まれるため、派生クラス側で個別に転送する必要はありません。詳しい継承例は[Dataと派生クラス](data.md)を参照してください。
 
 ### ACFブロックの描画
 

@@ -8,10 +8,13 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once __DIR__ . '/../Wp/Data/PostData.php';
+require_once __DIR__ . '/../Wp/Data/PostMembers.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
+require_once __DIR__ . '/../Wp/Get/PostFactory.php';
 
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Internal\DtoFactory;
+use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Get\PostFactory;
 
 class WP_Post
 {
@@ -47,26 +50,33 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-$plain = new PostData(1, '/', 'title', '');
+$plain = new PostData(new PostMembers(1, '/', 'title', ''));
 $check($plain->GetTemplateSlug() === '', 'Resolver省略時は空文字');
 $check($plain->Status === '' && $plain->PostType === '' && $plain->Slug === '', '投稿情報省略時は未知を表す空文字');
 $check(! $plain->IsPublished() && ! $plain->IsPasswordProtected && ! $plain->IsPubliclyViewable, '投稿状態省略時はfalse');
 
 $calls = 0;
 $direct = new PostData(
-	PostId: 1,
-	Url: '/',
-	Title: 'title',
-	Content: '',
-	templateSlugResolver: static function () use (&$calls): string {
-		$calls++;
-		return 'templates/custom-service-subpage.php';
-	},
+	new PostMembers(
+		PostId: 1,
+		Url: '/',
+		Title: 'title',
+		Content: '',
+		TemplateSlugResolver: static function () use (&$calls): string {
+			$calls++;
+			return 'templates/custom-service-subpage.php';
+		},
+	),
 );
 $check($calls === 0, '構築時には取得しない');
 $check($direct->GetTemplateSlug() === 'templates/custom-service-subpage.php', '直接注入とパスの維持');
 $direct->GetTemplateSlug();
 $check($calls === 2, '呼び出すたびにResolverを実行');
+
+$mutableMembers = new PostMembers(2, '/original/', '変更前', '本文');
+$snapshot = new PostData($mutableMembers);
+$mutableMembers->Title = '変更後';
+$check($snapshot->Title === '変更前', 'DataはMembersを構築時の値として保持する');
 
 $GLOBALS['templateCalls'] = [];
 $GLOBALS['templateValues'] = [
@@ -77,18 +87,20 @@ $GLOBALS['templateValues'] = [
 	5 => 123,
 	6 => [],
 ];
+$factoryMembers = PostFactory::Members(new WP_Post(20));
+$check($factoryMembers instanceof PostMembers && $factoryMembers->PostId === 20, '公開FactoryからPostMembersを生成する');
 foreach ($GLOBALS['templateValues'] as $id => $value) {
 	$before = count($GLOBALS['templateCalls']);
-	$data = DtoFactory::PostFromWpPost(new WP_Post($id));
+	$data = PostFactory::From(new WP_Post($id));
 	$check(count($GLOBALS['templateCalls']) === $before, 'Factory構築時は未取得');
 	$check($data->GetTemplateSlug() === (is_string($value) ? $value : ''), 'Factoryの取得・正規化');
 	$check(end($GLOBALS['templateCalls']) === $id, '投稿IDを渡す');
 }
 $GLOBALS['templateValues'][1] = 'changed-template.php';
-$check(DtoFactory::PostFromWpPost(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
-$check(DtoFactory::PostFromWpPost(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
+$check(PostFactory::From(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
+$check(PostFactory::From(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
 
-$published = DtoFactory::PostFromWpPost(new WP_Post(
+$published = PostFactory::From(new WP_Post(
 	ID: 10,
 	post_status: 'publish',
 	post_type: 'page',
@@ -98,7 +110,7 @@ $check($published->Status === 'publish' && $published->IsPublished(), '公開状
 $check($published->PostType === 'page' && $published->Slug === 'published-page', '投稿タイプとスラッグを保持する');
 $check(! $published->IsPasswordProtected && $published->IsPubliclyViewable, '公開閲覧可能な投稿を判定する');
 
-$private = DtoFactory::PostFromWpPost(new WP_Post(
+$private = PostFactory::From(new WP_Post(
 	ID: 11,
 	post_status: 'private',
 	post_type: 'page',

@@ -5,6 +5,7 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
+use WpTypeSafety\Wp\Data\TermMembers;
 
 /** @internal WordPressのタームをCoreのTermDataへ変換する。 */
 final class TermAdapter
@@ -116,6 +117,12 @@ final class TermAdapter
 
 	public static function FromWpTerm(\WP_Term $term): ?TermData
 	{
+		$members = self::MembersFromWpTerm($term);
+		return $members !== null ? new TermData($members) : null;
+	}
+
+	public static function MembersFromWpTerm(\WP_Term $term): ?TermMembers
+	{
 		$url = \get_term_link($term);
 		if (\is_wp_error($url) || ! is_string($url)) {
 			return null;
@@ -124,7 +131,7 @@ final class TermAdapter
 		$parentId = (int) $term->parent;
 		$taxonomy = (string) $term->taxonomy;
 
-		return new TermData(
+		return new TermMembers(
 			Id: $term->term_id,
 			Name: $term->name,
 			Slug: $term->slug,
@@ -132,9 +139,9 @@ final class TermAdapter
 			Url: $url,
 			ParentId: $term->parent,
 			Description: $term->description,
-			childrenResolver: static fn (bool $hideEmpty, string $orderby, string $order): array =>
+			ChildrenResolver: static fn (bool $hideEmpty, string $orderby, string $order): array =>
 				self::childrenOf($term->term_id, $term->taxonomy, $hideEmpty, $orderby, $order),
-			parentResolver: static function () use ($parentId, $taxonomy): ?TermData {
+			ParentResolver: static function () use ($parentId, $taxonomy): ?TermData {
 				if ($parentId <= 0 || $taxonomy === '') {
 					return null;
 				}

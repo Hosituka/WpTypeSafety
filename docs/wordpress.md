@@ -46,18 +46,32 @@ $currentNode = WpGetMenuNode::FindByPageId($menu, $post->ID);
 
 ## WordPressの値からデータクラスを生成する
 
-`WpDataFactory`はWordPressの値から共通データクラスを生成します。`WP_Post`・`WP_Comment`・`WP_User`・`WP_Term`はオブジェクトを渡します。投稿ID・コメントID・ユーザーID・タームIDからの検索は行いません。添付画像とファイルはIDを渡します。ユーザー・ターム・添付ファイルを変換できない場合は`null`です。
+対象別FactoryはWordPressの値から共通Dataを生成します。`WP_Post`・`WP_Comment`・`WP_User`・`WP_Term`はオブジェクトを渡します。投稿ID・コメントID・ユーザーID・タームIDからの検索は行いません。添付画像とファイルはIDを渡します。ユーザー・ターム・添付ファイルを変換できない場合は`null`です。
 
 ```php
 <?php
-use WpTypeSafety\Wp\Get\WpDataFactory;
+use WpTypeSafety\Wp\Get\AttachmentFactory;
+use WpTypeSafety\Wp\Get\CommentFactory;
+use WpTypeSafety\Wp\Get\PostFactory;
+use WpTypeSafety\Wp\Get\TermFactory;
+use WpTypeSafety\Wp\Get\UserFactory;
 
-$postData = WpDataFactory::PostFromWpPost($post);
-$commentData = WpDataFactory::CommentFromWpComment($comment);
-$userData = WpDataFactory::UserFromWpUser($user);
-$termData = WpDataFactory::TermFromWpTerm($term);
-$image = WpDataFactory::ImgFromAttachmentId($attachmentId, 'medium_large');
-$file = WpDataFactory::FileFromAttachmentId($attachmentId);
+$postData = PostFactory::From($post);
+$commentData = CommentFactory::From($comment);
+$userData = UserFactory::From($user);
+$termData = TermFactory::From($term);
+$image = AttachmentFactory::ImgFromId($attachmentId, 'medium_large');
+$file = AttachmentFactory::FileFromId($attachmentId);
+```
+
+`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`の`Members()`は、対応する`PostMembers`・`CommentMembers`・`UserMembers`・`TermMembers`を返します。Membersは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。
+
+```php
+<?php
+$members = PostFactory::Members($post);
+$members->Title = '表示用：' . $members->Title;
+
+$postData = new PostData($members);
 ```
 
 `PostData`は投稿の`Status`・`PostType`・`Slug`を保持します。`IsPublished()`は投稿状態が`publish`かを返し、`IsPubliclyViewable`はWordPressの`is_post_publicly_viewable()`による投稿状態と投稿タイプを合わせた結果です。`IsPasswordProtected`はパスワード文字列が設定されているかを表しますが、パスワード文字列自体や、現在の閲覧者が認証済みかどうかは保持しません。
@@ -72,7 +86,7 @@ SVG添付画像は、ローカルファイルの単位なし・`px`の`width`と
 
 ```php
 <?php
-$commentData = WpDataFactory::CommentFromWpComment($comment);
+$commentData = CommentFactory::From($comment);
 
 echo esc_html($commentData->AuthorName);
 $user = $commentData->GetUser();

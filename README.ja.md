@@ -134,10 +134,11 @@ WordPressの値からDataを得るにはFactoryを使います。
 
 ```php
 <?php
-use WpTypeSafety\Wp\Get\WpDataFactory;
+use WpTypeSafety\Wp\Get\CommentFactory;
+use WpTypeSafety\Wp\Get\PostFactory;
 
-$postData = WpDataFactory::PostFromWpPost($post); // PostData
-$commentData = WpDataFactory::CommentFromWpComment($comment); // CommentData
+$postData = PostFactory::From($post); // PostData
+$commentData = CommentFactory::From($comment); // CommentData
 ```
 
 ACFフィールドは用途に対応する`AcfGet`で正規化できます。ネイティブAPIの結果だけ型確認したい場合や、テンプレートパーツの`$args`を読む場合はCoreを使えます。
@@ -167,7 +168,7 @@ $status = $resultGet->String('status');                  // string
 | やりたいこと | 主な入口 |
 |---|---|
 | ACFフィールドを型付きで取得する | `AcfGet` |
-| WordPressオブジェクトをDataへ変換する | `WpDataFactory` |
+| WordPressオブジェクトをDataへ変換する | `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory` |
 | ACFブロック情報をDataへ変換する | `AcfDataFactory` |
 | 単独の値を型確認する | `TypeCheck` |
 | 配列の値を型付きで取得する | `ArrayGet` |
@@ -180,7 +181,7 @@ WpTypeSafetyは、既存のWordPressテーマを一度に独自構成へ変更�
 | 構成 | 目的 | 主な入口 |
 |---|---|---|
 | 1. WordPress標準＋型確認 | テンプレート構造を変えず、生の値と`$args`を安全に扱う | `TypeCheck`、`ArrayGet`、`ObjectGet` |
-| 2. Get／Factory＋テーマ固有Data | 取得・確認・変換をテンプレートから分離する | `AcfGet`、`WpDataFactory`、テーマ固有Data |
+| 2. Get／Factory＋テーマ固有Data | 取得・確認・変換をテンプレートから分離する | `AcfGet`、対象別Factory、テーマ固有Data |
 | 3. Data＋Viewクラス | Dataの入力型に加え、テンプレートパスもクラス参照で管理する | `Psr4Autoload`、`XxxView::Render()` |
 
 第1段階では、`get_template_part()`やWordPressのテンプレート階層を維持したまま、値を受け渡す境界だけを防御できます。第2段階では複雑な取得処理をData生成へ分離し、第3段階では必要なViewだけをクラス参照へ置き換えられます。WordPress標準構成を使い続けることも正式な利用方法です。各構成のコード例は[利用例](docs/examples.md)を参照してください。

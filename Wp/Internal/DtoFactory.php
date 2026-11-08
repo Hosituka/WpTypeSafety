@@ -8,7 +8,10 @@ use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Internal\SvgDimensions;
 use WpTypeSafety\Core\Internal\UrlCheck;
 use WpTypeSafety\Wp\Data\CommentData;
+use WpTypeSafety\Wp\Data\CommentMembers;
 use WpTypeSafety\Wp\Data\PostData;
+use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Data\UserMembers;
 use WpTypeSafety\Wp\Data\WpUserData;
 
 /** @internal WordPressの値からCoreのDTOを組み立てる。 */
@@ -18,13 +21,18 @@ final class DtoFactory
 
 	public static function CommentFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentData
 	{
+		return new CommentData(self::CommentMembersFromWpComment($comment, $avatarSize));
+	}
+
+	public static function CommentMembersFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentMembers
+	{
 		$commentId = (int) $comment->comment_ID;
 		$postId = (int) $comment->comment_post_ID;
 		$parentId = (int) $comment->comment_parent;
 		$authorUserId = (int) $comment->user_id;
 		$url = \get_comment_link($comment);
 
-		return new CommentData(
+		return new CommentMembers(
 			Id: $commentId,
 			PostId: $postId,
 			ParentId: $parentId,
@@ -36,31 +44,31 @@ final class DtoFactory
 			Type: self::commentType((string) $comment->comment_type),
 			Status: self::commentStatus((string) $comment->comment_approved),
 			CreatedAt: self::commentDateTime($comment->comment_date),
-			avatarSize: $avatarSize,
-			userResolver: static function () use ($authorUserId): ?WpUserData {
+			AvatarSize: $avatarSize,
+			UserResolver: static function () use ($authorUserId): ?WpUserData {
 				if ($authorUserId <= 0) {
 					return null;
 				}
 				$user = \get_userdata($authorUserId);
 				return $user instanceof \WP_User ? self::UserFromWpUser($user) : null;
 			},
-			avatarResolver: static function (int $size) use ($comment): ?ImgData {
+			AvatarResolver: static function (int $size) use ($comment): ?ImgData {
 				$url = \get_avatar_url($comment, ['size' => $size]);
 				return is_string($url) && UrlCheck::IsHttpUrl($url)
 					? new ImgData(Url: $url, Width: $size, Height: $size)
 					: null;
 			},
-			postResolver: static function () use ($postId): ?PostData {
+			PostResolver: static function () use ($postId): ?PostData {
 				$post = $postId > 0 ? \get_post($postId) : null;
 				return $post instanceof \WP_Post ? self::PostFromWpPost($post) : null;
 			},
-			parentResolver: static function () use ($parentId, $avatarSize): ?CommentData {
+			ParentResolver: static function () use ($parentId, $avatarSize): ?CommentData {
 				$parent = $parentId > 0 ? \get_comment($parentId) : null;
 				return $parent instanceof \WP_Comment
 					? self::CommentFromWpComment($parent, $avatarSize)
 					: null;
 			},
-			childrenResolver: static fn (string $status, string $order): array =>
+			ChildrenResolver: static fn (string $status, string $order): array =>
 				self::commentChildren($commentId, $avatarSize, $status, $order),
 		);
 	}
@@ -116,13 +124,18 @@ final class DtoFactory
 
 	public static function PostFromWpPost(\WP_Post $post): PostData
 	{
+		return new PostData(self::PostMembersFromWpPost($post));
+	}
+
+	public static function PostMembersFromWpPost(\WP_Post $post): PostMembers
+	{
 		$postId = (int) $post->ID;
 		$authorId = (int) $post->post_author;
 		$url = \get_permalink($post);
 		$publishedAt = \get_post_datetime($post);
 		$modifiedAt = \get_post_datetime($post, 'modified');
 
-		return new PostData(
+		return new PostMembers(
 			PostId: $postId,
 			Url: is_string($url) ? $url : '',
 			Title: (string) \get_the_title($post),
@@ -134,28 +147,28 @@ final class DtoFactory
 			Slug: (string) $post->post_name,
 			IsPasswordProtected: (string) $post->post_password !== '',
 			IsPubliclyViewable: \is_post_publicly_viewable($post),
-			authorResolver: static function () use ($authorId): ?WpUserData {
+			AuthorResolver: static function () use ($authorId): ?WpUserData {
 				if ($authorId <= 0) {
 					return null;
 				}
 				$user = \get_userdata($authorId);
 				return $user instanceof \WP_User ? self::UserFromWpUser($user) : null;
 			},
-			excerptResolver: static function () use ($postId): string {
+			ExcerptResolver: static function () use ($postId): string {
 				$current = \get_post($postId);
 				return $current instanceof \WP_Post ? \wp_strip_all_tags($current->post_excerpt) : '';
 			},
-			excerptPresenceResolver: static function () use ($postId): bool {
+			ExcerptPresenceResolver: static function () use ($postId): bool {
 				$current = \get_post($postId);
 				return $current instanceof \WP_Post && \has_excerpt($current);
 			},
-			thumbnailResolver: static fn (string|array $size): ?ImgData =>
+			ThumbnailResolver: static fn (string|array $size): ?ImgData =>
 				self::ImgFromAttachmentId((int) \get_post_thumbnail_id($postId), $size),
-			childrenResolver: static fn (string|array $orderby, string $order): array =>
+			ChildrenResolver: static fn (string|array $orderby, string $order): array =>
 				self::postChildren($postId, $orderby, $order),
-			previousPostResolver: static fn (): ?PostData => self::adjacentPost($postId, true),
-			nextPostResolver: static fn (): ?PostData => self::adjacentPost($postId, false),
-			templateSlugResolver: static function () use ($postId): string {
+			PreviousPostResolver: static fn (): ?PostData => self::adjacentPost($postId, true),
+			NextPostResolver: static fn (): ?PostData => self::adjacentPost($postId, false),
+			TemplateSlugResolver: static function () use ($postId): string {
 				$slug = \get_page_template_slug($postId);
 				return is_string($slug) ? $slug : '';
 			},
@@ -210,19 +223,25 @@ final class DtoFactory
 
 	public static function UserFromWpUser(\WP_User $user, int $avatarSize = 96): ?WpUserData
 	{
+		$members = self::UserMembersFromWpUser($user, $avatarSize);
+		return $members !== null ? new WpUserData($members) : null;
+	}
+
+	public static function UserMembersFromWpUser(\WP_User $user, int $avatarSize = 96): ?UserMembers
+	{
 		if (! $user->exists()) {
 			return null;
 		}
 		$userId = (int) $user->ID;
 		$authorUrl = \get_author_posts_url($userId);
 		$description = $user->description ?? '';
-		return new WpUserData(
+		return new UserMembers(
 			Id: $userId,
 			DisplayName: (string) $user->display_name,
 			AuthorUrl: UrlCheck::IsHttpUrl($authorUrl) ? $authorUrl : '',
 			Description: is_string($description) ? $description : '',
-			avatarSize: $avatarSize,
-			avatarResolver: static function (int $size) use ($userId): ?ImgData {
+			AvatarSize: $avatarSize,
+			AvatarResolver: static function (int $size) use ($userId): ?ImgData {
 				$url = \get_avatar_url($userId, ['size' => $size]);
 				return is_string($url) && UrlCheck::IsHttpUrl($url)
 					? new ImgData(Url: $url, Width: $size, Height: $size)

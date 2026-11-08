@@ -1,8 +1,8 @@
 # 内部構造と検証
 
-`Acf/Get/`には`WpTypeSafety\Acf\Get\AcfGet`・`AcfDataFactory`、`Wp/Get/`には`WpTypeSafety\Wp\Get\WpGet`・`WpGetTerm`・`WpGetMenuNode`・`WpDataFactory`を置いています。名前空間には`Public`を含めず、`Data`・`Get`は含めます。ACF固有のデータクラスは`Acf/Data/`に配置し、`AcfBlockData`の名前空間は`WpTypeSafety\Acf\Data`です。
+`Acf/Get/`には`WpTypeSafety\Acf\Get\AcfGet`・`AcfDataFactory`、`Wp/Get/`には`WpGet`・`WpGetTerm`・`WpGetMenuNode`と対象別Factoryを置いています。WordPressの対象別Factoryは`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`AttachmentFactory`です。名前空間には`Public`を含めず、`Data`・`Get`は含めます。ACF固有のデータクラスは`Acf/Data/`に配置し、`AcfBlockData`の名前空間は`WpTypeSafety\Acf\Data`です。
 
-`Wp/Get/WpDataFactory.php`は通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`と`TermAdapter`へ処理を委譲します。
+各対象別Factoryは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または`TermAdapter`へ処理を委譲します。`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Members()`を提供します。
 
 起動処理は`autoload.php`へ集約しています。`autoload.php`が`WpTypeSafety\`のPSR-4設定を登録し、Core・Wp・Acfのクラスは参照された時点で個別に読み込まれます。領域別の中継入口や、取得処理の初期登録はありません。
 

@@ -7,32 +7,43 @@ use WpTypeSafety\Core\Data\ImgData;
 
 readonly class CommentData
 {
-	/**
-	 * @param null|\Closure(): ?WpUserData $userResolver
-	 * @param null|\Closure(int): ?ImgData $avatarResolver
-	 * @param null|\Closure(): ?PostData $postResolver
-	 * @param null|\Closure(): ?CommentData $parentResolver
-	 * @param null|\Closure(string, string): list<CommentData> $childrenResolver
-	 */
-	public function __construct(
-		public int $Id,
-		public int $PostId,
-		public int $ParentId,
-		public int $AuthorUserId,
-		public string $AuthorName,
-		public string $AuthorUrl,
-		public string $Url,
-		public string $Content,
-		public string $Type,
-		public string $Status,
-		public ?\DateTimeImmutable $CreatedAt = null,
-		private ?int $avatarSize = null,
-		private ?\Closure $userResolver = null,
-		private ?\Closure $avatarResolver = null,
-		private ?\Closure $postResolver = null,
-		private ?\Closure $parentResolver = null,
-		private ?\Closure $childrenResolver = null,
-	) {
+	public int $Id;
+	public int $PostId;
+	public int $ParentId;
+	public int $AuthorUserId;
+	public string $AuthorName;
+	public string $AuthorUrl;
+	public string $Url;
+	public string $Content;
+	public string $Type;
+	public string $Status;
+	public ?\DateTimeImmutable $CreatedAt;
+	private ?int $avatarSize;
+	private ?\Closure $userResolver;
+	private ?\Closure $avatarResolver;
+	private ?\Closure $postResolver;
+	private ?\Closure $parentResolver;
+	private ?\Closure $childrenResolver;
+
+	public function __construct(CommentMembers $members)
+	{
+		$this->Id = $members->Id;
+		$this->PostId = $members->PostId;
+		$this->ParentId = $members->ParentId;
+		$this->AuthorUserId = $members->AuthorUserId;
+		$this->AuthorName = $members->AuthorName;
+		$this->AuthorUrl = $members->AuthorUrl;
+		$this->Url = $members->Url;
+		$this->Content = $members->Content;
+		$this->Type = $members->Type;
+		$this->Status = $members->Status;
+		$this->CreatedAt = $members->CreatedAt;
+		$this->avatarSize = $members->AvatarSize;
+		$this->userResolver = $members->UserResolver;
+		$this->avatarResolver = $members->AvatarResolver;
+		$this->postResolver = $members->PostResolver;
+		$this->parentResolver = $members->ParentResolver;
+		$this->childrenResolver = $members->ChildrenResolver;
 	}
 
 	public function HasUser(): bool

@@ -79,13 +79,18 @@ require_once __DIR__ . '/../Core/Data/ImgData.php';
 require_once __DIR__ . '/../Core/Data/LinkData.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
+require_once __DIR__ . '/../Wp/Data/UserMembers.php';
 require_once __DIR__ . '/../Wp/Data/PostData.php';
+require_once __DIR__ . '/../Wp/Data/PostMembers.php';
 require_once __DIR__ . '/../Wp/Data/CommentData.php';
+require_once __DIR__ . '/../Wp/Data/CommentMembers.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
-require_once __DIR__ . '/../Wp/Get/WpDataFactory.php';
+require_once __DIR__ . '/../Wp/Get/CommentFactory.php';
 
 use WpTypeSafety\Wp\Data\CommentData;
-use WpTypeSafety\Wp\Get\WpDataFactory;
+use WpTypeSafety\Wp\Data\CommentMembers;
+use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Get\CommentFactory;
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -96,16 +101,18 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 };
 
 $plain = new CommentData(
-	Id: 1,
-	PostId: 2,
-	ParentId: 0,
-	AuthorUserId: 0,
-	AuthorName: '匿名ユーザー',
-	AuthorUrl: '',
-	Url: '/#comment-1',
-	Content: 'コメント',
-	Type: 'comment',
-	Status: 'approved',
+	new CommentMembers(
+		Id: 1,
+		PostId: 2,
+		ParentId: 0,
+		AuthorUserId: 0,
+		AuthorName: '匿名ユーザー',
+		AuthorUrl: '',
+		Url: '/#comment-1',
+		Content: 'コメント',
+		Type: 'comment',
+		Status: 'approved',
+	),
 );
 $check(! $plain->HasUser() && $plain->GetUser() === null, '匿名コメントはユーザーを持たない');
 $check($plain->HasContent() && $plain->IsApproved(), '保持済みの値を判定する');
@@ -114,22 +121,24 @@ $check($plain->GetAvatar() === null && $plain->GetPost() === null && $plain->Get
 
 $userCalls = 0;
 $direct = new CommentData(
-	Id: 2,
-	PostId: 3,
-	ParentId: 1,
-	AuthorUserId: 7,
-	AuthorName: '登録ユーザー',
-	AuthorUrl: 'https://example.com/',
-	Url: '/#comment-2',
-	Content: '',
-	Type: 'comment',
-	Status: 'unapproved',
-	userResolver: static function () use (&$userCalls): ?\WpTypeSafety\Wp\Data\WpUserData {
-		$userCalls++;
-		return new \WpTypeSafety\Wp\Data\WpUserData(7, '登録ユーザー');
-	},
-	parentResolver: static fn (): CommentData => $plain,
-	childrenResolver: static fn (string $status, string $order): array => [$plain],
+	new CommentMembers(
+		Id: 2,
+		PostId: 3,
+		ParentId: 1,
+		AuthorUserId: 7,
+		AuthorName: '登録ユーザー',
+		AuthorUrl: 'https://example.com/',
+		Url: '/#comment-2',
+		Content: '',
+		Type: 'comment',
+		Status: 'unapproved',
+		UserResolver: static function () use (&$userCalls): ?\WpTypeSafety\Wp\Data\WpUserData {
+			$userCalls++;
+			return new \WpTypeSafety\Wp\Data\WpUserData(new UserMembers(7, '登録ユーザー'));
+		},
+		ParentResolver: static fn (): CommentData => $plain,
+		ChildrenResolver: static fn (string $status, string $order): array => [$plain],
+	),
 );
 $check($direct->HasUser() && $userCalls === 0, '登録ユーザーの取得は遅延する');
 $check($direct->GetUser()?->Id === 7 && $userCalls === 1, '登録ユーザーを取得する');
@@ -159,7 +168,9 @@ $comment = new WP_Comment(
 	comment_parent: '4',
 	user_id: '7',
 );
-$data = WpDataFactory::CommentFromWpComment($comment, 80);
+$commentMembers = CommentFactory::Members($comment, 80);
+$check($commentMembers instanceof CommentMembers && $commentMembers->Id === 8, '公開FactoryからCommentMembersを生成する');
+$data = CommentFactory::From($comment, 80);
 $check($data->Id === 8 && $data->PostId === 12 && $data->ParentId === 4, 'IDを整数へ正規化する');
 $check($data->AuthorUserId === 7 && $data->AuthorName === '登録ユーザー', '投稿者情報を保持する');
 $check($data->AuthorUrl === 'https://example.com/profile/', 'HTTPの投稿者URLを保持する');
@@ -190,12 +201,12 @@ foreach ([
 	['spam', 'spam', false],
 	['trash', 'trash', false],
 ] as [$rawStatus, $expectedStatus, $approved]) {
-	$value = WpDataFactory::CommentFromWpComment(new WP_Comment(20, comment_approved: $rawStatus));
+	$value = CommentFactory::From(new WP_Comment(20, comment_approved: $rawStatus));
 	$check($value->Status === $expectedStatus && $value->IsApproved() === $approved, 'コメント状態を正規化する');
 }
 
 $GLOBALS['commentLinks'][30] = false;
-$invalid = WpDataFactory::CommentFromWpComment(new WP_Comment(
+$invalid = CommentFactory::From(new WP_Comment(
 	comment_ID: 30,
 	comment_author_url: 'javascript:alert(1)',
 	comment_date: 'invalid',
@@ -205,17 +216,19 @@ $check($invalid->CreatedAt === null, '不正な日時をnullへ正規化する')
 $check($invalid->GetUser() === null && $invalid->GetParent() === null, '匿名・親なしは問い合わせない');
 
 $invalidChildren = new CommentData(
-	Id: 1,
-	PostId: 1,
-	ParentId: 0,
-	AuthorUserId: 0,
-	AuthorName: '',
-	AuthorUrl: '',
-	Url: '',
-	Content: '',
-	Type: 'comment',
-	Status: 'approved',
-	childrenResolver: static fn (string $status, string $order): array => ['invalid'],
+	new CommentMembers(
+		Id: 1,
+		PostId: 1,
+		ParentId: 0,
+		AuthorUserId: 0,
+		AuthorName: '',
+		AuthorUrl: '',
+		Url: '',
+		Content: '',
+		Type: 'comment',
+		Status: 'approved',
+		ChildrenResolver: static fn (string $status, string $order): array => ['invalid'],
+	),
 );
 try {
 	$invalidChildren->GetChildren();

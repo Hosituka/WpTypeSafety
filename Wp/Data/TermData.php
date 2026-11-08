@@ -5,21 +5,27 @@ namespace WpTypeSafety\Wp\Data;
 
 readonly class TermData
 {
-	/**
-	 * @param null|\Closure(bool, string, string): list<TermData> $childrenResolver
-	 * @param null|\Closure(): ?TermData $parentResolver
-	 */
-	public function __construct(
-		public int $Id,
-		public string $Name,
-		public string $Slug,
-		public string $Taxonomy,
-		public string $Url,
-		public int $ParentId = 0,
-		public string $Description = '',
-		private ?\Closure $childrenResolver = null,
-		private ?\Closure $parentResolver = null,
-	) {
+	public int $Id;
+	public string $Name;
+	public string $Slug;
+	public string $Taxonomy;
+	public string $Url;
+	public int $ParentId;
+	public string $Description;
+	private ?\Closure $childrenResolver;
+	private ?\Closure $parentResolver;
+
+	public function __construct(TermMembers $members)
+	{
+		$this->Id = $members->Id;
+		$this->Name = $members->Name;
+		$this->Slug = $members->Slug;
+		$this->Taxonomy = $members->Taxonomy;
+		$this->Url = $members->Url;
+		$this->ParentId = $members->ParentId;
+		$this->Description = $members->Description;
+		$this->childrenResolver = $members->ChildrenResolver;
+		$this->parentResolver = $members->ParentResolver;
 	}
 
 	/** @return list<TermData> */

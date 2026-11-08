@@ -8,6 +8,7 @@ if (PHP_SAPI !== 'cli') {
 
 use WpTypeSafety\Acf\Internal\AcfDtoFactory;
 use WpTypeSafety\Core\Data\ImgData;
+use WpTypeSafety\Wp\Get\AttachmentFactory;
 use WpTypeSafety\Wp\Internal\DtoFactory;
 
 function get_post_mime_type(int $attachmentId): string
@@ -55,6 +56,7 @@ require_once __DIR__ . '/../Core/Data/ImgData.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Core/Internal/SvgDimensions.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
+require_once __DIR__ . '/../Wp/Get/AttachmentFactory.php';
 require_once __DIR__ . '/../Acf/Internal/AcfDtoFactory.php';
 
 $checks = 0;
@@ -90,7 +92,7 @@ try {
 	$addSvg(5, '<svg width="24" height="12" viewBox="0 0 512 512"></svg>');
 	$addSvg(6, '<svg width="24.5px" height="10.5px" viewBox="0 0 100 100"></svg>');
 
-	$image = DtoFactory::ImgFromAttachmentId(1, 'thumbnail');
+	$image = AttachmentFactory::ImgFromId(1, 'thumbnail');
 	$check($image instanceof ImgData, 'SVG attachment returns ImgData');
 	$check([$image?->Width, $image?->Height] === [300, 120], 'viewBox dimensions');
 	$check($image?->Alt === 'viewBox image', 'attachment alt text');
