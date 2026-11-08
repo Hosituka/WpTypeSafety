@@ -1,6 +1,13 @@
 {
 	"name": "hosituka/wp-type-safety",
 	"description": "Typed accessors and data objects for WordPress and ACF.",
+	"keywords": [
+		"wordpress",
+		"acf",
+		"advanced-custom-fields",
+		"type-safety",
+		"typed-accessors"
+	],
 	"type": "library",
 	"license": "MIT",
 	"require": {
