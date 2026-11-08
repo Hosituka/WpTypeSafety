@@ -188,7 +188,7 @@ $authorResolver = static function () use ($post): ?AuthorProfileData {
 ```php
 <?php
 use WpTypeSafety\Wp\Data\WpUserData;
-use WpTypeSafety\Acf\Get\AcfGetUser;
+use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Wp\Get\WpDataFactory;
 
 final readonly class AuthorProfileData extends WpUserData
@@ -218,7 +218,7 @@ final readonly class AuthorProfileData extends WpUserData
 		return $common === null ? null : new self(
 			Id: $common->Id,
 			DisplayName: $common->DisplayName,
-			RoleLabel: (new AcfGetUser($user))->Text('role_label'),
+			RoleLabel: (new AcfGet($user))->Text('role_label'),
 			avatarSize: $avatarSize,
 			avatarResolver: $common->GetAvatar(...),
 			AuthorUrl: $common->AuthorUrl,

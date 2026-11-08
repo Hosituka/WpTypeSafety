@@ -30,13 +30,15 @@ class AcfGet
 	/** @var array<mixed> */
 	private array $nestedSubFields = [];
 
-	/** @param \WP_Post|PostData|int|string|array<mixed>|null $source */
+	/**
+	 * @param \WP_Post|PostData|\WP_User|WpUserData|\WP_Term|TermData|int|string|array<mixed>|null $source
+	 */
 	public function __construct(
-		\WP_Post|PostData|int|string|array|null $source = null,
+		\WP_Post|PostData|\WP_User|WpUserData|\WP_Term|TermData|int|string|array|null $source = null,
 		?AcfAdapter $adapter = null,
 	) {
-		$this->source = $source;
 		$this->adapter = $adapter ?? new AcfAdapter();
+		$this->source = $this->normalizeSource($source);
 	}
 
 	/** 派生クラスが案件固有・拡張フィールドの変換に使用する生値を返す。 */
@@ -48,17 +50,17 @@ class AcfGet
 	/**
 	 * 派生型と注入済みのAdapterを維持した子取得口を作る。
 	 *
-	 * @param array<mixed> $source
+	 * @param \WP_Post|PostData|\WP_User|WpUserData|\WP_Term|TermData|int|string|array<mixed>|null $source
 	 * @param null|array<mixed> $rawValues
 	 * @param null|array<mixed> $subFields
 	 */
 	protected function createChild(
-		array $source,
+		\WP_Post|PostData|\WP_User|WpUserData|\WP_Term|TermData|int|string|array|null $source,
 		?array $rawValues = null,
 		?array $subFields = null,
 	): static {
 		$child = clone $this;
-		$child->source = $source;
+		$child->source = $child->normalizeSource($source);
 		$child->hasNestedContext = $rawValues !== null && $subFields !== null;
 		$child->nestedRawValues = $rawValues ?? [];
 		$child->nestedSubFields = $subFields ?? [];
@@ -113,9 +115,9 @@ class AcfGet
 	}
 
 	/** 単一選択のタームを参照先として、そのACFフィールドを取得する。 */
-	public function TermFields(string $fieldName): AcfGetTerm
+	public function TermFields(string $fieldName): static
 	{
-		return new AcfGetTerm($this->Term($fieldName), $this->adapter);
+		return $this->createChild($this->Term($fieldName) ?? []);
 	}
 
 	public function User(string $fieldName, int $avatarSize = 96): ?WpUserData
@@ -130,9 +132,9 @@ class AcfGet
 	}
 
 	/** 単一選択のユーザーを参照先として、そのACFフィールドを取得する。 */
-	public function UserFields(string $fieldName): AcfGetUser
+	public function UserFields(string $fieldName): static
 	{
-		return new AcfGetUser($this->User($fieldName), $this->adapter);
+		return $this->createChild($this->User($fieldName) ?? []);
 	}
 
 	/** HTTP(S)の絶対URLを返す。未入力・不正値はnull。エスケープは描画側で行う。 */
@@ -427,5 +429,21 @@ class AcfGet
 		}
 
 		return null;
+	}
+
+	/**
+	 * @param \WP_Post|PostData|\WP_User|WpUserData|\WP_Term|TermData|int|string|array<mixed>|null $source
+	 * @return \WP_Post|PostData|int|string|array<mixed>|null
+	 */
+	private function normalizeSource(
+		\WP_Post|PostData|\WP_User|WpUserData|\WP_Term|TermData|int|string|array|null $source,
+	): \WP_Post|PostData|int|string|array|null {
+		if ($source instanceof \WP_User || $source instanceof WpUserData)
+		{return $this->adapter->UserPostId($source);}
+
+		if ($source instanceof \WP_Term || $source instanceof TermData)
+		{return $this->adapter->TermPostId($source);}
+
+		return $source;
 	}
 }

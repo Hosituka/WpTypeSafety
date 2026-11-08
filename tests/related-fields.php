@@ -15,8 +15,6 @@ require_once __DIR__ . '/../Wp/Data/TermData.php';
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
 require_once __DIR__ . '/../Wp/Data/PostData.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 
 final class ProjectAcfGet extends AcfGet
@@ -163,7 +161,10 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 $post = new AcfGet('post', $adapter);
-$check((new ProjectAcfGet('post', $adapter))->RawValue('author') === 7, 'subclass accesses raw field value');
+$projectGet = new ProjectAcfGet('post', $adapter);
+$check($projectGet->RawValue('author') === 7, 'subclass accesses raw field value');
+$check($projectGet->UserFields('author') instanceof ProjectAcfGet, 'UserFields preserves derived type');
+$check($projectGet->TermFields('category') instanceof ProjectAcfGet, 'TermFields preserves derived type');
 $check($post->UserFields('author')->Text('label') === 'Alice', 'post to user fields');
 $check($post->TermFields('category')->Text('label') === 'Blue', 'post to term fields');
 $check($post->Nested('group')->UserFields('author')->Text('label') === 'Alice', 'group to user fields');

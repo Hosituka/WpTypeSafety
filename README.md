@@ -41,6 +41,8 @@ $title = $postGet
 
 When `Nested()`, `Repeater()`, or `Flexible()` is reached from an ACF subject such as a post, unformatted values and child field definitions are carried into the child accessors. This allows `Date()`, `DateTime()`, and `Time()` to work inside groups, repeater rows, and flexible-content layouts, including nested combinations. When these methods are called on a custom `AcfGet` subclass, their child accessors preserve the same subclass and injected dependencies.
 
+`AcfGet` accepts posts, users, and terms as a common field source. Pass `WP_User` / `WpUserData` or `WP_Term` / `TermData` directly to read fields attached to that subject. `UserFields()` and `TermFields()` switch to a referenced subject while preserving the caller's `AcfGet` subclass and injected adapter.
+
 Repeater rows are also returned as `AcfGet` instances from the beginning. Nested groups and repeaters inside each row can be read in the same way.
 
 ```php

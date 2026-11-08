@@ -7,8 +7,6 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Acf\Get\AcfGetTerm;
-use WpTypeSafety\Acf\Get\AcfGetUser;
 
 class WP_Post { public function __construct(public int $ID) {} }
 class WP_Term { public function __construct(public int $term_id) {} }
@@ -21,8 +19,6 @@ function get_field(string $name, mixed $source = null): mixed
 }
 
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -39,15 +35,14 @@ $cases = [
 ];
 foreach ($cases as [$value, $expected]) {
 	$GLOBALS['arrayFields']['field'] = $value;
-	foreach ([new AcfGet(123), new AcfGet(new WP_Post(123)), new AcfGet('option'), new AcfGetTerm(new WP_Term(4)), new AcfGetUser(new WP_User(5))] as $get) {
+	foreach ([new AcfGet(123), new AcfGet(new WP_Post(123)), new AcfGet('option'), new AcfGet(new WP_Term(4)), new AcfGet(new WP_User(5))] as $get) {
 		$check($get->Array('field') === $expected, 'direct/wrapper raw array');
 	}
 	$check((new AcfGet(['field' => $value]))->Array('field') === $expected, 'array source');
 	$check((new AcfGet(['group' => ['field' => $value]]))->Nested('group')->Array('field') === $expected, 'nested source');
 }
 $check((new AcfGet([]))->Array('missing') === [], 'missing array field');
-$check((new AcfGetTerm(null))->Array('missing') === [], 'null term');
-$check((new AcfGetUser(null))->Array('missing') === [], 'null user');
+$check((new AcfGet([]))->Array('missing') === [], 'empty source');
 $GLOBALS['arrayFields']['group'] = ['title' => 'Before'];
 $nested = (new AcfGet(123))->Nested('group');
 $GLOBALS['arrayFields']['group'] = ['title' => 'After'];
@@ -59,10 +54,8 @@ $wrappedRows = (new AcfGet(123))->Repeater('rows');
 $check(count($wrappedRows) === 2 && $wrappedRows[0] instanceof AcfGet && $wrappedRows[0]->Text('text') === 'A', 'Repeater wraps rows');
 $GLOBALS['arrayCalls'] = [];
 (new AcfGet(new WP_Post(7)))->Array('field');
-(new AcfGetTerm(new WP_Term(8)))->Array('field');
-(new AcfGetUser(new WP_User(9)))->Array('field');
+(new AcfGet(new WP_Term(8)))->Array('field');
+(new AcfGet(new WP_User(9)))->Array('field');
 $check($GLOBALS['arrayCalls'] === [['field', 7], ['field', 'term_8'], ['field', 'user_9']], 'source forwarding');
-foreach ([AcfGet::class, AcfGetTerm::class, AcfGetUser::class] as $class) {
-	$check(method_exists($class, 'Array') && ! method_exists($class, 'Group'), 'renamed public API');
-}
+$check(method_exists(AcfGet::class, 'Array') && ! method_exists(AcfGet::class, 'Group'), 'renamed public API');
 echo "Array accessors: {$checks} checks passed\n";

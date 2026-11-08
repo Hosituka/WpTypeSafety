@@ -16,7 +16,7 @@
 
 ## 標準取得口の一覧
 
-`AcfGetTerm`・`AcfGetUser`は`AcfGet`を継承しているため、同じ取得口を利用できます。型違い・未入力時は、単数Dataとnullableな値が`null`、文字列が空文字、リストと配列が空配列です。
+投稿・ユーザー・ターム・ACF参照先ID・取得済み配列は、すべて`AcfGet`から同じ取得口を利用できます。型違い・未入力時は、単数Dataとnullableな値が`null`、文字列が空文字、リストと配列が空配列です。
 
 | 取得口 | 戻り値 | 用途・契約 |
 |---|---|---|
@@ -47,7 +47,7 @@
 
 ## ACF文字列の未入力時の扱い
 
-`AcfGet->Text()`・`AcfGetUser->Text()`・`AcfGetTerm->Text()`は、文字列以外・空文字・空白だけの値を空文字として返します。フォールバック値を渡す引数は設けず、用途ごとの代替値は呼び出し側の`?:`で指定します。
+`AcfGet->Text()`は、文字列以外・空文字・空白だけの値を空文字として返します。フォールバック値を渡す引数は設けず、用途ごとの代替値は呼び出し側の`?:`で指定します。
 
 ```php
 <?php
@@ -82,9 +82,9 @@ $label = $firstViewGet->Text('label');
 $title = $postGet->Nested('outer')->Nested('inner')->Text('title');
 ```
 
-`Nested()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。`AcfGetUser`・`AcfGetTerm`からも使え、戻り値は`AcfGet`です。
+`Nested()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。戻り値は呼び出し元と同じ`AcfGet`派生型です。
 
-単一選択のACFユーザーフィールド・タクソノミーフィールドが参照する先のACF値を読むときは、`UserFields()`・`TermFields()`を使えます。内部では既存の`User()`・`Term()`で対象を取得し、`AcfGetUser`・`AcfGetTerm`へ渡します。未選択・型違い・取得失敗なら、空の取得元を返します。`UserFields()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。`AcfGet`・`AcfGetUser`・`AcfGetTerm`のいずれからも呼べます。
+単一選択のACFユーザーフィールド・タクソノミーフィールドが参照する先のACF値を読むときは、`UserFields()`・`TermFields()`を使えます。内部では既存の`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserFields()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
 
 ```php
 <?php
@@ -98,7 +98,7 @@ $groupAuthorName = $postGet->Nested('settings')->UserFields('author')->Text('pro
 
 ## 投稿・ターム・ユーザーの複数取得
 
-複数選択を許可した投稿オブジェクト・関連・タクソノミー・ユーザーフィールドには、`Posts()`・`Terms()`・`Users()`を使います。`AcfGet`・`AcfGetUser`・`AcfGetTerm`および`Nested()`で利用できます。
+複数選択を許可した投稿オブジェクト・関連・タクソノミー・ユーザーフィールドには、`Posts()`・`Terms()`・`Users()`を使います。`AcfGet`および`Nested()`で利用できます。
 
 ```php
 <?php
@@ -111,12 +111,14 @@ $members = $postGet->Users('members', avatarSize: 160);
 
 単数用の`Post()`・`Term()`・`User()`へ複数値を渡しても、先頭要素を推測して返すことはありません。同様に、複数用メソッドへ単一値を渡した場合も空配列です。投稿の標準タームや投稿者を取得するAPIではなく、指定したACFフィールドの値だけを対象にします。
 
-`AcfGet`のコンストラクターは`WP_Post | PostData | int | string | array | null`を受け取ります。投稿オブジェクト・DTO（派生クラスを含む）はIDに変換し、文字列と`null`はそのままACFへ渡します。配列の場合は、その配列内のキーを読みます。
+`AcfGet`のコンストラクターは`WP_Post | PostData | WP_User | WpUserData | WP_Term | TermData | int | string | array | null`を受け取ります。投稿オブジェクト・DTO（派生クラスを含む）は投稿ID、ユーザーとタームはACFの参照先IDへ変換します。文字列と`null`はそのままACFへ渡し、配列の場合はその配列内のキーを読みます。
 
 ```php
 <?php
 (new AcfGet($post))->Text('title');          // WP_Post
 (new AcfGet($postData))->Text('title');      // PostData・案件用の派生DTO
+(new AcfGet($user))->Text('profile_name');   // WP_User・WpUserData
+(new AcfGet($term))->Text('display_color');  // WP_Term・TermData
 (new AcfGet($postData->PostId))->Text('title');
 (new AcfGet('site_options'))->Array('settings'); // オプションページの取得先ID
 (new AcfGet())->Text('title');                // null：ACFの現在のコンテキストを使う
@@ -139,11 +141,11 @@ $imageUrl = $fields->ImgUrl('logo'); // URL返却形式の画像は?string
 $fileUrl = $fields->FileUrl('document'); // URL返却形式のファイルは?string
 ```
 
-`AcfGetUser`・`AcfGetTerm`は対象のユーザー・タームをコンストラクターへ渡し、その対象のACFフィールドを取得します。URL返却形式の画像には`ImgUrl()`、ファイルには`FileUrl()`を使います。
+対象のユーザー・タームを`AcfGet`のコンストラクターへ渡すと、その対象のACFフィールドを取得します。URL返却形式の画像には`ImgUrl()`、ファイルには`FileUrl()`を使います。
 
-ギャラリーのURL返却形式には`GalleryUrl($fieldName): list<string>`を使用します。`AcfGet`・`AcfGetUser`・`AcfGetTerm`およびNestedに対応します。未入力・配列以外は`[]`、不正URL・ID・画像情報配列は除外します。有効なHTTP(S)絶対URLの順序と重複を保持し、エスケープは出力側で行います。画像情報が必要な場合は従来の`Gallery()`を使います。
+ギャラリーのURL返却形式には`GalleryUrl($fieldName): list<string>`を使用します。`AcfGet`および`Nested()`に対応します。未入力・配列以外は`[]`、不正URL・ID・画像情報配列は除外します。有効なHTTP(S)絶対URLの順序と重複を保持し、エスケープは出力側で行います。画像情報が必要な場合は従来の`Gallery()`を使います。
 
-画像URL専用の入口として`AcfGet->ImgUrl()`、`AcfGetUser->ImgUrl()`、`AcfGetTerm->ImgUrl()`があります。URL返却形式の画像は`ImgData`に詰めず、寸法を取得できる画像だけを`ImgData`として返します。URLが未設定・不正なら`null`です。
+画像URL専用の入口として`AcfGet->ImgUrl()`があります。URL返却形式の画像は`ImgData`に詰めず、寸法を取得できる画像だけを`ImgData`として返します。URLが未設定・不正なら`null`です。
 
 HTTP(S) URLの検証では、日本語ドメインを`intl`拡張のUTS #46処理で検証します。検証後も取得口が返す値は入力された元のURLです。`intl`拡張を利用できない環境では、日本語ドメインは`null`になります。日本語を含むパス・クエリ・フラグメントは`intl`の有無にかかわらず検証できます。相対URLとHTTP(S)以外のスキームは対象外です。
 
@@ -151,7 +153,7 @@ SVG添付画像は、ローカルファイルのルート`svg`要素にある単
 
 SVGにはWordPressのラスター画像サイズがないため、`Img()`へ`thumbnail`等のサイズを指定しても元のSVG URLと寸法または比率を返します。`ImgUrl()`はURLだけを返す取得口なので、レイアウトシフト対策に必要な寸法や比率は提供しません。
 
-ファイルURL専用の入口として`AcfGet->FileUrl()`、`AcfGetUser->FileUrl()`、`AcfGetTerm->FileUrl()`があります。URL返却形式のファイルは`FileData`に詰めず、IDとファイルサイズを取得できる場合だけ`FileData`として返します。URLが未設定・不正なら`null`です。
+ファイルURL専用の入口として`AcfGet->FileUrl()`があります。URL返却形式のファイルは`FileData`に詰めず、IDとファイルサイズを取得できる場合だけ`FileData`として返します。URLが未設定・不正なら`null`です。
 
 ## 日付・日時・時刻の取得
 
@@ -182,7 +184,7 @@ echo esc_html($openingTime?->Format('H:i') ?? '');
 
 ## ラジオ・ボタングループ・チェックボックスの取得口
 
-返り値型を固定するため、ACFの返り値設定に応じて取得メソッドを使い分けます。`AcfGet`・`AcfGetUser`・`AcfGetTerm`すべてで利用できます。
+返り値型を固定するため、ACFの返り値設定に応じて取得メソッドを使い分けます。すべて`AcfGet`で利用できます。
 
 | 取得メソッド | ACFの返り値設定 | 戻り値 |
 |---|---|---|
@@ -217,7 +219,7 @@ $values = $acfGet->CheckboxValues('items');
 ## セレクトの取得口
 
 単一選択と複数選択を区別し、ACFの返り値設定に一致する取得口を使います。
-`AcfGet`・`AcfGetUser`・`AcfGetTerm`で利用できます。
+`AcfGet`で利用できます。
 
 | 取得メソッド | 複数選択 | 返り値設定 | 戻り値 |
 |---|---|---|---|
@@ -241,7 +243,7 @@ $values = $acfGet->CheckboxValues('items');
 
 ## URLフィールドの取得
 
-`Url('url')`は`?string`を返します。`AcfGet`・`AcfGetUser`・`AcfGetTerm`、
+`Url('url')`は`?string`を返します。`AcfGet`、
 取得済み配列・`Nested()`で利用できます。
 `ImgUrl()`・`FileUrl()`と同じHTTP(S)の絶対URL検証を使い、
 未入力・型違い・不正URL・相対パス・`javascript:`・`mailto:`などは`null`です。
@@ -259,14 +261,12 @@ if ($url !== null) {
 
 ## ターム・ユーザー未選択時
 
-`AcfGetTerm`・`AcfGetUser`は明示的な`null`を受け取れます。
-`AcfGetTerm`・`AcfGetUser`は`AcfGet`を継承しています。
-`new AcfGetTerm(null)`・`new AcfGetUser(null)`は空配列を親の取得元として使い、
+`UserFields()`・`TermFields()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。
 対象IDの組み立てやACFの取得関数を呼ばず、既存の取得口ごとの空値を返します。
 `Text()`は空文字、`Array()`・`Repeater()`・複数選択は空配列、
 画像・URL・単一選択などは`null`です。`Nested()`も空の取得元を引き継ぎます。
 現在の投稿へのフォールバックは行いません。
-有効なターム・ユーザーを渡すと、保持しているAdapterが参照先IDを組み立てます。
+有効なターム・ユーザーを`AcfGet`へ渡すと、保持しているAdapterが参照先IDを組み立てます。nullableな変数を直接渡す場合、`null`は現在の投稿を意味するため、空の取得元にしたい場合は`new AcfGet($subject ?? [])`と明示してください。
 Get系のstaticな初期登録は不要です。
 `new AcfGet(null)`は従来どおり現在の投稿を参照し、この変更の対象外です。
 検証は`php tests/nullable-subjects.php`で実行できます。
@@ -317,7 +317,7 @@ foreach ($projectGet->Repeater('items') as $rowGet) {
 ## リピーター行の取得
 
 `Repeater('items')`は呼び出し元と同じ`AcfGet`派生型のリストを返します。
-`AcfGet`・`AcfGetUser`・`AcfGetTerm`で共通です。
+`AcfGet`とその派生型で共通です。
 未入力・配列以外の取得値は`[]`、配列以外の行は除外し、
 残った行を入力順の連番リストにします。空の行配列は空の`AcfGet`として保持します。
 投稿・IDなどACFの取得先から呼んだ場合、各行は整形済み値に加えて未整形値と子フィールド定義を引き継ぐため、`Date()`・`DateTime()`・`Time()`も利用できます。外部の取得済み配列から作った行では時間系取得口は`null`です。
@@ -338,7 +338,7 @@ $rawRows = $postGet->Array('items'); // 生配列が必要な場合
 
 ## フレキシブルコンテンツの取得
 
-`Flexible('contents')`は`list<FlexibleNode>`を返します。`FlexibleNode`は、ACFが各行の`acf_fc_layout`へ保存するレイアウト名を`Layout`、同じ行の取得口を`Get`として保持します。`Get`は呼び出し元と同じ`AcfGet`派生型です。`AcfGet`・`AcfGetUser`・`AcfGetTerm`で共通です。
+`Flexible('contents')`は`list<FlexibleNode>`を返します。`FlexibleNode`は、ACFが各行の`acf_fc_layout`へ保存するレイアウト名を`Layout`、同じ行の取得口を`Get`として保持します。`Get`は呼び出し元と同じ`AcfGet`派生型です。
 
 ```php
 <?php

@@ -7,8 +7,6 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Acf\Get\AcfGetTerm;
-use WpTypeSafety\Acf\Get\AcfGetUser;
 use WpTypeSafety\Core\Data\ChoiceData;
 
 class WP_Post { public function __construct(public int $ID) {} }
@@ -27,8 +25,6 @@ function get_field(string $name, mixed $source = null): mixed
 
 require_once __DIR__ . '/../Core/Data/ChoiceData.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
 require_once __DIR__ . '/../Acf/Internal/AcfDtoFactory.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 
@@ -63,7 +59,7 @@ $expected = ['instagram', 'Instagram', ['instagram', 'Instagram'], ['instagram',
 foreach ($definitions as $index => [$method, $format, $multiple, $value]) {
 	$field = ['type' => 'select', 'return_format' => $format, 'multiple' => $multiple, 'value' => $value];
 	$GLOBALS['selectFields']['sns'] = $field;
-	foreach ([new AcfGet(123), new AcfGet(new WP_Post(123)), new AcfGetTerm(new WP_Term(4)), new AcfGetUser(new WP_User(5))] as $get) {
+	foreach ([new AcfGet(123), new AcfGet(new WP_Post(123)), new AcfGet(new WP_Term(4)), new AcfGet(new WP_User(5))] as $get) {
 		$check($normalize($get->$method('sns')) === $expected[$index], $method . ' direct/wrapper');
 	}
 	$check($normalize((new AcfGet(['sns' => $value]))->$method('sns')) === $expected[$index], $method . ' array');

@@ -6,8 +6,6 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Acf\Get\AcfGetTerm;
-use WpTypeSafety\Acf\Get\AcfGetUser;
 
 class WP_Post { public function __construct(public int $ID) {} }
 class WP_Term { public function __construct(public int $term_id) {} }
@@ -19,8 +17,6 @@ function get_field(string $name, mixed $source = null): mixed
 }
 
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 require_once __DIR__ . '/../Acf/Internal/AcfDtoFactory.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
@@ -33,7 +29,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 };
 $raw = [4 => ['text' => 'A', 'nested' => ['description' => 'Nested']], 8 => false, 10 => ['text' => 'B', 'children' => [['text' => 'Child']]], 11 => 'bad', 15 => []];
 $GLOBALS['rowFields']['rows'] = $raw;
-foreach ([new AcfGet(123), new AcfGet(new WP_Post(123)), new AcfGet('option'), new AcfGetTerm(new WP_Term(4)), new AcfGetUser(new WP_User(5)), new AcfGet(['rows' => $raw])] as $get) {
+foreach ([new AcfGet(123), new AcfGet(new WP_Post(123)), new AcfGet('option'), new AcfGet(new WP_Term(4)), new AcfGet(new WP_User(5)), new AcfGet(['rows' => $raw])] as $get) {
 	$rows = $get->Repeater('rows');
 	$check(array_is_list($rows) && count($rows) === 3, 'remove invalid rows and reindex');
 	$check(array_reduce($rows, static fn (bool $ok, $row): bool => $ok && $row instanceof AcfGet, true), 'all rows are AcfGet');
@@ -49,10 +45,8 @@ foreach ([null, false, '', 0, 'text', new stdClass(), new AcfGet([])] as $bad) {
 	$check((new AcfGet(123))->Repeater('rows') === [], 'invalid root');
 	$check((new AcfGet(['rows' => $bad]))->Repeater('rows') === [], 'invalid array source root');
 }
-foreach ([new AcfGetTerm(null), new AcfGetUser(null)] as $empty) {
-	$GLOBALS['rowCalls'] = [];
-	$check($empty->Repeater('rows') === [] && $GLOBALS['rowCalls'] === [], 'null subject no lookup');
-}
+$GLOBALS['rowCalls'] = [];
+$check((new AcfGet([]))->Repeater('rows') === [] && $GLOBALS['rowCalls'] === [], 'empty source no lookup');
 $get = new AcfGet(['rows' => [['type' => 'x', 'url' => 'https://example.com/']]]);
 $row = $get->Repeater('rows')[0];
 $check($row->SelectValue('type') === 'x', 'select on row');

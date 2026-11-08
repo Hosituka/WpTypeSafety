@@ -7,8 +7,6 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Acf\Get\AcfGetTerm;
-use WpTypeSafety\Acf\Get\AcfGetUser;
 
 class WP_Post { public function __construct(public int $ID) {} }
 class WP_Term { public function __construct(public int $term_id) {} }
@@ -22,8 +20,6 @@ function get_field(string $name, mixed $source = null): mixed
 
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetTerm.php';
-require_once __DIR__ . '/../Acf/Get/AcfGetUser.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 
 $checks = 0;
@@ -73,8 +69,8 @@ foreach ($cases as [$value, $expected]) {
 		[new AcfGet(123), 123],
 		[new AcfGet(new WP_Post(123)), 123],
 		[new AcfGet('option'), 'option'],
-		[new AcfGetTerm(new WP_Term(4)), 'term_4'],
-		[new AcfGetUser(new WP_User(5)), 'user_5'],
+		[new AcfGet(new WP_Term(4)), 'term_4'],
+		[new AcfGet(new WP_User(5)), 'user_5'],
 	];
 	foreach ($sources as [$get, $source]) {
 		$check($get->Url('url') === $expected, 'direct/wrapper URL validation');
