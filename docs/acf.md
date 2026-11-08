@@ -7,6 +7,7 @@
 - [ACFの取得先の指定](#acfの取得先の指定)
 - [投稿・ターム・ユーザーの複数取得](#投稿タームユーザーの複数取得)
 - [ACF画像・ファイルの取得](#acf画像ファイルの取得)
+- [Icon Pickerの取得](#icon-pickerの取得)
 - [日付・日時・時刻の取得](#日付日時時刻の取得)
 - [選択系フィールド](#ラジオボタングループチェックボックスの取得口)
 - [案件固有フィールドへの拡張](#案件固有フィールドへの拡張)
@@ -28,6 +29,9 @@
 | `Url()` | `?string` | HTTP(S)の絶対URL |
 | `Img()` | `?ImgData` | ID・寸法を取得できる画像 |
 | `ImgUrl()` | `?string` | URL返却形式の画像 |
+| `IconClass()` | `?string` | Icon PickerのDashiconクラス名 |
+| `IconImg()` | `?ImgData` | Icon Pickerのメディアライブラリ画像 |
+| `IconUrl()` | `?string` | Icon PickerのURLタブ |
 | `Gallery()` | `list<ImgData>` | 画像情報を持つギャラリー |
 | `GalleryUrl()` | `list<string>` | URL返却形式のギャラリー |
 | `File()` | `?FileData` | ID・ファイルサイズを取得できるファイル |
@@ -39,6 +43,7 @@
 | `Term()`・`Terms()` | `?TermData`・`list<TermData>` | タクソノミーフィールド |
 | `User()`・`Users()` | `?WpUserData`・`list<WpUserData>` | ユーザーフィールド |
 | `PostFields()`・`UserFields()`・`TermFields()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
+| `PostsFields()`・`UsersFields()`・`TermsFields()` | `list<呼び出し元と同じAcfGet派生型>` | 複数参照先それぞれのACFフィールド取得口を返す |
 | `Native()` | `mixed` | 通常のACF戻り値をWpTypeSafetyで変換せず返す |
 | `Nested()` | `AcfGet` | グループなどの子配列へ進む |
 | `Array()` | `array<mixed>` | 生配列。要素型は保証しない |
@@ -115,6 +120,17 @@ $members = $postGet->Users('members', avatarSize: 160);
 
 戻り値はそれぞれ`list<PostData>`・`list<TermData>`・`list<WpUserData>`です。ACFの返却形式がオブジェクトまたはIDのどちらでも変換し、未入力・配列以外は`[]`、取得・変換できない要素は除外します。入力順と重複は維持します。`Users()`の`avatarSize`は各`WpUserData`へ設定するアバター取得用Resolverに渡されます。
 
+各参照先のACFフィールドへ進む場合は、`PostsFields()`・`TermsFields()`・`UsersFields()`を使います。戻り値は`list<AcfGet>`で、派生`AcfGet`から呼んだ場合はリスト内でも同じ派生型とAdapterを維持します。既存の複数取得メソッドで変換できた対象だけを子取得口にするため、入力順・重複・不正要素除外の契約も同じです。
+
+```php
+<?php
+$relatedPostGets = $postGet->PostsFields('related_posts');
+
+foreach ($relatedPostGets as $relatedPostGet) {
+	$subtitle = $relatedPostGet->Text('subtitle');
+}
+```
+
 単数用の`Post()`・`Term()`・`User()`へ複数値を渡しても、先頭要素を推測して返すことはありません。同様に、複数用メソッドへ単一値を渡した場合も空配列です。投稿の標準タームや投稿者を取得するAPIではなく、指定したACFフィールドの値だけを対象にします。
 
 `AcfGet`のコンストラクターは`WP_Post | PostData | WP_User | WpUserData | WP_Term | TermData | int | string | array | null`を受け取ります。投稿オブジェクト・DTO（派生クラスを含む）は投稿ID、ユーザーとタームはACFの参照先IDへ変換します。文字列と`null`はそのままACFへ渡し、配列の場合はその配列内のキーを読みます。
@@ -170,6 +186,40 @@ SVG添付画像は、ローカルファイルのルート`svg`要素にある単
 SVGにはWordPressのラスター画像サイズがないため、`Img()`へ`thumbnail`等のサイズを指定しても元のSVG URLと寸法または比率を返します。`ImgUrl()`はURLだけを返す取得口なので、レイアウトシフト対策に必要な寸法や比率は提供しません。
 
 ファイルURL専用の入口として`AcfGet->FileUrl()`があります。URL返却形式のファイルは`FileData`に詰めず、IDとファイルサイズを取得できる場合だけ`FileData`として返します。URLが未設定・不正なら`null`です。
+
+## Icon Pickerの取得
+
+ACF 6.3以降のIcon Pickerは、選択したタブに対応する取得口を使います。未入力、別のタブ、別のフィールドタイプ、不正値の場合はいずれも`null`です。
+
+| 取得口 | 対象タブ | 戻り値 |
+|---|---|---|
+| `IconClass()` | Dashicons | `?string` |
+| `IconImg()` | Media Library | `?ImgData` |
+| `IconUrl()` | URL | `?string` |
+
+```php
+<?php
+$postGet = new AcfGet($post);
+$iconClass = $postGet->IconClass('menu_icon');
+$iconImg = $postGet->IconImg('menu_icon', 'medium');
+$iconUrl = $postGet->IconUrl('menu_icon');
+```
+
+`IconClass()`は`dashicons-admin-home`のような選択されたアイコン固有のクラス名だけを返します。HTMLへ出力するときは、WordPress共通の`dashicons`クラスを呼び出し側で追加します。フロント画面でDashiconsのCSSがまだ読み込まれていない場合は、テーマまたはプラグイン側で`wp_enqueue_style('dashicons')`を行います。
+
+```php
+<?php if ($iconClass !== null): ?>
+	<span class="dashicons <?= esc_attr($iconClass) ?>" aria-hidden="true"></span>
+<?php endif; ?>
+```
+
+`IconImg()`はMedia Libraryで選ばれた添付画像を既存の`ImgData`へ変換します。第2引数には`Img()`と同じ画像サイズを指定でき、SVGも既存のSVG寸法取得仕様に従います。`IconUrl()`はURLタブのHTTP(S)絶対URLだけを返します。属性へ出力するときのエスケープは呼び出し側で行います。
+
+投稿・ID・ユーザー・ターム・オプションページ等を取得元にした場合は、Icon PickerのReturn Formatにかかわらず、ACFの未整形値から選択タブを判定します。`Nested()`・`Repeater()`・`Flexible()`も未整形値と子フィールド定義を引き継ぐため、同じ3つの取得口を利用できます。
+
+外部で取得済みの配列を`AcfGet`へ渡す場合は、`['type' => 'dashicons|media_library|url', 'value' => ...]`というIcon Pickerの配列形式を維持してください。文字列だけの場合はDashiconクラス名とHTTP(S) URLを判別できますが、Media Library由来のURL文字列から添付画像IDや元のタブを復元することはできません。
+
+ACFのフィルターで追加した独自タブは、標準の3取得口では推測して変換しません。`Native()`で値を取得し、案件固有の派生`AcfGet`で型確認・正規化してください。
 
 ## 日付・日時・時刻の取得
 
@@ -284,7 +334,7 @@ if ($url !== null) {
 
 ## 参照先未選択時
 
-`PostFields()`・`UserFields()`・`TermFields()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。
+`PostFields()`・`UserFields()`・`TermFields()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。`PostsFields()`・`UsersFields()`・`TermsFields()`の場合は空のリストを返します。
 対象IDの組み立てやACFの取得関数を呼ばず、既存の取得口ごとの空値を返します。
 `Text()`は空文字、`Array()`・`Repeater()`・複数選択は空配列、
 画像・URL・単一選択などは`null`です。`Nested()`も空の取得元を引き継ぎます。

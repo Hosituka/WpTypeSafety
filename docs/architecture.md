@@ -13,7 +13,7 @@ autoload.php
        └─ composer.jsonのWpTypeSafety\\を登録
 ```
 
-公開Get系は対応するAdapterへ直接委譲し、staticなClosure登録や登録順への依存を持ちません。`AcfGet`は`AcfAdapter`をインスタンスに1個保持し、投稿・ユーザー・ターム・ACF参照先ID・取得済み配列を共通の取得元として扱います。ユーザーとタームは同じAdapterでACFの参照先IDへ正規化します。`Nested()`・`Repeater()`・`Flexible()`・`PostFields()`・`UserFields()`・`TermFields()`が作る子取得口は、呼び出し元の派生型と同じAdapterを引き継ぎます。Wpのstatic取得口は、対応するInternal Adapterのstaticメソッドへ直接委譲します。
+公開Get系は対応するAdapterへ直接委譲し、staticなClosure登録や登録順への依存を持ちません。`AcfGet`は`AcfAdapter`をインスタンスに1個保持し、投稿・ユーザー・ターム・ACF参照先ID・取得済み配列を共通の取得元として扱います。ユーザーとタームは同じAdapterでACFの参照先IDへ正規化します。`Nested()`・`Repeater()`・`Flexible()`・`PostFields()`・`UserFields()`・`TermFields()`と、その複数形メソッドが作る子取得口は、呼び出し元の派生型と同じAdapterを引き継ぎます。投稿等から作る入れ子の子取得口は、時間系とIcon Pickerのフィールド型判定に必要な未整形値・子フィールド定義も引き継ぎます。Wpのstatic取得口は、対応するInternal Adapterのstaticメソッドへ直接委譲します。
 
 `Wp/Internal/DtoFactory.php`はWordPressの値をWp固有またはCore共通のDTOへ変換し、必要なResolverをDTOへ渡します。`Acf/Internal/AcfDtoFactory.php`はACFの戻り値をDTOへ変換します。ターム階層は`TermAdapter`、メニューツリーは`MenuAdapter`、ACF値の正規化は`AcfAdapter`が担当します。依存方向は`Acf → Wp → Core`および`Acf → Core`です。CoreはWp・Acfを参照しません。
 

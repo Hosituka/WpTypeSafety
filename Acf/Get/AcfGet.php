@@ -67,6 +67,19 @@ class AcfGet
 		return $child;
 	}
 
+	/**
+	 * @param list<PostData|WpUserData|TermData> $sources
+	 * @return list<static>
+	 */
+	protected function createChildren(array $sources): array
+	{
+		$children = [];
+		foreach ($sources as $source) {
+			$children[] = $this->createChild($source);
+		}
+		return $children;
+	}
+
 	/** @return array<mixed> */
 	public function Array(string $fieldName): array
 	{
@@ -109,6 +122,12 @@ class AcfGet
 		return $this->adapter->GetPosts($fieldName, $this->source);
 	}
 
+	/** @return list<static> */
+	public function PostsFields(string $fieldName): array
+	{
+		return $this->createChildren($this->Posts($fieldName));
+	}
+
 	public function Term(string $fieldName): ?TermData
 	{
 		return $this->adapter->GetTerm($fieldName, $this->source);
@@ -126,6 +145,12 @@ class AcfGet
 		return $this->createChild($this->Term($fieldName) ?? []);
 	}
 
+	/** @return list<static> */
+	public function TermsFields(string $fieldName): array
+	{
+		return $this->createChildren($this->Terms($fieldName));
+	}
+
 	public function User(string $fieldName, int $avatarSize = 96): ?WpUserData
 	{
 		return $this->adapter->GetUser($fieldName, $this->source, $avatarSize);
@@ -141,6 +166,12 @@ class AcfGet
 	public function UserFields(string $fieldName): static
 	{
 		return $this->createChild($this->User($fieldName) ?? []);
+	}
+
+	/** @return list<static> */
+	public function UsersFields(string $fieldName): array
+	{
+		return $this->createChildren($this->Users($fieldName));
 	}
 
 	/** HTTP(S)の絶対URLを返す。未入力・不正値はnull。エスケープは描画側で行う。 */
@@ -172,6 +203,41 @@ class AcfGet
 	public function ImgUrl(string $fieldName): ?string
 	{
 		return $this->adapter->GetImgUrl($fieldName, $this->source);
+	}
+
+	/** Icon PickerのDashiconクラス名を返す。 */
+	public function IconClass(string $fieldName): ?string
+	{
+		if ($this->hasNestedContext) {
+			$field = $this->nestedFieldOfType($fieldName, 'icon_picker');
+			return $field === null ? null : $this->adapter->ConvertIconClass($this->nestedRawValue($field));
+		}
+
+		return $this->adapter->GetIconClass($fieldName, $this->source);
+	}
+
+	/** Icon Pickerのメディアライブラリ画像を返す。 */
+	public function IconImg(string $fieldName, string|array $size = 'full'): ?ImgData
+	{
+		if ($this->hasNestedContext) {
+			$field = $this->nestedFieldOfType($fieldName, 'icon_picker');
+			return $field === null
+				? null
+				: $this->adapter->ConvertIconImg($this->nestedRawValue($field), $size);
+		}
+
+		return $this->adapter->GetIconImg($fieldName, $this->source, $size);
+	}
+
+	/** Icon PickerのURLを返す。 */
+	public function IconUrl(string $fieldName): ?string
+	{
+		if ($this->hasNestedContext) {
+			$field = $this->nestedFieldOfType($fieldName, 'icon_picker');
+			return $field === null ? null : $this->adapter->ConvertIconUrl($this->nestedRawValue($field));
+		}
+
+		return $this->adapter->GetIconUrl($fieldName, $this->source);
 	}
 
 	public function File(string $fieldName): ?FileData
@@ -323,7 +389,7 @@ class AcfGet
 	public function Date(string $fieldName): ?\DateTimeImmutable
 	{
 		if ($this->hasNestedContext) {
-			$field = $this->temporalField($fieldName, 'date_picker');
+			$field = $this->nestedFieldOfType($fieldName, 'date_picker');
 			return $field === null ? null : $this->adapter->ConvertDate($this->nestedRawValue($field));
 		}
 
@@ -334,7 +400,7 @@ class AcfGet
 	public function DateTime(string $fieldName): ?\DateTimeImmutable
 	{
 		if ($this->hasNestedContext) {
-			$field = $this->temporalField($fieldName, 'date_time_picker');
+			$field = $this->nestedFieldOfType($fieldName, 'date_time_picker');
 			return $field === null ? null : $this->adapter->ConvertDateTime($this->nestedRawValue($field));
 		}
 
@@ -345,7 +411,7 @@ class AcfGet
 	public function Time(string $fieldName): ?TimeData
 	{
 		if ($this->hasNestedContext) {
-			$field = $this->temporalField($fieldName, 'time_picker');
+			$field = $this->nestedFieldOfType($fieldName, 'time_picker');
 			return $field === null ? null : $this->adapter->ConvertTime($this->nestedRawValue($field));
 		}
 
@@ -401,7 +467,7 @@ class AcfGet
 	}
 
 	/** @return null|array<mixed> */
-	private function temporalField(string $fieldName, string $expectedType): ?array
+	private function nestedFieldOfType(string $fieldName, string $expectedType): ?array
 	{
 		$field = $this->nestedField($fieldName);
 		return $field !== null && ($field['type'] ?? null) === $expectedType

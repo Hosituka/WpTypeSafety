@@ -39,9 +39,9 @@ $title = $postGet
 
 `Nested()` returns an accessor backed by an empty source even when the requested group is missing or is not an array. You can therefore traverse the full chain without adding `isset()` or `is_array()` branches at every level.
 
-When `Nested()`, `Repeater()`, or `Flexible()` is reached from an ACF subject such as a post, unformatted values and child field definitions are carried into the child accessors. This allows `Date()`, `DateTime()`, and `Time()` to work inside groups, repeater rows, and flexible-content layouts, including nested combinations. When these methods are called on a custom `AcfGet` subclass, their child accessors preserve the same subclass and injected dependencies.
+When `Nested()`, `Repeater()`, or `Flexible()` is reached from an ACF subject such as a post, unformatted values and child field definitions are carried into the child accessors. This allows the date/time and Icon Picker accessors to work inside groups, repeater rows, and flexible-content layouts, including nested combinations. When these methods are called on a custom `AcfGet` subclass, their child accessors preserve the same subclass and injected dependencies.
 
-`AcfGet` accepts posts, users, and terms as a common field source. Pass `WP_User` / `WpUserData` or `WP_Term` / `TermData` directly to read fields attached to that subject. `PostFields()`, `UserFields()`, and `TermFields()` switch to a referenced subject while preserving the caller's `AcfGet` subclass and injected adapter.
+`AcfGet` accepts posts, users, and terms as a common field source. Pass `WP_User` / `WpUserData` or `WP_Term` / `TermData` directly to read fields attached to that subject. `PostFields()`, `UserFields()`, and `TermFields()` switch to one referenced subject. `PostsFields()`, `UsersFields()`, and `TermsFields()` return one accessor for each referenced subject. All of these methods preserve the caller's `AcfGet` subclass and injected adapter.
 
 Repeater rows are also returned as `AcfGet` instances from the beginning. Nested groups and repeaters inside each row can be read in the same way.
 
@@ -61,7 +61,7 @@ From simple fields to deeply nested structures, you can follow the shape of ACF 
 
 ## Features
 
-- Purpose-specific accessors with fixed return types, including `Text(): string`, `Number(): ?float`, `Int(): ?int`, `Img(): ?ImgData`, `Posts(): list<PostData>`, `Terms(): list<TermData>`, `Users(): list<WpUserData>`, `Repeater(): list<AcfGet>`, and `Flexible(): list<FlexibleNode>`.
+- Purpose-specific accessors with fixed return types, including `Text(): string`, `Number(): ?float`, `Int(): ?int`, `Img(): ?ImgData`, `IconClass(): ?string`, `IconImg(): ?ImgData`, `IconUrl(): ?string`, `Posts(): list<PostData>`, `Terms(): list<TermData>`, `Users(): list<WpUserData>`, `Repeater(): list<AcfGet>`, and `Flexible(): list<FlexibleNode>`.
 - `Native(): mixed` as an explicit escape hatch that returns the normal ACF value without WpTypeSafety conversion for unsupported or custom field types.
 - `PostData` retains the post status, post type, slug, password-protection state, and WordPress public-viewability result without exposing the password itself.
 - Incremental adoption alongside existing WordPress and ACF APIs. Data objects can also be constructed directly with `new`.

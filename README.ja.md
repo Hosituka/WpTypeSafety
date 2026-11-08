@@ -38,9 +38,9 @@ $title = $postGet
 ```
 
 `Nested()`は、指定したグループが未入力・配列以外でも空の取得元を返します。そのため、途中の階層ごとに`isset()`や`is_array()`で分岐せず、最後まで同じ形でたどれます。
-投稿などACFの取得先から`Nested()`・`Repeater()`・`Flexible()`をたどる場合は、未整形値と子フィールド定義も引き継ぎます。そのため、グループ、リピーター行、Flexibleの各レイアウトと、それらを組み合わせた入れ子でも`Date()`・`DateTime()`・`Time()`を利用できます。`AcfGet`の派生型から呼んだ場合は、子の取得口にも同じ派生型と注入済みの依存が引き継がれます。
+投稿などACFの取得先から`Nested()`・`Repeater()`・`Flexible()`をたどる場合は、未整形値と子フィールド定義も引き継ぎます。そのため、グループ、リピーター行、Flexibleの各レイアウトと、それらを組み合わせた入れ子でも、日付系取得口とIcon Picker取得口を利用できます。`AcfGet`の派生型から呼んだ場合は、子の取得口にも同じ派生型と注入済みの依存が引き継がれます。
 
-`AcfGet`は投稿・ユーザー・タームを共通の取得元として扱います。`WP_User`／`WpUserData`または`WP_Term`／`TermData`を直接渡すと、その対象に紐づくACFフィールドを取得できます。`PostFields()`・`UserFields()`・`TermFields()`で参照先へ切り替えた場合も、呼び出し元の`AcfGet`派生型と注入済みAdapterを維持します。
+`AcfGet`は投稿・ユーザー・タームを共通の取得元として扱います。`WP_User`／`WpUserData`または`WP_Term`／`TermData`を直接渡すと、その対象に紐づくACFフィールドを取得できます。単一参照用の`PostFields()`・`UserFields()`・`TermFields()`と、複数参照用の`PostsFields()`・`UsersFields()`・`TermsFields()`があり、いずれも呼び出し元の`AcfGet`派生型と注入済みAdapterを維持します。
 
 リピーターの各行も、最初から`AcfGet`として扱えます。行内のグループやリピーターも同じ方法で読み取れます。
 
@@ -60,7 +60,7 @@ foreach ($postGet->Repeater('sections') as $sectionGet) {
 
 ## 特徴
 
-- `Text(): string`、`Number(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
+- `Text(): string`、`Number(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`IconClass(): ?string`、`IconImg(): ?ImgData`、`IconUrl(): ?string`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
 - 未対応・独自ACFフィールド向けの明示的な拡張口`Native(): mixed`。通常のACF戻り値をWpTypeSafetyで変換せず返す。
 - `PostData`は投稿状態・投稿タイプ・スラッグ・パスワード保護の有無・WordPressの公開閲覧可否を保持し、パスワード自体は公開しない。
 - 既存のWordPress・ACF APIと併用しながら、必要な取得処理から段階的に置き換えられる。Dataは直接`new`でも生成できる。

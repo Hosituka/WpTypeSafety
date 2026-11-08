@@ -106,6 +106,52 @@ class AcfAdapter
 		return is_array($source) ? self::imgUrlFrom($fieldName, $source) : self::imgUrl($fieldName, $source);
 	}
 
+	public function GetIconClass(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return $this->ConvertIconClass(self::iconFieldValue($fieldName, $source));
+	}
+
+	public function GetIconImg(
+		string $fieldName,
+		\WP_Post|PostData|int|string|array|null $source,
+		string|array $size,
+	): ?ImgData {
+		return $this->ConvertIconImg(self::iconFieldValue($fieldName, $source), $size);
+	}
+
+	public function GetIconUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
+	{
+		return $this->ConvertIconUrl(self::iconFieldValue($fieldName, $source));
+	}
+
+	public function ConvertIconClass(mixed $value): ?string
+	{
+		$icon = self::iconValue($value);
+		if ($icon === null || $icon['type'] !== 'dashicons' || ! is_string($icon['value'])) {
+			return null;
+		}
+
+		return preg_match('/^dashicons-[a-z0-9-]+$/D', $icon['value']) === 1
+			? $icon['value']
+			: null;
+	}
+
+	public function ConvertIconImg(mixed $value, string|array $size): ?ImgData
+	{
+		$icon = self::iconValue($value);
+		return $icon !== null && $icon['type'] === 'media_library'
+			? AcfDtoFactory::ImgFromAcf($icon['value'], $size)
+			: null;
+	}
+
+	public function ConvertIconUrl(mixed $value): ?string
+	{
+		$icon = self::iconValue($value);
+		return $icon !== null && $icon['type'] === 'url'
+			? self::httpUrl($icon['value'])
+			: null;
+	}
+
 	public function GetFile(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?FileData
 	{
 		return is_array($source) ? self::fileFrom($fieldName, $source) : self::file($fieldName, $source);
@@ -504,6 +550,43 @@ class AcfAdapter
 	private static function imgUrlFrom(string $key, mixed $parent): ?string
 	{
 		return self::httpUrl(self::valueFrom($key, $parent));
+	}
+
+	private static function iconFieldValue(
+		string $fieldName,
+		\WP_Post|PostData|int|string|array|null $source,
+	): mixed {
+		if (is_array($source)) {
+			return self::valueFrom($fieldName, $source);
+		}
+
+		$field = \get_field_object($fieldName, self::postId($source), false, true);
+		return is_array($field) && ($field['type'] ?? null) === 'icon_picker'
+			? ($field['value'] ?? null)
+			: null;
+	}
+
+	/** @return null|array{type: string, value: mixed} */
+	private static function iconValue(mixed $value): ?array
+	{
+		if (is_array($value)) {
+			$type = $value['type'] ?? null;
+			return is_string($type) && array_key_exists('value', $value)
+				? ['type' => $type, 'value' => $value['value']]
+				: null;
+		}
+
+		if (! is_string($value)) {
+			return null;
+		}
+
+		if (preg_match('/^dashicons-[a-z0-9-]+$/D', $value) === 1) {
+			return ['type' => 'dashicons', 'value' => $value];
+		}
+
+		return UrlCheck::IsHttpUrl($value)
+			? ['type' => 'url', 'value' => $value]
+			: null;
 	}
 
 	private static function file(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?FileData

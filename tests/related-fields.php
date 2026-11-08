@@ -147,12 +147,20 @@ $values = [
 		'author' => 7,
 		'category' => 5,
 		'featured_post' => 3,
-		'group' => ['author' => 7, 'category' => 5, 'featured_post' => 3],
+		'group' => [
+			'author' => 7,
+			'category' => 5,
+			'featured_post' => 3,
+			'multiple_users' => [7, 8],
+			'multiple_posts' => [3, 4],
+			'multiple_terms' => [5, 6],
+		],
 		'multiple_users' => [7, 8],
 		'multiple_posts' => [3, 'invalid', 4],
 		'multiple_terms' => [5, 'invalid', 6],
 	],
 	'3' => ['label' => 'Featured'],
+	'4' => ['label' => 'Secondary'],
 	'user_7' => ['label' => 'Alice', 'category' => 5, 'friend' => 8],
 	'user_8' => ['label' => 'Bob'],
 	'term_5' => ['label' => 'Blue', 'author' => 7, 'parent' => 6],
@@ -200,4 +208,37 @@ $check(array_map(static fn (TermData $item): int => $item->Id, $post->Terms('mul
 $check(array_map(static fn (WpUserData $item): int => $item->Id, $post->Users('multiple_users', 160)) === [7, 8], 'multiple users');
 $check($avatarSizes[array_key_last($avatarSizes)] === 160, 'multiple user avatar size');
 $check($post->Posts('missing') === [], 'missing multiple posts');
+$check(
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->PostsFields('multiple_posts'))
+		=== ['Featured', 'Secondary'],
+	'複数投稿のACF取得口を返す',
+);
+$check(
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->TermsFields('multiple_terms'))
+		=== ['Blue', 'Parent'],
+	'複数タームのACF取得口を返す',
+);
+$check(
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->UsersFields('multiple_users'))
+		=== ['Alice', 'Bob'],
+	'複数ユーザーのACF取得口を返す',
+);
+$check(
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->Nested('group')->PostsFields('multiple_posts'))
+		=== ['Featured', 'Secondary'],
+	'Nested内でも複数投稿のACF取得口を返す',
+);
+$projectPostGets = $projectGet->PostsFields('multiple_posts');
+$projectTermGets = $projectGet->TermsFields('multiple_terms');
+$projectUserGets = $projectGet->UsersFields('multiple_users');
+$check(
+	count($projectPostGets) === 2
+		&& $projectPostGets[0] instanceof ProjectAcfGet
+		&& $projectTermGets[0] instanceof ProjectAcfGet
+		&& $projectUserGets[0] instanceof ProjectAcfGet,
+	'複数参照先でも派生型を維持する',
+);
+$check($post->PostsFields('missing') === [], '未選択の複数投稿は空配列');
+$check($post->TermsFields('missing') === [], '未選択の複数タームは空配列');
+$check($post->UsersFields('missing') === [], '未選択の複数ユーザーは空配列');
 echo "Related fields: {$checks} checks passed.\n";
