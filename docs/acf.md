@@ -39,6 +39,7 @@
 | `Term()`・`Terms()` | `?TermData`・`list<TermData>` | タクソノミーフィールド |
 | `User()`・`Users()` | `?WpUserData`・`list<WpUserData>` | ユーザーフィールド |
 | `PostFields()`・`UserFields()`・`TermFields()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
+| `Native()` | `mixed` | 通常のACF戻り値をWpTypeSafetyで変換せず返す |
 | `Nested()` | `AcfGet` | グループなどの子配列へ進む |
 | `Array()` | `array<mixed>` | 生配列。要素型は保証しない |
 | `Repeater()` | `list<AcfGet>` | リピーターの各行 |
@@ -275,8 +276,18 @@ Get系のstaticな初期登録は不要です。
 
 ## 案件固有フィールドへの拡張
 
-`AcfGet`は継承でき、派生クラスからだけ使用できる`protected raw()`を提供します。
-標準アクセサーにないACFE・自作フィールドなどは、生値を案件固有の型へ変換する公開メソッドとして追加できます。
+`Native()`は、WpTypeSafetyで型確認・正規化していないACFネイティブ値を`mixed`で返します。投稿・ユーザー・ターム・オプションページ等を取得元にした場合は、通常の`get_field($fieldName, $postId)`と同じACF整形済み値です。取得済み配列を取得元にした場合は、その配列内の値をそのまま返します。
+
+```php
+<?php
+$nativeValue = $postGet->Native('custom_field');
+```
+
+`Native()`は`get_field()`の全引数を再公開する完全互換ラッパーではありません。ACF未整形値やACFネイティブのHTMLエスケープ等が必要な場合は、`get_field()`を直接使用してください。WordPressのメタテーブルへ直接アクセスするAPIでもありません。
+
+`Nested()`・`Repeater()`・`FlexibleNode::Get`でも同じメソッドを利用できます。子取得口はACFがすでに整形した配列のスナップショットを保持するため、その値をWpTypeSafetyで追加変換せず返します。
+
+標準アクセサーにないACFE・自作フィールドなどは、`Native()`の戻り値を案件固有の型へ変換する公開メソッドとして追加できます。
 
 ```php
 <?php
@@ -284,7 +295,7 @@ final class ProjectAcfGet extends AcfGet
 {
 	public function Price(string $fieldName): ?PriceData
 	{
-		return PriceData::FromMixed($this->raw($fieldName));
+		return PriceData::FromMixed($this->Native($fieldName));
 	}
 }
 
@@ -292,8 +303,7 @@ $postGet = new ProjectAcfGet($postId);
 $price = $postGet->Price('price');
 ```
 
-`raw()`は未検証の生値を返すため、派生クラスの公開メソッドで型確認・正規化してから返してください。
-利用側テンプレートから直接呼ぶことはできません。
+`Native()`は公開取得口ですが、戻り値型は`mixed`です。通常のテンプレートでは用途別の型付き取得口を優先し、未対応フィールドの調査や案件固有の取得メソッドを実装するときの拡張口として使用してください。型確認・正規化・描画時のエスケープは自動では行いません。
 
 `Nested()`・`Repeater()`・`FlexibleNode::Get`が生成する子取得口は、呼び出し元の派生型とコンストラクターで注入された依存・Adapterを引き継ぎます。内部では`protected createChild()`が現在の取得口を複製し、取得元だけを子配列へ差し替えます。通常は派生クラス側で子生成処理を書く必要はありません。複製時に追加の初期化が必要な派生型だけ、`createChild()`をオーバーライドしてください。
 

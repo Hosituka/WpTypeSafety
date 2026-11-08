@@ -28,6 +28,10 @@ class WP_Post
 		public int $ID,
 		public int $post_author = 0,
 		public string $post_content = '',
+		public string $post_status = 'publish',
+		public string $post_type = 'post',
+		public string $post_name = 'sample',
+		public string $post_password = '',
 	) {}
 }
 
@@ -59,6 +63,7 @@ function get_post(int $id): mixed { return $GLOBALS['posts'][$id] ?? null; }
 function get_permalink(WP_Post $post): string { return 'https://example.com/post/' . $post->ID . '/'; }
 function get_post_datetime(WP_Post $post, string $field = 'date'): false { return false; }
 function get_the_title(WP_Post $post): string { return '投稿' . $post->ID; }
+function is_post_publicly_viewable(WP_Post $post): bool { return $post->post_status === 'publish'; }
 function get_comment(int $id): mixed
 {
 	$GLOBALS['commentCalls'][] = $id;

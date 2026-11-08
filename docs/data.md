@@ -57,6 +57,11 @@ $data = new PostData(
 	Url: (string) get_permalink($post),
 	Title: get_the_title($post),
 	Content: $post->post_content,
+	Status: $post->post_status,
+	PostType: $post->post_type,
+	Slug: $post->post_name,
+	IsPasswordProtected: $post->post_password !== '',
+	IsPubliclyViewable: is_post_publicly_viewable($post),
 	thumbnailResolver: static function (string|array $size) use ($post): ?ImgData {
 		$source = wp_get_attachment_image_src(get_post_thumbnail_id($post), $size);
 		return is_array($source)
@@ -67,6 +72,8 @@ $data = new PostData(
 
 $image = $data->GetThumbnail('medium_large');
 ```
+
+`PostData`は`Status`・`PostType`・`Slug`・`IsPasswordProtected`・`IsPubliclyViewable`も保持します。`IsPublished()`は`Status === 'publish'`だけを判定し、投稿タイプの公開可否までは判定しません。`IsPubliclyViewable`はWordPressの`is_post_publicly_viewable()`による、投稿状態と投稿タイプを合わせた判定です。パスワード文字列自体は保持しません。直接生成時に省略した場合、文字列は空文字、真偽値はfalseになり、状態が不明であることを表します。
 
 取得関数はWordPress以外のデータ源を使っても構いません。`GetChildren()`の引数と戻り値型など、公開メソッドの契約は共通です。`MenuItemType`はWordPressの値から自動変換せず、該当するenum caseを呼び出し元が選びます。
 
@@ -104,6 +111,11 @@ final readonly class ArticlePostData extends PostData
 		public string $Subtitle,
 		?\DateTimeImmutable $PublishedAt = null,
 		?\DateTimeImmutable $ModifiedAt = null,
+		string $Status = '',
+		string $PostType = '',
+		string $Slug = '',
+		bool $IsPasswordProtected = false,
+		bool $IsPubliclyViewable = false,
 		?\Closure $authorResolver = null,
 		?\Closure $excerptResolver = null,
 		?\Closure $excerptPresenceResolver = null,
@@ -120,6 +132,11 @@ final readonly class ArticlePostData extends PostData
 			Content: $Content,
 			PublishedAt: $PublishedAt,
 			ModifiedAt: $ModifiedAt,
+			Status: $Status,
+			PostType: $PostType,
+			Slug: $Slug,
+			IsPasswordProtected: $IsPasswordProtected,
+			IsPubliclyViewable: $IsPubliclyViewable,
 			authorResolver: $authorResolver,
 			excerptResolver: $excerptResolver,
 			excerptPresenceResolver: $excerptPresenceResolver,
@@ -143,6 +160,11 @@ final readonly class ArticlePostData extends PostData
 			Subtitle: (new AcfGet($post->ID))->Text('subtitle'),
 			PublishedAt: $common->PublishedAt,
 			ModifiedAt: $common->ModifiedAt,
+			Status: $common->Status,
+			PostType: $common->PostType,
+			Slug: $common->Slug,
+			IsPasswordProtected: $common->IsPasswordProtected,
+			IsPubliclyViewable: $common->IsPubliclyViewable,
 			authorResolver: $common->GetAuthor(...),
 			excerptResolver: $common->GetExcerpt(...),
 			excerptPresenceResolver: $common->HasExcerpt(...),

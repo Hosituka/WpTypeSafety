@@ -62,6 +62,8 @@ From simple fields to deeply nested structures, you can follow the shape of ACF 
 ## Features
 
 - Purpose-specific accessors with fixed return types, including `Text(): string`, `Number(): ?float`, `Int(): ?int`, `Img(): ?ImgData`, `Posts(): list<PostData>`, `Terms(): list<TermData>`, `Users(): list<WpUserData>`, `Repeater(): list<AcfGet>`, and `Flexible(): list<FlexibleNode>`.
+- `Native(): mixed` as an explicit escape hatch that returns the normal ACF value without WpTypeSafety conversion for unsupported or custom field types.
+- `PostData` retains the post status, post type, slug, password-protection state, and WordPress public-viewability result without exposing the password itself.
 - Incremental adoption alongside existing WordPress and ACF APIs. Data objects can also be constructed directly with `new`.
 - Core type checks and array accessors that do not depend on WordPress or ACF.
 - Installation without Composer commands or a `vendor` directory. Optional PSR-4 registration is available for project-specific Data and View classes.

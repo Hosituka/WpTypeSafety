@@ -36,6 +36,11 @@ readonly class PostData
 		private ?\Closure $previousPostResolver = null,
 		private ?\Closure $nextPostResolver = null,
 		private ?\Closure $templateSlugResolver = null,
+		public string $Status = '',
+		public string $PostType = '',
+		public string $Slug = '',
+		public bool $IsPasswordProtected = false,
+		public bool $IsPubliclyViewable = false,
 	) {
 	}
 
@@ -53,6 +58,12 @@ readonly class PostData
 	public function HasContent(): bool
 	{
 		return trim($this->Content) !== '';
+	}
+
+	/** WordPressの投稿状態がpublishかを返す。投稿タイプの公開可否は判定しない。 */
+	public function IsPublished(): bool
+	{
+		return $this->Status === 'publish';
 	}
 
 	public function GetLink(): LinkData

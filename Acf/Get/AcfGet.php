@@ -41,8 +41,8 @@ class AcfGet
 		$this->source = $this->normalizeSource($source);
 	}
 
-	/** 派生クラスが案件固有・拡張フィールドの変換に使用する生値を返す。 */
-	protected function raw(string $fieldName): mixed
+	/** WpTypeSafetyで型変換していないACFネイティブ値を返す。 */
+	public function Native(string $fieldName): mixed
 	{
 		return $this->adapter->GetRaw($fieldName, $this->source);
 	}

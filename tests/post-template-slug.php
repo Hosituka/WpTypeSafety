@@ -19,12 +19,20 @@ class WP_Post
 		public int $ID,
 		public int $post_author = 1,
 		public string $post_content = '',
+		public string $post_status = 'publish',
+		public string $post_type = 'post',
+		public string $post_name = 'sample',
+		public string $post_password = '',
 	) {}
 }
 
 function get_permalink(WP_Post $post): string { return '/post/' . $post->ID; }
 function get_post_datetime(WP_Post $post, string $field = 'date'): false { return false; }
 function get_the_title(WP_Post $post): string { return 'title'; }
+function is_post_publicly_viewable(WP_Post $post): bool
+{
+	return $post->post_status === 'publish' && $post->post_type !== 'internal';
+}
 function get_page_template_slug(int $id): mixed
 {
 	$GLOBALS['templateCalls'][] = $id;
@@ -41,6 +49,8 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 
 $plain = new PostData(1, '/', 'title', '');
 $check($plain->GetTemplateSlug() === '', 'Resolver省略時は空文字');
+$check($plain->Status === '' && $plain->PostType === '' && $plain->Slug === '', '投稿情報省略時は未知を表す空文字');
+$check(! $plain->IsPublished() && ! $plain->IsPasswordProtected && ! $plain->IsPubliclyViewable, '投稿状態省略時はfalse');
 
 $calls = 0;
 $direct = new PostData(
@@ -77,5 +87,25 @@ foreach ($GLOBALS['templateValues'] as $id => $value) {
 $GLOBALS['templateValues'][1] = 'changed-template.php';
 $check(DtoFactory::PostFromWpPost(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
 $check(DtoFactory::PostFromWpPost(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
+
+$published = DtoFactory::PostFromWpPost(new WP_Post(
+	ID: 10,
+	post_status: 'publish',
+	post_type: 'page',
+	post_name: 'published-page',
+));
+$check($published->Status === 'publish' && $published->IsPublished(), '公開状態を保持・判定する');
+$check($published->PostType === 'page' && $published->Slug === 'published-page', '投稿タイプとスラッグを保持する');
+$check(! $published->IsPasswordProtected && $published->IsPubliclyViewable, '公開閲覧可能な投稿を判定する');
+
+$private = DtoFactory::PostFromWpPost(new WP_Post(
+	ID: 11,
+	post_status: 'private',
+	post_type: 'page',
+	post_name: 'private-page',
+	post_password: 'secret',
+));
+$check(! $private->IsPublished() && $private->IsPasswordProtected, '非公開状態とパスワード保護を分けて保持する');
+$check(! $private->IsPubliclyViewable, '公開閲覧できない投稿を判定する');
 
 echo "Post template slug: {$checks} checks passed.\n";

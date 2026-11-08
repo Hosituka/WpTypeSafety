@@ -61,6 +61,8 @@ foreach ($postGet->Repeater('sections') as $sectionGet) {
 ## 特徴
 
 - `Text(): string`、`Number(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
+- 未対応・独自ACFフィールド向けの明示的な拡張口`Native(): mixed`。通常のACF戻り値をWpTypeSafetyで変換せず返す。
+- `PostData`は投稿状態・投稿タイプ・スラッグ・パスワード保護の有無・WordPressの公開閲覧可否を保持し、パスワード自体は公開しない。
 - 既存のWordPress・ACF APIと併用しながら、必要な取得処理から段階的に置き換えられる。Dataは直接`new`でも生成できる。
 - WordPress・ACFに依存しないCoreの型確認と配列取得。
 - Composerコマンドや`vendor`ディレクトリを必要とせず配置できる。テーマ側Data用のPSR-4読み込みは任意。

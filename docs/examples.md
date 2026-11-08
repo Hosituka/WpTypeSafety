@@ -154,6 +154,11 @@ final readonly class ArticleData extends PostData
 		public string $Subtitle,
 		?\DateTimeImmutable $PublishedAt = null,
 		?\DateTimeImmutable $ModifiedAt = null,
+		string $Status = '',
+		string $PostType = '',
+		string $Slug = '',
+		bool $IsPasswordProtected = false,
+		bool $IsPubliclyViewable = false,
 		?\Closure $thumbnailResolver = null,
 	) {
 		parent::__construct(
@@ -163,6 +168,11 @@ final readonly class ArticleData extends PostData
 			Content: $Content,
 			PublishedAt: $PublishedAt,
 			ModifiedAt: $ModifiedAt,
+			Status: $Status,
+			PostType: $PostType,
+			Slug: $Slug,
+			IsPasswordProtected: $IsPasswordProtected,
+			IsPubliclyViewable: $IsPubliclyViewable,
 			thumbnailResolver: $thumbnailResolver,
 		);
 	}
@@ -179,6 +189,11 @@ final readonly class ArticleData extends PostData
 			Subtitle: (new AcfGet($post))->Text('subtitle'),
 			PublishedAt: $common->PublishedAt,
 			ModifiedAt: $common->ModifiedAt,
+			Status: $common->Status,
+			PostType: $common->PostType,
+			Slug: $common->Slug,
+			IsPasswordProtected: $common->IsPasswordProtected,
+			IsPubliclyViewable: $common->IsPubliclyViewable,
 			thumbnailResolver: $common->GetThumbnail(...),
 		);
 	}

@@ -129,6 +129,11 @@ final class DtoFactory
 			Content: (string) $post->post_content,
 			PublishedAt: $publishedAt instanceof \DateTimeImmutable ? $publishedAt : null,
 			ModifiedAt: $modifiedAt instanceof \DateTimeImmutable ? $modifiedAt : null,
+			Status: (string) $post->post_status,
+			PostType: (string) $post->post_type,
+			Slug: (string) $post->post_name,
+			IsPasswordProtected: (string) $post->post_password !== '',
+			IsPubliclyViewable: \is_post_publicly_viewable($post),
 			authorResolver: static function () use ($authorId): ?WpUserData {
 				if ($authorId <= 0) {
 					return null;
