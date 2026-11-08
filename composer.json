@@ -6,7 +6,9 @@
 		"acf",
 		"advanced-custom-fields",
 		"type-safety",
-		"typed-accessors"
+		"typed-accessors",
+		"dto",
+		"custom-fields"
 	],
 	"type": "library",
 	"license": "MIT",
