@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace WpTypeSafety\Acf\Internal;
 
 use WpTypeSafety\Acf\Data\AcfBlockData;
-use WpTypeSafety\Core\Check\TypeCheck;
+use WpTypeSafety\Core\Check\ArrayGet;
 
 /** @internal ブロック情報を正規化し、ラッパー属性の描画処理を注入する。 */
 final class BlockAdapter
@@ -14,13 +14,14 @@ final class BlockAdapter
 	/** @param array<array-key, mixed> $block */
 	public static function FromAcf(array $block, bool $isPreview): AcfBlockData
 	{
-		$className = TypeCheck::String($block['className'] ?? null) ?? '';
+		$blockGet = new ArrayGet($block);
+		$className = $blockGet->String('className');
 		$classes = preg_split('/\s+/', $className, -1, PREG_SPLIT_NO_EMPTY) ?: [];
 		$classes = array_values(array_unique($classes));
 		return new AcfBlockData(
-			Name: TypeCheck::String($block['name'] ?? null) ?? '',
-			Id: TypeCheck::String($block['id'] ?? null) ?? '',
-			Anchor: TypeCheck::String($block['anchor'] ?? null) ?? '',
+			Name: $blockGet->String('name'),
+			Id: $blockGet->String('id'),
+			Anchor: $blockGet->String('anchor'),
 			Classes: $classes,
 			IsPreview: $isPreview,
 			wrapperAttributesResolver: static fn (string $className): string => self::wrapperAttributes($className, $classes, $isPreview),
