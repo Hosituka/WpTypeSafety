@@ -97,6 +97,12 @@ class AcfGet
 		return $this->adapter->GetPost($fieldName, $this->source);
 	}
 
+	/** 単一選択の投稿を参照先として、そのACFフィールドを取得する。 */
+	public function PostFields(string $fieldName): static
+	{
+		return $this->createChild($this->Post($fieldName) ?? []);
+	}
+
 	/** @return list<PostData> */
 	public function Posts(string $fieldName): array
 	{

@@ -38,6 +38,7 @@
 | `Post()`・`Posts()` | `?PostData`・`list<PostData>` | 投稿オブジェクト・関連フィールド |
 | `Term()`・`Terms()` | `?TermData`・`list<TermData>` | タクソノミーフィールド |
 | `User()`・`Users()` | `?WpUserData`・`list<WpUserData>` | ユーザーフィールド |
+| `PostFields()`・`UserFields()`・`TermFields()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
 | `Nested()` | `AcfGet` | グループなどの子配列へ進む |
 | `Array()` | `array<mixed>` | 生配列。要素型は保証しない |
 | `Repeater()` | `list<AcfGet>` | リピーターの各行 |
@@ -84,17 +85,18 @@ $title = $postGet->Nested('outer')->Nested('inner')->Text('title');
 
 `Nested()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。戻り値は呼び出し元と同じ`AcfGet`派生型です。
 
-単一選択のACFユーザーフィールド・タクソノミーフィールドが参照する先のACF値を読むときは、`UserFields()`・`TermFields()`を使えます。内部では既存の`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserFields()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
+単一選択のACF投稿オブジェクト・関連・ユーザー・タクソノミーフィールドが参照する先のACF値を読むときは、`PostFields()`・`UserFields()`・`TermFields()`を使えます。内部では既存の`Post()`・`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserFields()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
 
 ```php
 <?php
 $postGet = new AcfGet($post);
+$relatedSubtitle = $postGet->PostFields('related_post')->Text('subtitle');
 $authorName = $postGet->UserFields('author')->Text('profile_name');
 $termColor = $postGet->TermFields('category')->Text('display_color');
 $groupAuthorName = $postGet->Nested('settings')->UserFields('author')->Text('profile_name');
 ```
 
-`Nested()`は同じ取得結果内の配列へ進み、`UserFields()`・`TermFields()`は参照先のユーザー・タームへ取得対象を切り替えます。これらは単一値用です。ACFフィールドで複数選択を許可した場合の配列は対象にせず、空の取得元になります。投稿の標準投稿者や通常のタクソノミー割り当てを読むメソッドでもありません。
+`Nested()`は同じ取得結果内の配列へ進み、`PostFields()`・`UserFields()`・`TermFields()`は参照先の投稿・ユーザー・タームへ取得対象を切り替えます。これらは単一値用です。ACFフィールドで複数選択を許可した場合の配列は対象にせず、空の取得元になります。投稿の標準投稿者や通常のタクソノミー割り当てを読むメソッドでもありません。
 
 ## 投稿・ターム・ユーザーの複数取得
 
@@ -259,9 +261,9 @@ if ($url !== null) {
 }
 ```
 
-## ターム・ユーザー未選択時
+## 参照先未選択時
 
-`UserFields()`・`TermFields()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。
+`PostFields()`・`UserFields()`・`TermFields()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。
 対象IDの組み立てやACFの取得関数を呼ばず、既存の取得口ごとの空値を返します。
 `Text()`は空文字、`Array()`・`Repeater()`・複数選択は空配列、
 画像・URL・単一選択などは`null`です。`Nested()`も空の取得元を引き継ぎます。

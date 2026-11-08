@@ -35,6 +35,9 @@ final class ProjectAcfAdapter extends AcfAdapter
 
 	public function GetRaw(string $fieldName, \WP_Post|PostData|int|string|array|null $source): mixed
 	{
+		if ($source instanceof PostData)
+		{$source = $source->PostId;}
+
 		$fields = is_array($source) ? $source : ($this->values[(string) $source] ?? []);
 		return $fields[$fieldName] ?? null;
 	}
@@ -60,6 +63,14 @@ final class ProjectAcfAdapter extends AcfAdapter
 	{
 		$value = $this->GetRaw($fieldName, $source);
 		return is_string($value) ? $value : '';
+	}
+
+	public function GetPost(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?PostData
+	{
+		$id = $this->GetRaw($fieldName, $source);
+		return is_int($id) && $id > 0
+			? new PostData(PostId: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: '')
+			: null;
 	}
 
 	/** @return list<PostData> */
@@ -135,11 +146,13 @@ $values = [
 	'post' => [
 		'author' => 7,
 		'category' => 5,
-		'group' => ['author' => 7, 'category' => 5],
+		'featured_post' => 3,
+		'group' => ['author' => 7, 'category' => 5, 'featured_post' => 3],
 		'multiple_users' => [7, 8],
 		'multiple_posts' => [3, 'invalid', 4],
 		'multiple_terms' => [5, 'invalid', 6],
 	],
+	'3' => ['label' => 'Featured'],
 	'user_7' => ['label' => 'Alice', 'category' => 5, 'friend' => 8],
 	'user_8' => ['label' => 'Bob'],
 	'term_5' => ['label' => 'Blue', 'author' => 7, 'parent' => 6],
@@ -163,10 +176,13 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 $post = new AcfGet('post', $adapter);
 $projectGet = new ProjectAcfGet('post', $adapter);
 $check($projectGet->RawValue('author') === 7, 'subclass accesses raw field value');
+$check($projectGet->PostFields('featured_post') instanceof ProjectAcfGet, 'PostFields preserves derived type');
 $check($projectGet->UserFields('author') instanceof ProjectAcfGet, 'UserFields preserves derived type');
 $check($projectGet->TermFields('category') instanceof ProjectAcfGet, 'TermFields preserves derived type');
+$check($post->PostFields('featured_post')->Text('label') === 'Featured', 'post to post fields');
 $check($post->UserFields('author')->Text('label') === 'Alice', 'post to user fields');
 $check($post->TermFields('category')->Text('label') === 'Blue', 'post to term fields');
+$check($post->Nested('group')->PostFields('featured_post')->Text('label') === 'Featured', 'group to post fields');
 $check($post->Nested('group')->UserFields('author')->Text('label') === 'Alice', 'group to user fields');
 $check($post->Nested('group')->TermFields('category')->Text('label') === 'Blue', 'group to term fields');
 $check($post->UserFields('author')->TermFields('category')->Text('label') === 'Blue', 'user to term fields');
@@ -175,6 +191,7 @@ $check($post->UserFields('author')->UserFields('friend')->Text('label') === 'Bob
 $check($post->TermFields('category')->TermFields('parent')->Text('label') === 'Parent', 'term to term fields');
 $check($post->UserFields('missing')->Text('label') === '', 'missing user has empty fields');
 $check($post->TermFields('missing')->Text('label') === '', 'missing term has empty fields');
+$check($post->PostFields('missing')->Text('label') === '', 'missing post has empty fields');
 $check($post->UserFields('multiple_users')->Text('label') === '', 'multiple users are not treated as one');
 $check((new AcfGet([], $adapter))->UserFields('missing')->Text('label') === '', 'array source missing user');
 $check((new AcfGet([], $adapter))->TermFields('missing')->Text('label') === '', 'array source missing term');
