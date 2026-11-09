@@ -26,6 +26,21 @@ use WpTypeSafety\Wp\Get\WpGetMenuNode;
 $menu = WpGetMenuNode::TreeFromLocation('primary');
 ```
 
+`FindById()`はメニュー項目自身のID、`FindByObject()`はリンク先の種別・オブジェクト名・オブジェクトIDを全て比較し、最初に一致したノードを深さ優先で返します。
+
+```php
+<?php
+use WpTypeSafety\Wp\Data\MenuItemType;
+
+$menuItem = WpGetMenuNode::FindById($menu, 20);
+$postNode = WpGetMenuNode::FindByObject(
+	nodes: $menu,
+	type: MenuItemType::PostType,
+	object: 'post',
+	objectId: $post->ID,
+);
+```
+
 `FindByPageId()`は、`TreeFromLocation()`で得たツリーを子階層まで検索し、指定した固定ページIDに対応する最初の`MenuNodeData`を返します。該当なし・0以下のIDは`null`です。
 
 ```php
@@ -33,12 +48,34 @@ $menu = WpGetMenuNode::TreeFromLocation('primary');
 $currentNode = WpGetMenuNode::FindByPageId($menu, $post->ID);
 ```
 
+`FindByUrl()`は、URLが完全一致する最初のノードを深さ優先で返します。カスタムリンクや外部URLも検索できます。空文字・該当なしは`null`です。末尾スラッシュ、クエリ、フラグメント等は自動で正規化しません。
+
+```php
+<?php
+$customNode = WpGetMenuNode::FindByUrl($menu, '/company/access/');
+```
+
+`PathToUrl()`は、URLが一致するノードまで探索する間に通ったノードを、ルートから対象自身までの順で返します。対象がルートなら1件、空文字・該当なしは空配列です。
+
+```php
+<?php
+$path = WpGetMenuNode::PathToUrl($menu, '/company/access/');
+```
+
+`PathToId()`・`PathToObject()`も同様に、メニュー項目IDまたはリンク先オブジェクトが一致するノードまでのパスを返します。IDやオブジェクトで対象を特定できないカスタムリンクには、URL用の取得口を使用します。
+
 ## その他の公開取得口
 
 | 取得口 | 戻り値 | 契約 |
 |---|---|---|
 | `WpGet::CurrentPageNumber()` | `int` | メインクエリの`paged`を取得し、未設定・0以下は1 |
+| `WpGetMenuNode::FindById()` | `?MenuNodeData` | メニュー項目IDに対応するノードをツリーから再帰検索 |
+| `WpGetMenuNode::FindByObject()` | `?MenuNodeData` | Type・Object・ObjectIdが一致するノードを再帰検索 |
 | `WpGetMenuNode::FindByPageId()` | `?MenuNodeData` | 固定ページIDに対応するノードをツリーから再帰検索 |
+| `WpGetMenuNode::FindByUrl()` | `?MenuNodeData` | URLが完全一致する最初のノードをツリーから再帰検索 |
+| `WpGetMenuNode::PathToId()` | `list<MenuNodeData>` | メニュー項目IDが一致するノードまでのパスを取得 |
+| `WpGetMenuNode::PathToObject()` | `list<MenuNodeData>` | Type・Object・ObjectIdが一致するノードまでのパスを取得 |
+| `WpGetMenuNode::PathToUrl()` | `list<MenuNodeData>` | URLが完全一致するノードまでのパスをルートから順に取得 |
 | `WpGetTerm::Deepest()` | `list<TermData>` | 最も深い階層のタームをすべて返す |
 | `WpGetTerm::Shallowest()` | `list<TermData>` | 最も浅い階層のタームをすべて返す |
 

@@ -24,6 +24,9 @@ final class MenuNodeMembers
 		public MenuItemType $Type,
 		public string $Object,
 		public int $ObjectId,
+		public string $Target = '',
+		public string $AttributeTitle = '',
+		public string $Xfn = '',
 		public array $Children = [],
 		public ?\Closure $ThumbnailResolver = null,
 	) {

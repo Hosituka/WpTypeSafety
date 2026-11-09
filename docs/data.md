@@ -82,7 +82,7 @@ $image = $data->GetThumbnail('medium_large');
 
 `MenuNodeData->Children`と`Classes`は取得済みの値です。コンストラクターでは要素型を検証しません。`readonly`は配列プロパティの再代入を防ぎますが、配列に入れたオブジェクト自体の変更を防ぐものではありません。
 
-`PostData`・`MenuNodeData`の`GetLink()`は、保持している`Url`・`Title`から`LinkData`を作ります。`Target`は空文字です。WordPressへの問い合わせは行いません。
+`PostData`の`GetLink()`は、保持している`Url`・`Title`から`LinkData`を作り、`Target`は空文字です。`MenuNodeData`の`GetLink()`は、保持している`Url`・`Title`・`Target`から`LinkData`を作ります。`MenuNodeData`はメニュー項目の`AttributeTitle`・`Xfn`も保持し、`Target`が`_blank`かどうかを`IsNewTab()`で判定できます。WordPressへの問い合わせやHTML属性の生成は行いません。
 
 `PostData::GetTemplateSlug(): string`は、`PostMembers::$TemplateSlugResolver`へ委譲して、管理画面で選択されたテンプレートの相対パス（例：`custom-service-subpage.php`）を返します。拡張子・ハイフン・サブディレクトリは変換しません。テンプレート階層で実際に適用されるPHPファイルを判定するAPIではありません。Resolver省略時は空文字です。InternalのFactoryは`get_page_template_slug($postId)`を呼ぶResolverを注入し、デフォルト・取得失敗・文字列以外の値を空文字へ正規化します。取得は呼び出すたびに行います。
 

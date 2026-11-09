@@ -12,6 +12,9 @@ readonly class MenuNodeData
 	public int $ParentId;
 	public string $Title;
 	public string $Url;
+	public string $Target;
+	public string $AttributeTitle;
+	public string $Xfn;
 	public string $Description;
 	/** @var list<string> */
 	public array $Classes;
@@ -29,6 +32,9 @@ readonly class MenuNodeData
 		$this->ParentId = $members->ParentId;
 		$this->Title = $members->Title;
 		$this->Url = $members->Url;
+		$this->Target = $members->Target;
+		$this->AttributeTitle = $members->AttributeTitle;
+		$this->Xfn = $members->Xfn;
 		$this->Description = $members->Description;
 		$this->Classes = $members->Classes;
 		$this->Order = $members->Order;
@@ -47,7 +53,16 @@ readonly class MenuNodeData
 
 	public function GetLink(): LinkData
 	{
-		return new LinkData(Url: $this->Url, Title: $this->Title);
+		return new LinkData(
+			Url: $this->Url,
+			Title: $this->Title,
+			Target: $this->Target,
+		);
+	}
+
+	public function IsNewTab(): bool
+	{
+		return $this->Target === '_blank';
 	}
 
 	public function HasChildren(): bool

@@ -38,19 +38,103 @@ final class MenuAdapter
 		if ($pageId <= 0) {
 			return null;
 		}
+		return self::FindByObject($nodes, MenuItemType::PostType, 'page', $pageId);
+	}
+
+	/** @param list<MenuNodeData> $nodes */
+	public static function FindById(array $nodes, int $menuItemId): ?MenuNodeData
+	{
+		$path = self::PathToId($nodes, $menuItemId);
+		return $path !== [] ? $path[array_key_last($path)] : null;
+	}
+
+	/** @param list<MenuNodeData> $nodes */
+	public static function FindByObject(
+		array $nodes,
+		MenuItemType $type,
+		string $object,
+		int $objectId,
+	): ?MenuNodeData {
+		$path = self::PathToObject($nodes, $type, $object, $objectId);
+		return $path !== [] ? $path[array_key_last($path)] : null;
+	}
+
+	/** @param list<MenuNodeData> $nodes */
+	public static function FindByUrl(array $nodes, string $url): ?MenuNodeData
+	{
+		$path = self::PathToUrl($nodes, $url);
+		return $path !== [] ? $path[array_key_last($path)] : null;
+	}
+
+	/**
+	 * @param list<MenuNodeData> $nodes
+	 * @return list<MenuNodeData>
+	 */
+	public static function PathToId(array $nodes, int $menuItemId): array
+	{
+		if ($menuItemId <= 0) {
+			return [];
+		}
+		return self::pathTo(
+			$nodes,
+			static fn (MenuNodeData $node): bool => $node->Id === $menuItemId,
+		);
+	}
+
+	/**
+	 * @param list<MenuNodeData> $nodes
+	 * @return list<MenuNodeData>
+	 */
+	public static function PathToObject(
+		array $nodes,
+		MenuItemType $type,
+		string $object,
+		int $objectId,
+	): array {
+		return self::pathTo(
+			$nodes,
+			static fn (MenuNodeData $node): bool =>
+				$node->Type === $type
+				&& $node->Object === $object
+				&& $node->ObjectId === $objectId,
+		);
+	}
+
+	/**
+	 * @param list<MenuNodeData> $nodes
+	 * @return list<MenuNodeData>
+	 */
+	public static function PathToUrl(array $nodes, string $url): array
+	{
+		if ($url === '') {
+			return [];
+		}
+		return self::pathTo(
+			$nodes,
+			static fn (MenuNodeData $node): bool => $node->Url === $url,
+		);
+	}
+
+	/**
+	 * @param list<MenuNodeData> $nodes
+	 * @param \Closure(MenuNodeData): bool $matches
+	 * @return list<MenuNodeData>
+	 */
+	private static function pathTo(array $nodes, \Closure $matches): array
+	{
 		foreach ($nodes as $node) {
 			if (! $node instanceof MenuNodeData) {
 				continue;
 			}
-			if ($node->Type === MenuItemType::PostType && $node->Object === 'page' && $node->ObjectId === $pageId) {
-				return $node;
+			if ($matches($node)) {
+				return [$node];
 			}
-			$found = self::FindByPageId($node->Children, $pageId);
-			if ($found !== null) {
-				return $found;
+			$childPath = self::pathTo($node->Children, $matches);
+			if ($childPath !== []) {
+				return [$node, ...$childPath];
 			}
 		}
-		return null;
+		return [];
 	}
 
 	/** @param list<MenuNodeData> $children */
@@ -64,6 +148,9 @@ final class MenuAdapter
 			ParentId: (int) $item->menu_item_parent,
 			Title: (string) $item->title,
 			Url: (string) $item->url,
+			Target: is_string($item->target ?? null) ? $item->target : '',
+			AttributeTitle: is_string($item->attr_title ?? null) ? $item->attr_title : '',
+			Xfn: is_string($item->xfn ?? null) ? $item->xfn : '',
 			Description: (string) $item->description,
 			Classes: array_values(array_filter((array) $item->classes, 'is_string')),
 			Order: (int) $item->menu_order,
