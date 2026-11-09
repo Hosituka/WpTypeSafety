@@ -34,7 +34,7 @@ APIの分類から探す場合は、次の目次を利用できます。
 | 取得口 | 戻り値 | 用途・契約 |
 |---|---|---|
 | `Text()` | `string` | 文字列。未入力・型違いは空文字 |
-| `Number()` | `?float` | 整数・float・数値文字列をfloatへ正規化。数値以外は`null` |
+| `Float()` | `?float` | 整数・float・数値文字列をfloatへ正規化。数値以外は`null` |
 | `Int()` | `?int` | 整数・整数相当のfloat・整数形式の数値文字列をintへ正規化。それ以外は`null` |
 | `Bool()` | `?bool` | 真偽値。型違いは`null` |
 | `Link()` | `?LinkData` | ACFリンク配列 |
@@ -54,8 +54,8 @@ APIの分類から探す場合は、次の目次を利用できます。
 | `Post()`・`Posts()` | `?PostData`・`list<PostData>` | 投稿オブジェクト・関連フィールド |
 | `Term()`・`Terms()` | `?TermData`・`list<TermData>` | タクソノミーフィールド |
 | `User()`・`Users()` | `?WpUserData`・`list<WpUserData>` | ユーザーフィールド |
-| `PostFields()`・`UserFields()`・`TermFields()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
-| `PostsFields()`・`UsersFields()`・`TermsFields()` | `list<呼び出し元と同じAcfGet派生型>` | 複数参照先それぞれのACFフィールド取得口を返す |
+| `PostGet()`・`UserGet()`・`TermGet()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
+| `PostGets()`・`UserGets()`・`TermGets()` | `list<呼び出し元と同じAcfGet派生型>` | 複数参照先それぞれのACFフィールド取得口を返す |
 | `Native()` | `mixed` | 通常のACF戻り値をWpTypeSafetyで変換せず返す |
 | `Nested()` | `AcfGet` | グループなどの子配列へ進む |
 | `Array()` | `array<mixed>` | 生配列。要素型は保証しない |
@@ -82,15 +82,15 @@ $color = $termGet->Text('display_color') ?: 'var(--black)';
 
 ## 数値フィールドの取得
 
-ACFのNumberフィールドはWordPressのメタ値を基にするため、`get_field()`から数値文字列が返ることがあります。小数を含む数値として扱う場合は`Number()`、整数に限定する場合は`Int()`を使用します。
+ACFのNumberフィールドはWordPressのメタ値を基にするため、`get_field()`から数値文字列が返ることがあります。小数を含む数値として扱う場合は`Float()`、整数に限定する場合は`Int()`を使用します。
 
 ```php
 <?php
-$price = $postGet->Number('price'); // "12.5"も12.5へ正規化
+$price = $postGet->Float('price'); // "12.5"も12.5へ正規化
 $count = $postGet->Int('count');    // "12"も12へ正規化
 ```
 
-`Number()`はPHPの`is_numeric()`に従うため、前後に空白がある数値文字列や指数表記も受け入れて`float`へ変換します。`Int()`は整数、整数として正確に表現できるfloat、符号と数字だけで構成された整数形式の文字列を受け入れます。小数文字列・指数表記・空白を含む文字列・PHPの整数範囲外は`null`です。`TypeCheck::Int()`は変換を行わず、最初から`int`である値だけを通すCore APIです。
+`Float()`はPHPの`is_numeric()`に従うため、前後に空白がある数値文字列や指数表記も受け入れて`float`へ変換します。`Int()`は整数、整数として正確に表現できるfloat、符号と数字だけで構成された整数形式の文字列を受け入れます。小数文字列・指数表記・空白を含む文字列・PHPの整数範囲外は`null`です。`TypeCheck::Int()`は変換を行わず、最初から`int`である値だけを通すCore APIです。
 
 ## ACFの取得先の指定
 
@@ -106,18 +106,18 @@ $title = $postGet->Nested('outer')->Nested('inner')->Text('title');
 
 `Nested()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。戻り値は呼び出し元と同じ`AcfGet`派生型です。
 
-単一選択のACF投稿オブジェクト・関連・ユーザー・タクソノミーフィールドが参照する先のACF値を読むときは、`PostFields()`・`UserFields()`・`TermFields()`を使えます。内部では既存の`Post()`・`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserFields()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
+単一選択のACF投稿オブジェクト・関連・ユーザー・タクソノミーフィールドが参照する先のACF値を読むときは、`PostGet()`・`UserGet()`・`TermGet()`を使えます。内部では既存の`Post()`・`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserGet()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
 
 ```php
 <?php
 $postGet = new AcfGet($post);
-$relatedSubtitle = $postGet->PostFields('related_post')->Text('subtitle');
-$authorName = $postGet->UserFields('author')->Text('profile_name');
-$termColor = $postGet->TermFields('category')->Text('display_color');
-$groupAuthorName = $postGet->Nested('settings')->UserFields('author')->Text('profile_name');
+$relatedSubtitle = $postGet->PostGet('related_post')->Text('subtitle');
+$authorName = $postGet->UserGet('author')->Text('profile_name');
+$termColor = $postGet->TermGet('category')->Text('display_color');
+$groupAuthorName = $postGet->Nested('settings')->UserGet('author')->Text('profile_name');
 ```
 
-`Nested()`は同じ取得結果内の配列へ進み、`PostFields()`・`UserFields()`・`TermFields()`は参照先の投稿・ユーザー・タームへ取得対象を切り替えます。これらは単一値用です。ACFフィールドで複数選択を許可した場合の配列は対象にせず、空の取得元になります。投稿の標準投稿者や通常のタクソノミー割り当てを読むメソッドでもありません。
+`Nested()`は同じ取得結果内の配列へ進み、`PostGet()`・`UserGet()`・`TermGet()`は参照先の投稿・ユーザー・タームへ取得対象を切り替えます。これらは単一値用です。ACFフィールドで複数選択を許可した場合の配列は対象にせず、空の取得元になります。投稿の標準投稿者や通常のタクソノミー割り当てを読むメソッドでもありません。
 
 ## 投稿・ターム・ユーザーの複数取得
 
@@ -132,11 +132,11 @@ $members = $postGet->Users('members', avatarSize: 160);
 
 戻り値はそれぞれ`list<PostData>`・`list<TermData>`・`list<WpUserData>`です。ACFの返却形式がオブジェクトまたはIDのどちらでも変換し、未入力・配列以外は`[]`、取得・変換できない要素は除外します。入力順と重複は維持します。`Users()`の`avatarSize`は各`WpUserData`へ設定するアバター取得用Resolverに渡されます。
 
-各参照先のACFフィールドへ進む場合は、`PostsFields()`・`TermsFields()`・`UsersFields()`を使います。戻り値は`list<AcfGet>`で、派生`AcfGet`から呼んだ場合はリスト内でも同じ派生型とAdapterを維持します。既存の複数取得メソッドで変換できた対象だけを子取得口にするため、入力順・重複・不正要素除外の契約も同じです。
+各参照先のACFフィールドへ進む場合は、`PostGets()`・`TermGets()`・`UserGets()`を使います。戻り値は`list<AcfGet>`で、派生`AcfGet`から呼んだ場合はリスト内でも同じ派生型とAdapterを維持します。既存の複数取得メソッドで変換できた対象だけを子取得口にするため、入力順・重複・不正要素除外の契約も同じです。
 
 ```php
 <?php
-$relatedPostGets = $postGet->PostsFields('related_posts');
+$relatedPostGets = $postGet->PostGets('related_posts');
 
 foreach ($relatedPostGets as $relatedPostGet) {
 	$subtitle = $relatedPostGet->Text('subtitle');
@@ -346,7 +346,7 @@ if ($url !== null) {
 
 ## 参照先未選択時
 
-`PostFields()`・`UserFields()`・`TermFields()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。`PostsFields()`・`UsersFields()`・`TermsFields()`の場合は空のリストを返します。
+`PostGet()`・`UserGet()`・`TermGet()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。`PostGets()`・`UserGets()`・`TermGets()`の場合は空のリストを返します。
 対象IDの組み立てやACFの取得関数を呼ばず、既存の取得口ごとの空値を返します。
 `Text()`は空文字、`Array()`・`Repeater()`・複数選択は空配列、
 画像・URL・単一選択などは`null`です。`Nested()`も空の取得元を引き継ぎます。

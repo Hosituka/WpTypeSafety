@@ -1,8 +1,16 @@
 # WpTypeSafety
 
+[![Latest Stable Version](https://img.shields.io/packagist/v/hosituka/wp-type-safety.svg)](https://packagist.org/packages/hosituka/wp-type-safety)
+[![PHP Version](https://img.shields.io/packagist/dependency-v/hosituka/wp-type-safety/php.svg)](https://packagist.org/packages/hosituka/wp-type-safety)
+[![License](https://img.shields.io/packagist/l/hosituka/wp-type-safety.svg)](https://packagist.org/packages/hosituka/wp-type-safety)
+
 **English** | [日本語](README.ja.md)
 
 WpTypeSafety is a PHP library that checks and normalizes loosely shaped values returned by WordPress and Advanced Custom Fields (ACF) into predictable return types.
+
+Its primary guarantees are the PHP return types of public accessors and their fallback rules for missing or invalid values. It does not statically verify ACF field definitions or field names supplied as strings.
+
+It is intended for PHP developers building WordPress themes or plugins who repeatedly check WordPress and ACF return values throughout a project. Basic familiarity with PHP namespaces and nullable types is assumed. PHP 8.2 or later is required.
 
 It does not require rewriting an existing theme.
 
@@ -74,7 +82,7 @@ Groups, repeaters, Flexible Content, and post, user, or term references use the 
 
 ## Features
 
-- Purpose-specific accessors with fixed return types, including `Text(): string`, `Number(): ?float`, `Int(): ?int`, `Img(): ?ImgData`, `IconClass(): ?string`, `IconImg(): ?ImgData`, `IconUrl(): ?string`, `Posts(): list<PostData>`, `Terms(): list<TermData>`, `Users(): list<WpUserData>`, `Repeater(): list<AcfGet>`, and `Flexible(): list<FlexibleNode>`.
+- Purpose-specific accessors with fixed return types, including `Text(): string`, `Float(): ?float`, `Int(): ?int`, `Img(): ?ImgData`, `IconClass(): ?string`, `IconImg(): ?ImgData`, `IconUrl(): ?string`, `Posts(): list<PostData>`, `Terms(): list<TermData>`, `Users(): list<WpUserData>`, `Repeater(): list<AcfGet>`, and `Flexible(): list<FlexibleNode>`.
 - `Native(): mixed` as an explicit escape hatch that returns the normal ACF value without WpTypeSafety conversion for unsupported or custom field types.
 - `PostData` retains the post status, post type, slug, password-protection state, and WordPress public-viewability result without exposing the password itself.
 - Incremental adoption alongside existing WordPress and ACF APIs. Data objects can also be constructed directly with `new`.
@@ -133,16 +141,36 @@ After making the classes available through Composer or the bundled `autoload.php
 <?php
 use WpTypeSafety\Acf\Get\AcfGet;
 
+$post = get_post();
+if (! $post instanceof WP_Post) {
+	return;
+}
+
 $postGet = new AcfGet($post);
 $title = $postGet->Text('title'); // string; '' when missing or invalid
 $mainImg = $postGet->Img('main_img'); // ?ImgData; null when unavailable
+?>
 
-foreach ($postGet->Repeater('items') as $rowGet) {
-	$label = $rowGet->Text('label'); // string
-}
+<article>
+	<h1><?= esc_html($title) ?></h1>
 
-echo esc_html($title);
+	<?php if ($mainImg !== null): ?>
+		<img
+			src="<?= esc_url($mainImg->Url) ?>"
+			width="<?= esc_attr((string) $mainImg->Width) ?>"
+			height="<?= esc_attr((string) $mainImg->Height) ?>"
+			alt="<?= esc_attr($mainImg->Alt) ?>"
+		>
+	<?php endif; ?>
+</article>
 ```
+
+Passing a nonexistent field name such as `Text('titel')` also returns an empty string. This fallback keeps templates concise, but it does not report retrieval failures.
+
+- Normalize values that may be absent from the rendered output with purpose-specific accessors.
+- Explicitly validate values at the project level when a missing value should be treated as an error.
+- Use `Native()` or the native ACF API when investigating custom fields.
+- Combine project constants or static analysis tools such as PHPStan or Psalm when field names require static guarantees.
 
 Use a Factory to create Data objects from WordPress values.
 
@@ -240,6 +268,8 @@ See [Autoloading and optional PSR-4 mappings](docs/autoload.md) for configuratio
 ## Design scope and guarantees
 
 WpTypeSafety guarantees the PHP return types of its public accessors and their fallback rules for missing or invalid values. Supported ACF accessors normalize values into purpose-specific fixed types.
+
+Public methods and public properties intentionally use UpperCamelCase. Write names such as `Text()`, `From()`, and `Title`. PHP magic methods and APIs whose names are defined by WordPress or external libraries continue to follow those contracts.
 
 | Item | Guarantee |
 |---|---|

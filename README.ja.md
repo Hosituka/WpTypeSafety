@@ -1,8 +1,16 @@
 # WpTypeSafety
 
+[![Latest Stable Version](https://img.shields.io/packagist/v/hosituka/wp-type-safety.svg)](https://packagist.org/packages/hosituka/wp-type-safety)
+[![PHP Version](https://img.shields.io/packagist/dependency-v/hosituka/wp-type-safety/php.svg)](https://packagist.org/packages/hosituka/wp-type-safety)
+[![License](https://img.shields.io/packagist/l/hosituka/wp-type-safety.svg)](https://packagist.org/packages/hosituka/wp-type-safety)
+
 [English](README.md) | **日本語**
 
 WpTypeSafetyは、WordPress・ACFから返る不定形な値を、予測可能な戻り値型へ確認・正規化するPHPライブラリです。
+
+保証の中心は、公開取得口のPHP戻り値型と、欠損・型違い時の戻り値規則です。ACFフィールド定義や文字列で指定するフィールド名を静的検査するものではありません。
+
+主な対象は、WordPressテーマ・プラグインをPHPで実装し、WordPress・ACFの戻り値確認を各所へ繰り返し書いている開発者です。PHPの名前空間とnullable型の基本知識を前提とし、PHP 8.2以上で動作します。
 
 既存テーマ全体の書き換えは必要ありません。
 
@@ -74,7 +82,7 @@ foreach ($postGet->Repeater('items') as $rowGet) {
 
 ## 特徴
 
-- `Text(): string`、`Number(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`IconClass(): ?string`、`IconImg(): ?ImgData`、`IconUrl(): ?string`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
+- `Text(): string`、`Float(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`IconClass(): ?string`、`IconImg(): ?ImgData`、`IconUrl(): ?string`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
 - 未対応・独自ACFフィールド向けの明示的な拡張口`Native(): mixed`。通常のACF戻り値をWpTypeSafetyで変換せず返す。
 - `PostData`は投稿状態・投稿タイプ・スラッグ・パスワード保護の有無・WordPressの公開閲覧可否を保持し、パスワード自体は公開しない。
 - 既存のWordPress・ACF APIと併用しながら、必要な取得処理から段階的に置き換えられる。Dataは直接`new`でも生成できる。
@@ -133,16 +141,36 @@ Composerまたは同梱の`autoload.php`でクラスを読み込み可能にし�
 <?php
 use WpTypeSafety\Acf\Get\AcfGet;
 
+$post = get_post();
+if (! $post instanceof WP_Post) {
+	return;
+}
+
 $postGet = new AcfGet($post);
 $title = $postGet->Text('title'); // string。未入力・型違いなら ''
 $mainImg = $postGet->Img('main_img'); // ?ImgData。取得できなければ null
+?>
 
-foreach ($postGet->Repeater('items') as $rowGet) {
-	$label = $rowGet->Text('label'); // string
-}
+<article>
+	<h1><?= esc_html($title) ?></h1>
 
-echo esc_html($title);
+	<?php if ($mainImg !== null): ?>
+		<img
+			src="<?= esc_url($mainImg->Url) ?>"
+			width="<?= esc_attr((string) $mainImg->Width) ?>"
+			height="<?= esc_attr((string) $mainImg->Height) ?>"
+			alt="<?= esc_attr($mainImg->Alt) ?>"
+		>
+	<?php endif; ?>
+</article>
 ```
+
+`Text('titel')`のように存在しないフィールド名を渡した場合も、`Text()`は空文字を返します。これはテンプレートを簡潔にするためのフォールバックであり、取得失敗を通知する仕組みではありません。
+
+- 表示上なくてもよい値は、用途別の取得口で正規化します。
+- 欠損を障害として扱う値は、取得後に案件側で明示的に検査します。
+- 独自フィールドの調査では、`Native()`またはACFネイティブAPIを使用します。
+- フィールド名の静的保証が必要な場合は、案件側の定数やPHPStan・Psalm等を併用します。
 
 WordPressの値からDataを得るにはFactoryを使います。
 
@@ -240,6 +268,8 @@ $status = $resultGet->String('status');                  // string
 ## 設計方針と保証範囲
 
 WpTypeSafetyが保証するのは、公開取得口のPHP戻り値型と、欠損・型違い時の戻り値規則です。対応する取得口では、ACF値を用途に合う固定型へ正規化します。
+
+公開メソッドと公開プロパティは、意図的にUpperCamelCaseで統一しています。`Text()`・`From()`・`Title`のように記述してください。PHPマジックメソッドやWordPress・外部ライブラリが名前を定めるAPIは、その契約を優先します。
 
 | 項目 | 保証 |
 |---|---|

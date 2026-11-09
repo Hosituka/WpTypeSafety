@@ -86,9 +86,9 @@ class AcfAdapter
 		return is_array($source) ? self::linkFrom($fieldName, $source) : self::link($fieldName, $source);
 	}
 
-	public function GetNumber(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?float
+	public function GetFloat(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?float
 	{
-		return is_array($source) ? self::numberFrom($fieldName, $source) : self::number($fieldName, $source);
+		return is_array($source) ? self::floatFrom($fieldName, $source) : self::floatField($fieldName, $source);
 	}
 
 	public function GetInt(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?int
@@ -512,14 +512,14 @@ class AcfAdapter
 		return AcfDtoFactory::LinkFromAcf(self::valueFrom($key, $parent));
 	}
 
-	private static function number(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?float
+	private static function floatField(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?float
 	{
-		return self::numberValue(self::field($fieldName, $postId));
+		return self::floatValue(self::field($fieldName, $postId));
 	}
 
-	private static function numberFrom(string $key, mixed $parent): ?float
+	private static function floatFrom(string $key, mixed $parent): ?float
 	{
-		return self::numberValue(self::valueFrom($key, $parent));
+		return self::floatValue(self::valueFrom($key, $parent));
 	}
 
 	private static function int(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?int
@@ -762,7 +762,7 @@ class AcfAdapter
 		return is_string($value) && trim($value) !== '' ? $value : '';
 	}
 
-	private static function numberValue(mixed $value): ?float
+	private static function floatValue(mixed $value): ?float
 	{
 		return is_numeric($value) ? (float) $value : null;
 	}

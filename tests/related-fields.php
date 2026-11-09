@@ -184,53 +184,53 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 $post = new AcfGet('post', $adapter);
 $projectGet = new ProjectAcfGet('post', $adapter);
 $check($projectGet->Native('author') === 7, 'subclass inherits Native accessor');
-$check($projectGet->PostFields('featured_post') instanceof ProjectAcfGet, 'PostFields preserves derived type');
-$check($projectGet->UserFields('author') instanceof ProjectAcfGet, 'UserFields preserves derived type');
-$check($projectGet->TermFields('category') instanceof ProjectAcfGet, 'TermFields preserves derived type');
-$check($post->PostFields('featured_post')->Text('label') === 'Featured', 'post to post fields');
-$check($post->UserFields('author')->Text('label') === 'Alice', 'post to user fields');
-$check($post->TermFields('category')->Text('label') === 'Blue', 'post to term fields');
-$check($post->Nested('group')->PostFields('featured_post')->Text('label') === 'Featured', 'group to post fields');
-$check($post->Nested('group')->UserFields('author')->Text('label') === 'Alice', 'group to user fields');
-$check($post->Nested('group')->TermFields('category')->Text('label') === 'Blue', 'group to term fields');
-$check($post->UserFields('author')->TermFields('category')->Text('label') === 'Blue', 'user to term fields');
-$check($post->TermFields('category')->UserFields('author')->Text('label') === 'Alice', 'term to user fields');
-$check($post->UserFields('author')->UserFields('friend')->Text('label') === 'Bob', 'user to user fields');
-$check($post->TermFields('category')->TermFields('parent')->Text('label') === 'Parent', 'term to term fields');
-$check($post->UserFields('missing')->Text('label') === '', 'missing user has empty fields');
-$check($post->TermFields('missing')->Text('label') === '', 'missing term has empty fields');
-$check($post->PostFields('missing')->Text('label') === '', 'missing post has empty fields');
-$check($post->UserFields('multiple_users')->Text('label') === '', 'multiple users are not treated as one');
-$check((new AcfGet([], $adapter))->UserFields('missing')->Text('label') === '', 'array source missing user');
-$check((new AcfGet([], $adapter))->TermFields('missing')->Text('label') === '', 'array source missing term');
+$check($projectGet->PostGet('featured_post') instanceof ProjectAcfGet, 'PostGet preserves derived type');
+$check($projectGet->UserGet('author') instanceof ProjectAcfGet, 'UserGet preserves derived type');
+$check($projectGet->TermGet('category') instanceof ProjectAcfGet, 'TermGet preserves derived type');
+$check($post->PostGet('featured_post')->Text('label') === 'Featured', 'post to post get');
+$check($post->UserGet('author')->Text('label') === 'Alice', 'post to user get');
+$check($post->TermGet('category')->Text('label') === 'Blue', 'post to term get');
+$check($post->Nested('group')->PostGet('featured_post')->Text('label') === 'Featured', 'group to post get');
+$check($post->Nested('group')->UserGet('author')->Text('label') === 'Alice', 'group to user get');
+$check($post->Nested('group')->TermGet('category')->Text('label') === 'Blue', 'group to term get');
+$check($post->UserGet('author')->TermGet('category')->Text('label') === 'Blue', 'user to term get');
+$check($post->TermGet('category')->UserGet('author')->Text('label') === 'Alice', 'term to user get');
+$check($post->UserGet('author')->UserGet('friend')->Text('label') === 'Bob', 'user to user get');
+$check($post->TermGet('category')->TermGet('parent')->Text('label') === 'Parent', 'term to term get');
+$check($post->UserGet('missing')->Text('label') === '', 'missing user has empty get');
+$check($post->TermGet('missing')->Text('label') === '', 'missing term has empty get');
+$check($post->PostGet('missing')->Text('label') === '', 'missing post has empty get');
+$check($post->UserGet('multiple_users')->Text('label') === '', 'multiple users are not treated as one');
+$check((new AcfGet([], $adapter))->UserGet('missing')->Text('label') === '', 'array source missing user');
+$check((new AcfGet([], $adapter))->TermGet('missing')->Text('label') === '', 'array source missing term');
 $check(array_map(static fn (PostData $item): int => $item->PostId, $post->Posts('multiple_posts')) === [3, 4], 'multiple posts');
 $check(array_map(static fn (TermData $item): int => $item->Id, $post->Terms('multiple_terms')) === [5, 6], 'multiple terms');
 $check(array_map(static fn (WpUserData $item): int => $item->Id, $post->Users('multiple_users', 160)) === [7, 8], 'multiple users');
 $check($avatarSizes[array_key_last($avatarSizes)] === 160, 'multiple user avatar size');
 $check($post->Posts('missing') === [], 'missing multiple posts');
 $check(
-	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->PostsFields('multiple_posts'))
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->PostGets('multiple_posts'))
 		=== ['Featured', 'Secondary'],
 	'複数投稿のACF取得口を返す',
 );
 $check(
-	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->TermsFields('multiple_terms'))
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->TermGets('multiple_terms'))
 		=== ['Blue', 'Parent'],
 	'複数タームのACF取得口を返す',
 );
 $check(
-	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->UsersFields('multiple_users'))
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->UserGets('multiple_users'))
 		=== ['Alice', 'Bob'],
 	'複数ユーザーのACF取得口を返す',
 );
 $check(
-	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->Nested('group')->PostsFields('multiple_posts'))
+	array_map(static fn (AcfGet $get): string => $get->Text('label'), $post->Nested('group')->PostGets('multiple_posts'))
 		=== ['Featured', 'Secondary'],
 	'Nested内でも複数投稿のACF取得口を返す',
 );
-$projectPostGets = $projectGet->PostsFields('multiple_posts');
-$projectTermGets = $projectGet->TermsFields('multiple_terms');
-$projectUserGets = $projectGet->UsersFields('multiple_users');
+$projectPostGets = $projectGet->PostGets('multiple_posts');
+$projectTermGets = $projectGet->TermGets('multiple_terms');
+$projectUserGets = $projectGet->UserGets('multiple_users');
 $check(
 	count($projectPostGets) === 2
 		&& $projectPostGets[0] instanceof ProjectAcfGet
@@ -238,7 +238,7 @@ $check(
 		&& $projectUserGets[0] instanceof ProjectAcfGet,
 	'複数参照先でも派生型を維持する',
 );
-$check($post->PostsFields('missing') === [], '未選択の複数投稿は空配列');
-$check($post->TermsFields('missing') === [], '未選択の複数タームは空配列');
-$check($post->UsersFields('missing') === [], '未選択の複数ユーザーは空配列');
+$check($post->PostGets('missing') === [], '未選択の複数投稿は空配列');
+$check($post->TermGets('missing') === [], '未選択の複数タームは空配列');
+$check($post->UserGets('missing') === [], '未選択の複数ユーザーは空配列');
 echo "Related fields: {$checks} checks passed.\n";

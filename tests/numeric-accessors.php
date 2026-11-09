@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// APIスタブでNumber()・Int()の正規化契約を検証する。DBは変更しない。
+// APIスタブでFloat()・Int()の正規化契約を検証する。DBは変更しない。
 if (PHP_SAPI !== 'cli') {
 	exit;
 }
@@ -26,7 +26,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-$numberCases = [
+$floatCases = [
 	[5, 5.0],
 	[5.5, 5.5],
 	['5', 5.0],
@@ -36,10 +36,10 @@ $numberCases = [
 	['abc', null],
 	[null, null],
 ];
-foreach ($numberCases as [$value, $expected]) {
+foreach ($floatCases as [$value, $expected]) {
 	$GLOBALS['numericFields']['value'] = $value;
-	$check((new AcfGet(1))->Number('value') === $expected, 'Number direct value');
-	$check((new AcfGet(['value' => $value]))->Number('value') === $expected, 'Number array value');
+	$check((new AcfGet(1))->Float('value') === $expected, 'Float direct value');
+	$check((new AcfGet(['value' => $value]))->Float('value') === $expected, 'Float array value');
 }
 
 $intCases = [

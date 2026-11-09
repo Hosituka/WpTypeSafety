@@ -49,7 +49,7 @@ $expected = [
 	'Checkbox' => [], 'CheckboxValues' => [], 'CheckboxLabels' => [],
 	'SelectValues' => [], 'SelectLabels' => [], 'SelectChoices' => [],
 	'Post' => null, 'Term' => null, 'User' => null, 'Link' => null,
-	'Number' => null, 'Img' => null, 'ImgUrl' => null, 'File' => null,
+	'Float' => null, 'Img' => null, 'ImgUrl' => null, 'File' => null,
 	'FileUrl' => null, 'Url' => null, 'Bool' => null,
 	'Radio' => null, 'RadioValue' => null, 'RadioLabel' => null,
 	'Select' => null, 'SelectValue' => null, 'SelectLabel' => null,
