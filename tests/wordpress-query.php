@@ -166,12 +166,22 @@ class WP_Comment_Query
 		$this->query_vars = $args + [
 			'fields' => '',
 			'count' => false,
-			'no_found_rows' => false,
+			'number' => '',
+			'offset' => '',
+			'no_found_rows' => true,
 			'paged' => 1,
 		];
 		$this->comments = $args['_results'] ?? [];
-		$this->found_comments = (int) ($args['_total'] ?? count($this->comments));
-		$this->max_num_pages = (int) ($args['_max_pages'] ?? ($this->comments === [] ? 0 : 1));
+		$this->found_comments = 0;
+		$this->max_num_pages = 0;
+
+		$number = $this->query_vars['number'];
+		if (is_numeric($number) && (int) $number > 0 && ! $this->query_vars['no_found_rows']) {
+			$this->found_comments = (int) ($args['_total'] ?? count($this->comments));
+			$this->max_num_pages = (int) ($args['_max_pages'] ?? ceil(
+				$this->found_comments / (int) $number,
+			));
+		}
 
 		return $this->comments;
 	}
@@ -239,7 +249,9 @@ $check(($GLOBALS['userQueryArgs'][0]['role'] ?? null) === 'author', 'ユーザ�
 
 $commentResult = CommentQuery::Get([
 	'post_id' => 10,
+	'number' => 2,
 	'paged' => 2,
+	'no_found_rows' => false,
 	'_results' => [new WP_Comment(8, 10)],
 	'_total' => 3,
 	'_max_pages' => 2,
@@ -248,6 +260,46 @@ $check(count($commentResult->Comments) === 1 && $commentResult->Comments[0]->Id 
 $check($commentResult->TotalCount === 3 && $commentResult->MaxPageCount === 2, 'コメントの総数と最大ページ数を保持する');
 $check($commentResult->CurrentPageNumber === 2 && $commentResult->HasComments(), 'コメントの現在ページと存在を判定する');
 $check(($GLOBALS['commentQueryArgs'][0]['post_id'] ?? null) === 10, 'コメントクエリ引数をそのまま渡す');
+
+$commentAllResult = CommentQuery::Get([
+	'_results' => [new WP_Comment(9), new WP_Comment(10)],
+]);
+$check($commentAllResult->TotalCount === 2, 'コメントの全件取得では返却件数を総数にする');
+$check($commentAllResult->MaxPageCount === 1, 'コメントの全件取得を1ページとして表す');
+
+$commentEmptyResult = CommentQuery::Get([]);
+$check($commentEmptyResult->TotalCount === 0, 'コメントの空の全件取得を0件として表す');
+$check($commentEmptyResult->MaxPageCount === 0, 'コメントの空の全件取得を0ページとして表す');
+
+$commentNoTotalResult = CommentQuery::Get([
+	'number' => 10,
+	'no_found_rows' => true,
+	'_results' => [new WP_Comment(11)],
+]);
+$check($commentNoTotalResult->TotalCount === null, 'コメントのページング時に総件数計算無効をnullで表す');
+$check($commentNoTotalResult->MaxPageCount === null, 'コメントのページング時に最大ページ数不明をnullで表す');
+
+$postOffsetResult = PostQuery::Get([
+	'posts_per_page' => 10,
+	'paged' => 3,
+	'offset' => 5,
+]);
+$check($postOffsetResult->CurrentPageNumber === 3, '投稿の現在ページはoffset使用時もpagedを保持する');
+
+$userOffsetResult = UserQuery::Get([
+	'number' => 10,
+	'paged' => 3,
+	'offset' => 5,
+]);
+$check($userOffsetResult->CurrentPageNumber === 3, 'ユーザーの現在ページはoffset使用時もpagedを保持する');
+
+$commentOffsetResult = CommentQuery::Get([
+	'number' => 10,
+	'paged' => 3,
+	'offset' => 5,
+	'no_found_rows' => false,
+]);
+$check($commentOffsetResult->CurrentPageNumber === 3, 'コメントの現在ページはoffset使用時もpagedを保持する');
 
 foreach ([
 	static fn () => PostQuery::Get(['fields' => 'ids']),
@@ -279,9 +331,40 @@ $check($nativeUserResult->Users[0]->Id === 22, '既存のWP_User_Queryも変換�
 $check($nativeUserResult->TotalCount === null && $nativeUserResult->MaxPageCount === null, 'ユーザーの件数計算無効をnullで表す');
 
 $nativeCommentQuery = new WP_Comment_Query();
-$nativeCommentQuery->query(['no_found_rows' => true, '_results' => [new WP_Comment(23)]]);
+$nativeCommentQuery->query([
+	'number' => 10,
+	'no_found_rows' => true,
+	'_results' => [new WP_Comment(23)],
+]);
 $nativeCommentResult = CommentQuery::From($nativeCommentQuery);
 $check($nativeCommentResult->Comments[0]->Id === 23, '既存のWP_Comment_Queryも変換できる');
 $check($nativeCommentResult->TotalCount === null && $nativeCommentResult->MaxPageCount === null, 'コメントの件数計算無効をnullで表す');
+
+$directPostResult = new \WpTypeSafety\Wp\Data\PostQueryData(
+	Posts: [],
+	TotalCount: null,
+	MaxPageCount: null,
+	CurrentPageNumber: 1,
+);
+$check(! $directPostResult->HasPosts(), 'PostQueryDataをWordPressなしで構築できる');
+
+$directTermResult = new \WpTypeSafety\Wp\Data\TermQueryData(Terms: []);
+$check(! $directTermResult->HasTerms(), 'TermQueryDataをWordPressなしで構築できる');
+
+$directUserResult = new \WpTypeSafety\Wp\Data\UserQueryData(
+	Users: [],
+	TotalCount: 0,
+	MaxPageCount: 0,
+	CurrentPageNumber: 1,
+);
+$check(! $directUserResult->HasUsers() && $directUserResult->TotalCount === 0, 'UserQueryDataで0件を保持できる');
+
+$directCommentResult = new \WpTypeSafety\Wp\Data\CommentQueryData(
+	Comments: [],
+	TotalCount: null,
+	MaxPageCount: null,
+	CurrentPageNumber: 1,
+);
+$check(! $directCommentResult->HasComments(), 'CommentQueryDataで不明な件数を保持できる');
 
 echo "WordPress query: {$checks} checks passed.\n";

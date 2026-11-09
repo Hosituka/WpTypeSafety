@@ -37,12 +37,25 @@ final class CommentQueryAdapter
 			$comments[] = DtoFactory::CommentFromWpComment($comment, $avatarSize);
 		}
 
-		$hasTotal = ! (bool) ($queryVars['no_found_rows'] ?? false);
+		$number = $queryVars['number'] ?? null;
+		$hasLimit = is_numeric($number) && (int) $number > 0;
+		$noFoundRows = (bool) ($queryVars['no_found_rows'] ?? true);
+
+		if (! $hasLimit) {
+			$totalCount = count($comments);
+			$maxPageCount = $comments === [] ? 0 : 1;
+		} elseif (! $noFoundRows) {
+			$totalCount = max(0, (int) $query->found_comments);
+			$maxPageCount = max(0, (int) $query->max_num_pages);
+		} else {
+			$totalCount = null;
+			$maxPageCount = null;
+		}
 
 		return new CommentQueryData(
 			Comments: $comments,
-			TotalCount: $hasTotal ? max(0, (int) $query->found_comments) : null,
-			MaxPageCount: $hasTotal ? max(0, (int) $query->max_num_pages) : null,
+			TotalCount: $totalCount,
+			MaxPageCount: $maxPageCount,
 			CurrentPageNumber: self::pageNumber($queryVars['paged'] ?? null),
 		);
 	}

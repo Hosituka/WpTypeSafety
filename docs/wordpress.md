@@ -26,7 +26,11 @@ $maxPageCount = $result->MaxPageCount;
 $currentPageNumber = $result->CurrentPageNumber;
 ```
 
-投稿・ユーザー・コメントは、取得結果とページ情報をそれぞれ`PostQueryData`・`UserQueryData`・`CommentQueryData`で返します。`no_found_rows: true`または`count_total: false`によりWordPress側の総件数計算を無効にした場合、`TotalCount`と`MaxPageCount`は不明を表す`null`です。0件を表す`0`とは区別されます。
+投稿・ユーザー・コメントは、取得結果とページ情報をそれぞれ`PostQueryData`・`UserQueryData`・`CommentQueryData`で返します。ページングするQueryで`no_found_rows: true`または`count_total: false`によりWordPress側の総件数計算を無効にした場合、`TotalCount`と`MaxPageCount`は不明を表す`null`です。0件を表す`0`とは区別されます。
+
+`CommentQuery`は`number`を指定しない場合、WordPressと同じく件数制限のない取得として扱います。この場合は返された`Comments`の件数を`TotalCount`とし、結果があれば`MaxPageCount`を1、空なら0とします。`number`を指定した場合は、`no_found_rows: false`のときだけWordPressが計算した総件数と最大ページ数を保持します。
+
+`CurrentPageNumber`は、Queryへ指定された`paged`を1以上へ正規化した値です。`offset`も指定した場合、WordPressでは`offset`が取得位置へ優先して使用されるため、`CurrentPageNumber`は実際の取得位置を表すページ番号とは限りません。
 
 タームクエリは`TermQueryData`を返し、変換結果を`Terms`へ保持します。WordPressに共通のページ総数プロパティがないため、`TermQueryData`は`TotalCount`・`MaxPageCount`・`CurrentPageNumber`を持ちません。総件数取得のための追加クエリも自動実行しません。
 
