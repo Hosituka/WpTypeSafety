@@ -1,5 +1,56 @@
 # WordPressの取得API
 
+## WordPressクエリからDataを取得する
+
+`PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery`は、WordPressネイティブのクエリ引数をそのまま受け取り、結果をWpTypeSafetyのDataへ変換する薄い接続口です。独自のクエリビルダーではないため、絞り込み・並び替え・メタクエリ等にはWordPressと同じ配列を使用します。
+
+```php
+<?php
+use WpTypeSafety\Wp\Get\PostQuery;
+
+$result = PostQuery::Get([
+	'post_type' => 'staff',
+	'post_status' => 'publish',
+	'posts_per_page' => 12,
+	'paged' => 2,
+	'orderby' => 'menu_order',
+	'order' => 'ASC',
+]);
+
+foreach ($result->Posts as $postData) {
+	echo esc_html($postData->Title);
+}
+
+$totalCount = $result->TotalCount;
+$maxPageCount = $result->MaxPageCount;
+$currentPageNumber = $result->CurrentPageNumber;
+```
+
+投稿・ユーザー・コメントは、取得結果とページ情報をそれぞれ`PostQueryData`・`UserQueryData`・`CommentQueryData`で返します。`no_found_rows: true`または`count_total: false`によりWordPress側の総件数計算を無効にした場合、`TotalCount`と`MaxPageCount`は不明を表す`null`です。0件を表す`0`とは区別されます。
+
+タームクエリはWordPressに共通のページ総数プロパティがないため、`TermQuery::Get()`が`list<TermData>`を直接返します。
+
+```php
+<?php
+use WpTypeSafety\Wp\Get\TermQuery;
+
+$areas = TermQuery::Get([
+	'taxonomy' => 'area',
+	'hide_empty' => false,
+	'orderby' => 'name',
+]);
+```
+
+既存コードや他のクエリ引数生成処理が作ったネイティブクエリは、各クラスの`From()`で変換できます。
+
+```php
+<?php
+$wpQuery = new WP_Query($args);
+$result = PostQuery::From($wpQuery);
+```
+
+各取得口はDataへ変換するため、`fields => 'ids'`等のオブジェクトを返さない指定には対応しません。該当する指定を渡した場合は`InvalidArgumentException`を投げます。ID・件数だけが必要な処理ではWordPressネイティブのクエリを直接使用してください。
+
 ## WordPressのターム
 
 `WpGetTerm`は投稿のタームを`TermData`のリストで返します。`Roots()`・`Deepest()`・`Shallowest()`はターム階層を調べます。取得失敗や該当なしは空配列です。
@@ -83,7 +134,7 @@ $path = WpGetMenuNode::PathToUrl($menu, '/company/access/');
 
 ## WordPressの値からデータクラスを生成する
 
-対象別FactoryはWordPressの値から共通Dataを生成します。`WP_Post`・`WP_Comment`・`WP_User`・`WP_Term`はオブジェクトを渡します。投稿ID・コメントID・ユーザーID・タームIDからの検索は行いません。添付画像とファイルはIDを渡します。ユーザー・ターム・添付ファイルを変換できない場合は`null`です。
+対象別FactoryはWordPressの値から共通Dataを生成します。`WP_Post`・`WP_Comment`・`WP_User`・`WP_Term`はオブジェクトを渡します。`PostFactory::FromId()`だけは投稿IDを受け取り、`get_post()`で取得した投稿を`PostData`へ変換します。0以下のID・存在しない投稿・`WP_Post`以外の結果は`null`です。コメントID・ユーザーID・タームIDからの検索は行いません。添付画像とファイルはIDを渡します。ユーザー・ターム・添付ファイルを変換できない場合も`null`です。
 
 ```php
 <?php
@@ -95,6 +146,7 @@ use WpTypeSafety\Wp\Get\TermFactory;
 use WpTypeSafety\Wp\Get\UserFactory;
 
 $postData = PostFactory::From($post);
+$postDataFromId = PostFactory::FromId($postId); // ?PostData
 $commentData = CommentFactory::From($comment);
 $menuNodeData = MenuNodeFactory::From($menuItem);
 $userData = UserFactory::From($user);

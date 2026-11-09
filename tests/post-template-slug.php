@@ -41,6 +41,11 @@ function get_page_template_slug(int $id): mixed
 	$GLOBALS['templateCalls'][] = $id;
 	return $GLOBALS['templateValues'][$id] ?? false;
 }
+function get_post(int $id): mixed
+{
+	$GLOBALS['postCalls'][] = $id;
+	return $GLOBALS['postValues'][$id] ?? null;
+}
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -89,6 +94,14 @@ $GLOBALS['templateValues'] = [
 ];
 $factoryMembers = PostFactory::Members(new WP_Post(20));
 $check($factoryMembers instanceof PostMembers && $factoryMembers->PostId === 20, '公開FactoryからPostMembersを生成する');
+$GLOBALS['postCalls'] = [];
+$GLOBALS['postValues'] = [21 => new WP_Post(21)];
+$check(PostFactory::FromId(21)?->PostId === 21, '投稿IDからPostDataを生成する');
+$check($GLOBALS['postCalls'] === [21], '投稿IDをget_postへ渡す');
+$check(PostFactory::FromId(22) === null, '存在しない投稿IDはnull');
+$check($GLOBALS['postCalls'] === [21, 22], '存在しない投稿も1回だけ取得する');
+$check(PostFactory::FromId(0) === null && PostFactory::FromId(-1) === null, '0以下の投稿IDはnull');
+$check($GLOBALS['postCalls'] === [21, 22], '0以下の投稿IDは問い合わせない');
 foreach ($GLOBALS['templateValues'] as $id => $value) {
 	$before = count($GLOBALS['templateCalls']);
 	$data = PostFactory::From(new WP_Post($id));

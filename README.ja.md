@@ -155,6 +155,23 @@ $postData = PostFactory::From($post); // PostData
 $commentData = CommentFactory::From($comment); // CommentData
 ```
 
+WordPressクエリの結果をまとめてDataへ変換する場合は、対象別Queryへネイティブの引数配列を渡します。
+
+```php
+<?php
+use WpTypeSafety\Wp\Get\PostQuery;
+
+$result = PostQuery::Get([
+	'post_type' => 'staff',
+	'posts_per_page' => 12,
+	'paged' => 1,
+]);
+
+foreach ($result->Posts as $postData) {
+	echo esc_html($postData->Title);
+}
+```
+
 ACFフィールドは用途に対応する`AcfGet`で正規化できます。ネイティブAPIの結果だけ型確認したい場合や、テンプレートパーツの`$args`を読む場合はCoreを使えます。
 
 ```php
@@ -183,6 +200,7 @@ $status = $resultGet->String('status');                  // string
 |---|---|
 | ACFフィールドを型付きで取得する | `AcfGet` |
 | WordPressオブジェクトをDataへ変換する | `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`・`AttachmentFactory` |
+| WordPressクエリを実行してDataへ変換する | `PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery` |
 | ACFブロック情報をDataへ変換する | `AcfDataFactory` |
 | 単独の値を型確認する | `TypeCheck` |
 | 文字列キーの辞書全体を型確認する | `DictCheck` |
@@ -200,6 +218,7 @@ $status = $resultGet->String('status');                  // string
 | 辞書全体の要素型を確認 | `DictCheck` | 文字列キーと全要素の型が揃った辞書だけを受け入れる |
 | ACF値を正規化 | `AcfGet` | 画像、数値、選択、参照、入れ子などを用途別の固定型で取得する |
 | WordPress値をData化 | 対象別Factory | WordPressオブジェクトを共通Dataへ変換する |
+| WordPressクエリ結果をData化 | 対象別Query | ネイティブの引数配列や生成済みクエリをDataのリストへ変換する |
 | 案件固有Dataを構築 | Members・派生Data | 複雑なコンポーネントや案件固有投稿の入力契約を表す |
 
 各構成のコード例は[利用例](docs/examples.md)を参照してください。

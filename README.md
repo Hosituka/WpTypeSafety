@@ -155,6 +155,23 @@ $postData = PostFactory::From($post); // PostData
 $commentData = CommentFactory::From($comment); // CommentData
 ```
 
+Use a target-specific Query to run a native WordPress query and convert all results into Data objects.
+
+```php
+<?php
+use WpTypeSafety\Wp\Get\PostQuery;
+
+$result = PostQuery::Get([
+	'post_type' => 'staff',
+	'posts_per_page' => 12,
+	'paged' => 1,
+]);
+
+foreach ($result->Posts as $postData) {
+	echo esc_html($postData->Title);
+}
+```
+
 ACF fields can be normalized with the accessor matching their purpose. Use Core when you only need to check the result of a native API or read template-part `$args`.
 
 ```php
@@ -183,6 +200,7 @@ $status = $resultGet->String('status');                            // string
 |---|---|
 | Read ACF fields through typed accessors | `AcfGet` |
 | Convert WordPress objects into Data objects | `PostFactory`, `CommentFactory`, `UserFactory`, `TermFactory`, `MenuNodeFactory`, and `AttachmentFactory` |
+| Run WordPress queries and convert results into Data objects | `PostQuery`, `TermQuery`, `UserQuery`, and `CommentQuery` |
 | Convert ACF block information into Data objects | `AcfDataFactory` |
 | Check the type of a standalone value | `TypeCheck` |
 | Validate a complete string-keyed dictionary | `DictCheck` |
@@ -200,6 +218,7 @@ These entry points are not maturity levels. They are options that can coexist wi
 | Validate a complete dictionary | `DictCheck` | Accept only string-keyed dictionaries whose values all satisfy one type contract |
 | Normalize ACF values | `AcfGet` | Retrieve images, numbers, choices, references, and nested values through purpose-specific fixed types |
 | Convert WordPress values into Data | Target-specific factories | Convert WordPress objects into shared Data objects |
+| Convert WordPress query results into Data | Target-specific queries | Convert native query arguments or existing queries into lists of Data objects |
 | Build project-specific Data | Members and derived Data | Express the input contract for complex components and project-specific post types |
 
 See [Examples](docs/examples.md) for code samples. The detailed documentation is currently written in Japanese.

@@ -21,4 +21,15 @@ final class PostFactory
 	{
 		return DtoFactory::PostFromWpPost($post);
 	}
+
+	public static function FromId(int $postId): ?PostData
+	{
+		if ($postId <= 0) {
+			return null;
+		}
+
+		$post = \get_post($postId);
+
+		return $post instanceof \WP_Post ? self::From($post) : null;
+	}
 }
