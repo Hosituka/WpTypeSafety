@@ -4,7 +4,7 @@
 
 各対象別Factoryは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または対象別Adapterへ処理を委譲します。`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Members()`を提供します。
 
-対象別Queryも`Wp/Get/`の公開入口ですが、クエリビルダーの責務は持ちません。`Get()`はWordPressネイティブの引数配列をクエリクラスへ渡し、`From()`は生成済みのネイティブクエリを受け取ります。実行とData変換は`Wp/Internal/*QueryAdapter.php`へ委譲し、ページ情報を持つ結果は`Wp/Data/*QueryData.php`へまとめます。取得手段を表す`Query`はクラス名で区別し、`Wp/Get/Query/`のような取得層内の追加階層は設けません。
+対象別Queryも`Wp/Get/`の公開入口ですが、クエリビルダーの責務は持ちません。`Get()`はWordPressネイティブの引数配列をクエリクラスへ渡し、`From()`は生成済みのネイティブクエリを受け取ります。実行とData変換は`Wp/Internal/*QueryAdapter.php`へ委譲し、結果は`Wp/Data/*QueryData.php`へまとめます。`TermQueryData`はWordPress側に共通のページ総数プロパティがないため、タームのリストだけを保持します。取得手段を表す`Query`はクラス名で区別し、`Wp/Get/Query/`のような取得層内の追加階層は設けません。
 
 起動処理は`autoload.php`へ集約しています。`autoload.php`が`WpTypeSafety\`のPSR-4設定を登録し、Core・Wp・Acfのクラスは参照された時点で個別に読み込まれます。領域別の中継入口や、取得処理の初期登録はありません。
 

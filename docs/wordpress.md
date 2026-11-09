@@ -28,17 +28,21 @@ $currentPageNumber = $result->CurrentPageNumber;
 
 投稿・ユーザー・コメントは、取得結果とページ情報をそれぞれ`PostQueryData`・`UserQueryData`・`CommentQueryData`で返します。`no_found_rows: true`または`count_total: false`によりWordPress側の総件数計算を無効にした場合、`TotalCount`と`MaxPageCount`は不明を表す`null`です。0件を表す`0`とは区別されます。
 
-タームクエリはWordPressに共通のページ総数プロパティがないため、`TermQuery::Get()`が`list<TermData>`を直接返します。
+タームクエリは`TermQueryData`を返し、変換結果を`Terms`へ保持します。WordPressに共通のページ総数プロパティがないため、`TermQueryData`は`TotalCount`・`MaxPageCount`・`CurrentPageNumber`を持ちません。総件数取得のための追加クエリも自動実行しません。
 
 ```php
 <?php
 use WpTypeSafety\Wp\Get\TermQuery;
 
-$areas = TermQuery::Get([
+$result = TermQuery::Get([
 	'taxonomy' => 'area',
 	'hide_empty' => false,
 	'orderby' => 'name',
 ]);
+
+foreach ($result->Terms as $area) {
+	echo esc_html($area->Name);
+}
 ```
 
 既存コードや他のクエリ引数生成処理が作ったネイティブクエリは、各クラスの`From()`で変換できます。

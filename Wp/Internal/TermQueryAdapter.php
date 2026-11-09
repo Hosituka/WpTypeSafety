@@ -3,18 +3,15 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Internal;
 
-use WpTypeSafety\Wp\Data\TermData;
+use WpTypeSafety\Wp\Data\TermQueryData;
 
 /** @internal WP_Term_QueryをTermDataのリストへ変換します。 */
 final class TermQueryAdapter
 {
 	private function __construct() {}
 
-	/**
-	 * @param array<string, mixed> $args
-	 * @return list<TermData>
-	 */
-	public static function Get(array $args): array
+	/** @param array<string, mixed> $args */
+	public static function Get(array $args): TermQueryData
 	{
 		$query = new \WP_Term_Query();
 		$query->query($args);
@@ -22,8 +19,7 @@ final class TermQueryAdapter
 		return self::From($query);
 	}
 
-	/** @return list<TermData> */
-	public static function From(\WP_Term_Query $query): array
+	public static function From(\WP_Term_Query $query): TermQueryData
 	{
 		$fields = is_array($query->query_vars) ? ($query->query_vars['fields'] ?? 'all') : 'all';
 		if ($fields !== 'all' && $fields !== 'all_with_object_id') {
@@ -44,6 +40,6 @@ final class TermQueryAdapter
 			$terms[] = $data;
 		}
 
-		return $terms;
+		return new TermQueryData($terms);
 	}
 }

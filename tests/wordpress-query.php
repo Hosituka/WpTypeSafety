@@ -221,7 +221,8 @@ $termResult = TermQuery::Get([
 	'taxonomy' => 'area',
 	'_results' => [new WP_Term(3, '厚木市', 'atsugi', 'area')],
 ]);
-$check(count($termResult) === 1 && $termResult[0]->Taxonomy === 'area', 'タームをTermDataへ変換する');
+$check(count($termResult->Terms) === 1 && $termResult->Terms[0]->Taxonomy === 'area', 'タームをTermDataへ変換する');
+$check($termResult->HasTerms(), 'タームの存在を判定する');
 $check(($GLOBALS['termQueryArgs'][0]['taxonomy'] ?? null) === 'area', 'タームクエリ引数をそのまま渡す');
 
 $userResult = UserQuery::Get([
@@ -268,7 +269,7 @@ $check(PostQuery::From($nativePostQuery)->Posts[0]->PostId === 20, '既存のWP_
 
 $nativeTermQuery = new WP_Term_Query();
 $nativeTermQuery->query(['_results' => [new WP_Term(21, '横浜市', 'yokohama', 'area')]]);
-$check(TermQuery::From($nativeTermQuery)[0]->Id === 21, '既存のWP_Term_Queryも変換できる');
+$check(TermQuery::From($nativeTermQuery)->Terms[0]->Id === 21, '既存のWP_Term_Queryも変換できる');
 
 $nativeUserQuery = new WP_User_Query();
 $nativeUserQuery->prepare_query(['count_total' => false, '_results' => [new WP_User(22)]]);
