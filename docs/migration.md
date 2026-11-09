@@ -33,7 +33,7 @@ require_once __DIR__ . '/WpTypeSafety/autoload.php';
 | `WpTypeSafety\Wp\WpGet`など公開取得API | `WpTypeSafety\Wp\Get\WpGet`など |
 | `WpTypeSafety\Acf\AcfGet`など公開取得API | `WpTypeSafety\Acf\Get\AcfGet`など |
 | `ArrayGet->PostData('post')` | `ArrayGet->Instance('post', PostData::class)` |
-| `ArrayGet->PostDataArray('posts')` | `ArrayGet->InstanceArray('posts', PostData::class)` |
+| `ArrayGet->PostDataArray('posts')` | `ArrayGet->InstanceList('posts', PostData::class)` |
 
 `TermData`・`WpUserData`・`MenuNodeData`のArrayGet専用メソッドも同様に置き換えます。既存メソッド本体の契約やDTOのプロパティ名は、今回の移行では変更しません。
 

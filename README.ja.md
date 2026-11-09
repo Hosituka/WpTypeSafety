@@ -2,21 +2,60 @@
 
 [English](README.md) | **日本語**
 
-WpTypeSafetyは、WordPress・ACFから取得した不定形な値を、戻り値の型が決まったAPIで安全に扱うためのPHPライブラリです。
+WpTypeSafetyは、WordPress・ACFから返る不定形な値を、予測可能な戻り値型へ確認・正規化するPHPライブラリです。
 
-`string`、`?ImgData`、`list<AcfGet>`などの型付きの値やDataオブジェクトとして取得でき、必要な箇所だけ段階的に導入できます。既存APIと併用でき、サイト全体の書き換えや、すべての値のData化は必要ありません。
+既存テーマ全体の書き換えは必要ありません。
+
+- 1個のネイティブAPIの戻り値確認だけに導入できます。
+- 既存のWordPress・ACF APIと併用できます。
+- WordPressのテンプレート階層と`get_template_part()`を維持できます。
+- 必要な箇所だけ`AcfGet`やDataへ移行できます。
+- 案件固有DataやViewクラスの導入は任意です。
+
+WpTypeSafetyは、特定のテーマ構成を強制するフレームワークではありません。既存案件のデータ境界へ、必要な範囲で型確認と正規化を追加するためのライブラリです。
+
+## 最小構成から導入できます
+
+ACFネイティブAPIの戻り値を1個だけ確認できます。`TypeCheck`は型変換を行いません。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\TypeCheck;
+
+$title = TypeCheck::String(get_field('title')) ?? '';
+```
+
+既存のテンプレートパーツでは、受け取った`$args`だけを確認できます。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ArrayGet;
+
+$argsGet = new ArrayGet($args);
+$title = $argsGet->String('title');
+```
+
+ACFフィールド1個だけを、用途に応じた固定型へ正規化することもできます。
+
+```php
+<?php
+use WpTypeSafety\Acf\Get\AcfGet;
+
+$postGet = new AcfGet($post);
+$mainImg = $postGet->Img('main_img');
+```
+
+同じテーマ内で、未導入の箇所、`TypeCheck`だけを使う箇所、`AcfGet`を使う箇所、専用Dataを使う箇所を併存させられます。単純な箇所を専用DataやViewクラスへ移す必要はありません。
 
 ## 何が楽になるか
 
-ACFの `get_field()` は、フィールド設定や未入力状態によって異なる型の値を返します。文字列が必要な場所では、通常は取得後に確認します。
+ACFの`get_field()`は、フィールド設定や未入力状態によって異なる型の値を返します。WpTypeSafetyでは、取得後の確認と正規化を用途別の取得口へ集約できます。
 
 ```php
 <?php
 $raw = get_field('title', $post->ID);
 $title = is_string($raw) && trim($raw) !== '' ? $raw : '';
 ```
-
-WpTypeSafetyでは、最初に投稿を取得対象として指定し、用途ごとに戻り値型を固定した取得メソッド（以下、取得口）から値を読みます。
 
 ```php
 <?php
@@ -25,38 +64,13 @@ use WpTypeSafety\Acf\Get\AcfGet;
 $postGet = new AcfGet($post);
 $title = $postGet->Text('title'); // string。未入力・型違いなら ''
 $mainImg = $postGet->Img('main_img'); // ?ImgData。取得できなければ null
-```
 
-特に、複数階層のACFグループを読む場合に、各階層の配列確認を繰り返す必要がありません。
-
-```php
-<?php
-$title = $postGet
-	->Nested('first_view')
-	->Nested('heading')
-	->Text('title');
-```
-
-`Nested()`は、指定したグループが未入力・配列以外でも空の取得元を返します。そのため、途中の階層ごとに`isset()`や`is_array()`で分岐せず、最後まで同じ形でたどれます。
-投稿などACFの取得先から`Nested()`・`Repeater()`・`Flexible()`をたどる場合は、未整形値と子フィールド定義も引き継ぎます。そのため、グループ、リピーター行、Flexibleの各レイアウトと、それらを組み合わせた入れ子でも、日付系取得口とIcon Picker取得口を利用できます。`AcfGet`の派生型から呼んだ場合は、子の取得口にも同じ派生型と注入済みの依存が引き継がれます。
-
-`AcfGet`は投稿・ユーザー・タームを共通の取得元として扱います。`WP_User`／`WpUserData`または`WP_Term`／`TermData`を直接渡すと、その対象に紐づくACFフィールドを取得できます。単一参照用の`PostFields()`・`UserFields()`・`TermFields()`と、複数参照用の`PostsFields()`・`UsersFields()`・`TermsFields()`があり、いずれも呼び出し元の`AcfGet`派生型と注入済みAdapterを維持します。
-
-リピーターの各行も、最初から`AcfGet`として扱えます。行内のグループやリピーターも同じ方法で読み取れます。
-
-```php
-<?php
-foreach ($postGet->Repeater('sections') as $sectionGet) {
-	$title = $sectionGet->Nested('heading')->Text('title');
-	$mainImg = $sectionGet->Nested('media')->Img('main_img');
+foreach ($postGet->Repeater('items') as $rowGet) {
+	$label = $rowGet->Text('label');
 }
 ```
 
-単純なフィールドから複雑な入れ子まで、ACFの構造に沿って安全にたどり、各地点で戻り値の型が固定された値を受け取れます。必要な箇所では、WordPress・ACFのネイティブAPIを直接使うこともできます。
-
-- フィールドの戻り値形式や未入力・型違いの扱いを、取得口へ集約できます。
-- テンプレート側は、生のWordPressオブジェクトやACF配列を毎回検証せず、固定された戻り値の契約を利用できます。
-- 必要に応じてDataへ変換し、取得処理と表示処理を分離できます。
+グループ、リピーター、Flexible Content、投稿・ユーザー・ターム参照でも同じ取得モデルを利用できます。途中の欠損を毎回`isset()`や`is_array()`で確認せず、各地点で戻り値型が固定された値を受け取れます。入れ子での動作、派生`AcfGet`、参照先切り替えの詳しい契約は[ACFの取得API](docs/acf.md)を参照してください。
 
 ## 特徴
 
@@ -157,7 +171,7 @@ $resultGet = new ObjectGet($resultObject);
 $count = $postGet->Int('count');                        // ?int
 $postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
 $title = $argsGet->String('title');                      // string
-$items = $argsGet->NestedArray('items');                 // list<ArrayGet>
+$items = $argsGet->NestedList('items');                  // list<ArrayGet>
 $status = $resultGet->String('status');                  // string
 ```
 
@@ -168,33 +182,80 @@ $status = $resultGet->String('status');                  // string
 | やりたいこと | 主な入口 |
 |---|---|
 | ACFフィールドを型付きで取得する | `AcfGet` |
-| WordPressオブジェクトをDataへ変換する | `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory` |
+| WordPressオブジェクトをDataへ変換する | `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`・`AttachmentFactory` |
 | ACFブロック情報をDataへ変換する | `AcfDataFactory` |
 | 単独の値を型確認する | `TypeCheck` |
+| 文字列キーの辞書全体を型確認する | `DictCheck` |
 | 配列の値を型付きで取得する | `ArrayGet` |
 | オブジェクトのpublicプロパティを型付きで取得する | `ObjectGet` |
 
-## 構成を段階的に選べます
+## データ境界の保証範囲を選ぶ
 
-WpTypeSafetyは、既存のWordPressテーマを一度に独自構成へ変更する必要はありません。用途と複雑さに応じて、次の構成を同じテーマ内で併用できます。数字は優劣や成熟度ではなく、扱う範囲の違いを表します。単純な箇所まで専用DataやViewクラスへ移す必要はありません。
+次の入口は段階ではなく、同じ案件内で併用できる選択肢です。データの複雑さと、必要な保証範囲に応じて選べます。
 
-| 構成 | 目的 | 主な入口 |
+| 導入範囲 | 主な入口 | 用途 |
 |---|---|---|
-| 1. WordPress標準＋型確認 | テンプレート構造を変えず、生の値と`$args`を安全に扱う | `TypeCheck`、`ArrayGet`、`ObjectGet` |
-| 2. Get／Factory＋テーマ固有Data | 取得・確認・変換をテンプレートから分離する | `AcfGet`、対象別Factory、テーマ固有Data |
-| 3. Data＋Viewクラス | Dataの入力型に加え、テンプレートパスもクラス参照で管理する | `Psr4Autoload`、`XxxView::Render()` |
+| 単独の値を確認 | `TypeCheck` | ネイティブAPIの値を変換せず型確認する |
+| 配列・オブジェクト内の値を確認 | `ArrayGet`・`ObjectGet` | `$args`や外部APIの構造を既存コードのまま読む |
+| 辞書全体の要素型を確認 | `DictCheck` | 文字列キーと全要素の型が揃った辞書だけを受け入れる |
+| ACF値を正規化 | `AcfGet` | 画像、数値、選択、参照、入れ子などを用途別の固定型で取得する |
+| WordPress値をData化 | 対象別Factory | WordPressオブジェクトを共通Dataへ変換する |
+| 案件固有Dataを構築 | Members・派生Data | 複雑なコンポーネントや案件固有投稿の入力契約を表す |
 
-第1段階では、`get_template_part()`やWordPressのテンプレート階層を維持したまま、値を受け渡す境界だけを防御できます。第2段階では複雑な取得処理をData生成へ分離し、第3段階では必要なViewだけをクラス参照へ置き換えられます。WordPress標準構成を使い続けることも正式な利用方法です。各構成のコード例は[利用例](docs/examples.md)を参照してください。
+各構成のコード例は[利用例](docs/examples.md)を参照してください。
+
+## 表示構成を独立して選ぶ
+
+表示方法は、データ境界の保証範囲とは別に選べます。`AcfGet`やDataを利用していても、Viewクラスへ移行する必要はありません。
+
+| 表示方法 | 位置づけ |
+|---|---|
+| 通常のPHPテンプレート | 正式な利用方法 |
+| `get_template_part()` | 正式な利用方法 |
+| Dataを`$args`で渡す | 任意 |
+| `XxxView::Render()` | 任意 |
+| 案件側クラスのPSR-4読み込み | 任意 |
+
+任意PSR-4読み込みの設定とView構成例は[読み込みと任意PSR-4](docs/autoload.md)を参照してください。
 
 ## 設計方針と保証範囲
 
-取得口は外部の値を確認・正規化します。DataのコンストラクターはPHPの型宣言で表せる型を受け取りますが、URLの形式、IDや寸法の正負などを一律には検証しません。直接Dataを作る場合は、呼び出し元が値を確認してください。画像・ファイルがURLだけで返る設定や、取得済み配列のフィールド定義を確認できない場合など、取得口ごとの制約は詳細文書に記載しています。
+WpTypeSafetyが保証するのは、公開取得口のPHP戻り値型と、欠損・型違い時の戻り値規則です。対応する取得口では、ACF値を用途に合う固定型へ正規化します。
+
+| 項目 | 保証 |
+|---|---|
+| 公開取得口のPHP戻り値型 | する |
+| 型違い・欠損時の戻り値 | する |
+| 対応取得口によるACF値の正規化 | する |
+| Dataを直接構築した値の意味的妥当性 | しない |
+| 指定したフィールド名の存在 | しない |
+| HTML出力の安全性 | しない |
+| 特定の実環境での結合動作 | 導入先でも確認が必要 |
+
+DataのコンストラクターはPHPの型宣言で表せる型を受け取りますが、URLの形式、IDや寸法の正負などを一律には検証しません。直接Dataを作る場合は、呼び出し元が値を確認してください。画像・ファイルがURLだけで返る設定や、取得済み配列のフィールド定義を確認できない場合など、取得口ごとの制約は詳細文書に記載しています。
 
 HTMLの組み立てと出力時のエスケープは利用側で行います。通常の文字列には`esc_html()`、URLの出力には`esc_url()`など、出力先に合う処理を使ってください。
 
-## 発展的な使い方
+## WpTypeSafetyが行わないこと
 
-第3段階のViewクラス構成では、任意PSR-4読み込みを案件側のDataやViewへ利用できます。設定方法とView構成例は[読み込みと任意PSR-4](docs/autoload.md)を参照してください。
+- ACFフィールド名の静的検査。
+- 現行版におけるACFフィールド定義からのPHP型生成。
+- PHPStan・Psalmなど静的解析ツールの代替。
+- HTML出力の自動エスケープ。
+- テーマ全体のアーキテクチャ強制。
+- すべてのWordPress・ACFバージョンとの結合動作保証。
+
+## 機能ごとの依存関係
+
+ライブラリ全体を配置しても、すべての領域を使う必要はありません。
+
+| 使用領域 | PHP | WordPress | ACF |
+|---|---:|---:|---:|
+| `Core` | 必須 | 不要 | 不要 |
+| `Wp` | 必須 | 必須 | 不要 |
+| `Acf` | 必須 | 必須 | 必須 |
+| `Support\Esc` | 必須 | 必須 | 不要 |
+| 任意PSR-4読み込み | 必須 | 不要 | 不要 |
 
 ## 詳細ドキュメント
 

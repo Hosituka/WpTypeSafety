@@ -40,33 +40,33 @@ final class ArrayGet
 	 * @param class-string<T> $className
 	 * @return list<T>
 	 */
-	public function InstanceArray(string $key, string $className): array
+	public function InstanceList(string $key, string $className): array
 	{
-		return TypeCheck::InstanceArray($this->value($key), $className) ?? [];
+		return TypeCheck::InstanceList($this->value($key), $className) ?? [];
 	}
 
 	/** @return list<string> */
-	public function StringArray(string $key): array
+	public function StringList(string $key): array
 	{
-		return TypeCheck::StringArray($this->value($key)) ?? [];
+		return TypeCheck::StringList($this->value($key)) ?? [];
 	}
 
 	/** @return list<int> */
-	public function IntArray(string $key): array
+	public function IntList(string $key): array
 	{
-		return TypeCheck::IntArray($this->value($key)) ?? [];
+		return TypeCheck::IntList($this->value($key)) ?? [];
 	}
 
 	/** @return list<float> */
-	public function FloatArray(string $key): array
+	public function FloatList(string $key): array
 	{
-		return TypeCheck::FloatArray($this->value($key)) ?? [];
+		return TypeCheck::FloatList($this->value($key)) ?? [];
 	}
 
 	/** @return list<bool> */
-	public function BoolArray(string $key): array
+	public function BoolList(string $key): array
 	{
-		return TypeCheck::BoolArray($this->value($key)) ?? [];
+		return TypeCheck::BoolList($this->value($key)) ?? [];
 	}
 
 	public function String(string $key): string
@@ -105,7 +105,7 @@ final class ArrayGet
 	}
 
 	/** @return list<self> */
-	public function NestedArray(string $key): array
+	public function NestedList(string $key): array
 	{
 		$items = [];
 		foreach ($this->Array($key) as $value) {
@@ -114,6 +114,21 @@ final class ArrayGet
 
 			$items[] = new self($value);
 		}
+		return $items;
+	}
+
+	/** @return list<ObjectGet> */
+	public function NestedObjectList(string $key): array
+	{
+		$items = [];
+		foreach ($this->Array($key) as $value) {
+			if (! is_object($value)) {
+				continue;
+			}
+
+			$items[] = new ObjectGet($value);
+		}
+
 		return $items;
 	}
 
@@ -143,32 +158,32 @@ final class ArrayGet
 	}
 
 	/** @return list<ImgData> */
-	public function ImgDataArray(string $key): array
+	public function ImgDataList(string $key): array
 	{
-		return $this->InstanceArray($key, ImgData::class);
+		return $this->InstanceList($key, ImgData::class);
 	}
 
 	/** @return list<LinkData> */
-	public function LinkDataArray(string $key): array
+	public function LinkDataList(string $key): array
 	{
-		return $this->InstanceArray($key, LinkData::class);
+		return $this->InstanceList($key, LinkData::class);
 	}
 
 	/** @return list<ChoiceData> */
-	public function ChoiceDataArray(string $key): array
+	public function ChoiceDataList(string $key): array
 	{
-		return $this->InstanceArray($key, ChoiceData::class);
+		return $this->InstanceList($key, ChoiceData::class);
 	}
 
 	/** @return list<FileData> */
-	public function FileDataArray(string $key): array
+	public function FileDataList(string $key): array
 	{
-		return $this->InstanceArray($key, FileData::class);
+		return $this->InstanceList($key, FileData::class);
 	}
 
 	/** @return list<TimeData> */
-	public function TimeDataArray(string $key): array
+	public function TimeDataList(string $key): array
 	{
-		return $this->InstanceArray($key, TimeData::class);
+		return $this->InstanceList($key, TimeData::class);
 	}
 }

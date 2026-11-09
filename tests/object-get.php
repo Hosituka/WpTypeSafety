@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/autoload.php';
 
+use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Core\Check\ObjectGet;
 use WpTypeSafety\Core\Data\TimeData;
 
@@ -14,6 +15,7 @@ final class ObjectGetTestSource
 	public object $Child;
 	public array $Group;
 	public array $Children;
+	public array $Groups;
 	public TimeData $OpeningTime;
 	public array $Times;
 	public readonly string $ReadOnly;
@@ -31,6 +33,11 @@ final class ObjectGetTestSource
 			(object) ['Name' => 'First'],
 			'invalid',
 			(object) ['Name' => 'Second'],
+		];
+		$this->Groups = [
+			['Name' => 'First group'],
+			'invalid',
+			['Name' => 'Second group'],
 		];
 		$this->OpeningTime = new TimeData(Hour: 9, Minute: 30, Second: 0);
 		$this->Times = [
@@ -75,7 +82,7 @@ $check($get->Int('Count') === 12, 'Int reads the current union property value');
 $source->Count = '12';
 $check($get->Int('Count') === null, 'Int does not convert a numeric string');
 $check($get->String('Count') === '12', 'String reflects a changed property value');
-$check($get->StringArray('Labels') === ['first', 'second'], 'StringArray filters values and reindexes them');
+$check($get->StringList('Labels') === ['first', 'second'], 'StringList filters values and reindexes them');
 $check($get->String('ReadOnly') === 'readonly', 'String reads a readonly property');
 $check($get->String('Nullable') === '', 'String returns an empty string for null');
 $check($get->String('Uninitialized') === '', 'String ignores an uninitialized property');
@@ -87,13 +94,20 @@ $check($get->Nested('Child')->String('Name') === 'Child', 'Nested reads a child 
 $check($get->NestedArray('Group')->String('Name') === 'Group', 'NestedArray reads an array property');
 $check($get->NestedArray('Child')->String('Name') === '', 'NestedArray returns an empty ArrayGet for a non-array value');
 
-$children = $get->NestedObjects('Children');
-$check(count($children) === 2, 'NestedObjects filters non-object items');
-$check($children[0] instanceof ObjectGet, 'NestedObjects returns ObjectGet instances');
-$check($children[0]->String('Name') === 'First', 'NestedObjects reads the first object');
-$check($children[1]->String('Name') === 'Second', 'NestedObjects preserves object order');
+$children = $get->NestedList('Children');
+$check(count($children) === 2, 'NestedList filters non-object items');
+$check($children[0] instanceof ObjectGet, 'NestedList returns ObjectGet instances');
+$check($children[0]->String('Name') === 'First', 'NestedList reads the first object');
+$check($children[1]->String('Name') === 'Second', 'NestedList preserves object order');
+
+$groups = $get->NestedArrayList('Groups');
+$check(count($groups) === 2, 'NestedArrayList filters non-array items');
+$check($groups[0] instanceof ArrayGet, 'NestedArrayList returns ArrayGet instances');
+$check($groups[0]->String('Name') === 'First group', 'NestedArrayList reads the first array');
+$check($groups[1]->String('Name') === 'Second group', 'NestedArrayList preserves array order');
+$check($get->NestedArrayList('Missing') === [], 'NestedArrayList returns an empty list for a missing property');
 $check($get->TimeData('OpeningTime') === $source->OpeningTime, 'TimeData returns a TimeData instance');
-$check(count($get->TimeDataArray('Times')) === 2, 'TimeDataArray filters non-TimeData items');
+$check(count($get->TimeDataList('Times')) === 2, 'TimeDataList filters non-TimeData items');
 
 $dynamicSource = (object) ['Count' => 10];
 $dynamicGet = new ObjectGet($dynamicSource);

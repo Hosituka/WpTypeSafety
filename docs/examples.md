@@ -2,11 +2,11 @@
 
 この文書では、案件固有の名前やフィールドを避けた最小構成の例を紹介します。`autoload.php`は`functions.php`などで読み込み済みであることを前提とします。
 
-三つの構成は優劣や成熟度を表すものではありません。同じテーマ内で併用でき、複雑になった箇所だけDataやViewクラスへ移せます。
+次の三つは併用可能な導入パターンであり、優劣、成熟度、移行順序を表すものではありません。同じテーマ内で併用でき、複雑になった箇所だけDataやViewクラスへ移せます。データ境界の保証範囲と、テンプレートまたはViewクラスの選択は独立しています。
 
-## 1. WordPress標準の構成を保つ
+## パターン：WordPress標準の構成を保つ
 
-ネイティブAPIの結果を`TypeCheck`で確認し、`get_template_part()`へ渡した`$args`を`ArrayGet`で読み取ります。テンプレートパーツの配置や呼び出し方は変更しません。
+ACFネイティブAPIの結果を`TypeCheck`で確認し、`get_template_part()`へ渡した`$args`を`ArrayGet`で読み取ります。テンプレートパーツの配置や呼び出し方は変更しません。
 
 ```php
 <?php
@@ -37,7 +37,7 @@ $title = $argsGet->String('title');
 
 ### ACF標準APIの結果をチェーンして型確認する
 
-第1段階のまま複数のACFフィールドを扱う場合は、`get_fields()`の結果を`ArrayGet`へ渡せます。ACFのGroupは`Nested()`、Repeaterなど配列行のリストは`NestedArray()`でたどります。`get_fields()`がフィールド未登録時に返す`false`も、空の取得元として扱われます。
+WordPress標準の構成を保ったまま複数のACFフィールドを扱う場合は、`get_fields()`の結果を`ArrayGet`へ渡せます。ACFのGroupは`Nested()`、Repeaterなど配列行のリストは`NestedList()`でたどります。`get_fields()`がフィールド未登録時に返す`false`も、空の取得元として扱われます。
 
 ```php
 <?php
@@ -50,7 +50,7 @@ $heading = $heroGet->String('heading');
 <section>
 	<h2><?= esc_html($heading) ?></h2>
 	<dl>
-		<?php foreach ($fieldsGet->NestedArray('faq') as $faqGet): ?>
+		<?php foreach ($fieldsGet->NestedList('faq') as $faqGet): ?>
 			<dt><?= esc_html($faqGet->String('question')) ?></dt>
 			<dd><?= esc_html($faqGet->String('answer')) ?></dd>
 		<?php endforeach; ?>
@@ -60,7 +60,7 @@ $heading = $heroGet->String('heading');
 
 この方法はACFが整形した値を、追加変換せずPHP型として確認する軽量な使い方です。画像・日付・投稿参照などをWpTypeSafetyのDataへ変換したい場合や、ACFのフィールド定義を引き継いで入れ子を処理したい場合は`AcfGet`を使用します。フィールド名自体は文字列なので、フィールド名まで型安全になるわけではありません。
 
-## 2. 取得と変換をDataへ分離する
+## パターン：取得と変換をDataへ分離する
 
 取得処理が複雑になった箇所では、対象別Factoryと`AcfGet`を使ってテーマ固有Dataを生成します。次の`ArticleData`は、この文書の[PostDataの案件用派生クラス](#postdataの案件用派生クラス)で定義します。
 
@@ -92,7 +92,7 @@ if ($article === null)
 </article>
 ```
 
-## 3. Viewの参照もクラスで管理する
+## パターン：Viewの参照もクラスで管理する
 
 テンプレートファイルの文字列パスも管理対象にしたい場合は、任意PSR-4読み込みでViewクラスを読み込み、クラスとメソッドを参照します。
 
@@ -126,7 +126,7 @@ final class ArticleCardView
 }
 ```
 
-PSR-4の登録方法と保証範囲は[読み込みと任意PSR-4](autoload.md)を参照してください。Viewクラス化は必須ではなく、第1・第2段階の`get_template_part()`と併用できます。
+PSR-4の登録方法と保証範囲は[読み込みと任意PSR-4](autoload.md)を参照してください。Viewクラス化は必須ではなく、通常のPHPテンプレートや`get_template_part()`と併用できます。
 
 ## 応用例
 

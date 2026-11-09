@@ -65,33 +65,33 @@ final class ObjectGet
 	 * @param class-string<T> $className
 	 * @return list<T>
 	 */
-	public function InstanceArray(string $propertyName, string $className): array
+	public function InstanceList(string $propertyName, string $className): array
 	{
-		return TypeCheck::InstanceArray($this->value($propertyName), $className) ?? [];
+		return TypeCheck::InstanceList($this->value($propertyName), $className) ?? [];
 	}
 
 	/** @return list<string> */
-	public function StringArray(string $propertyName): array
+	public function StringList(string $propertyName): array
 	{
-		return TypeCheck::StringArray($this->value($propertyName)) ?? [];
+		return TypeCheck::StringList($this->value($propertyName)) ?? [];
 	}
 
 	/** @return list<int> */
-	public function IntArray(string $propertyName): array
+	public function IntList(string $propertyName): array
 	{
-		return TypeCheck::IntArray($this->value($propertyName)) ?? [];
+		return TypeCheck::IntList($this->value($propertyName)) ?? [];
 	}
 
 	/** @return list<float> */
-	public function FloatArray(string $propertyName): array
+	public function FloatList(string $propertyName): array
 	{
-		return TypeCheck::FloatArray($this->value($propertyName)) ?? [];
+		return TypeCheck::FloatList($this->value($propertyName)) ?? [];
 	}
 
 	/** @return list<bool> */
-	public function BoolArray(string $propertyName): array
+	public function BoolList(string $propertyName): array
 	{
-		return TypeCheck::BoolArray($this->value($propertyName)) ?? [];
+		return TypeCheck::BoolList($this->value($propertyName)) ?? [];
 	}
 
 	public function String(string $propertyName): string
@@ -130,7 +130,7 @@ final class ObjectGet
 	}
 
 	/** @return list<self> */
-	public function NestedObjects(string $propertyName): array
+	public function NestedList(string $propertyName): array
 	{
 		$items = [];
 		foreach ($this->Array($propertyName) as $value) {
@@ -139,6 +139,21 @@ final class ObjectGet
 			}
 
 			$items[] = new self($value);
+		}
+
+		return $items;
+	}
+
+	/** @return list<ArrayGet> */
+	public function NestedArrayList(string $propertyName): array
+	{
+		$items = [];
+		foreach ($this->Array($propertyName) as $value) {
+			if (! is_array($value)) {
+				continue;
+			}
+
+			$items[] = new ArrayGet($value);
 		}
 
 		return $items;
@@ -170,32 +185,32 @@ final class ObjectGet
 	}
 
 	/** @return list<ImgData> */
-	public function ImgDataArray(string $propertyName): array
+	public function ImgDataList(string $propertyName): array
 	{
-		return $this->InstanceArray($propertyName, ImgData::class);
+		return $this->InstanceList($propertyName, ImgData::class);
 	}
 
 	/** @return list<LinkData> */
-	public function LinkDataArray(string $propertyName): array
+	public function LinkDataList(string $propertyName): array
 	{
-		return $this->InstanceArray($propertyName, LinkData::class);
+		return $this->InstanceList($propertyName, LinkData::class);
 	}
 
 	/** @return list<ChoiceData> */
-	public function ChoiceDataArray(string $propertyName): array
+	public function ChoiceDataList(string $propertyName): array
 	{
-		return $this->InstanceArray($propertyName, ChoiceData::class);
+		return $this->InstanceList($propertyName, ChoiceData::class);
 	}
 
 	/** @return list<FileData> */
-	public function FileDataArray(string $propertyName): array
+	public function FileDataList(string $propertyName): array
 	{
-		return $this->InstanceArray($propertyName, FileData::class);
+		return $this->InstanceList($propertyName, FileData::class);
 	}
 
 	/** @return list<TimeData> */
-	public function TimeDataArray(string $propertyName): array
+	public function TimeDataList(string $propertyName): array
 	{
-		return $this->InstanceArray($propertyName, TimeData::class);
+		return $this->InstanceList($propertyName, TimeData::class);
 	}
 }

@@ -51,7 +51,7 @@ final class TypeCheck
 	 * @param class-string<T> $className
 	 * @return list<T>|null
 	 */
-	public static function InstanceArray(mixed $value, string $className): ?array
+	public static function InstanceList(mixed $value, string $className): ?array
 	{
 		if (! is_array($value)) {
 			return null;
@@ -68,7 +68,7 @@ final class TypeCheck
 	}
 
 	/** @return list<string>|null */
-	public static function StringArray(mixed $value): ?array
+	public static function StringList(mixed $value): ?array
 	{
 		return is_array($value)
 			? array_values(array_filter($value, 'is_string'))
@@ -76,7 +76,7 @@ final class TypeCheck
 	}
 
 	/** @return list<int>|null */
-	public static function IntArray(mixed $value): ?array
+	public static function IntList(mixed $value): ?array
 	{
 		return is_array($value)
 			? array_values(array_filter($value, 'is_int'))
@@ -84,7 +84,7 @@ final class TypeCheck
 	}
 
 	/** @return list<float>|null */
-	public static function FloatArray(mixed $value): ?array
+	public static function FloatList(mixed $value): ?array
 	{
 		return is_array($value)
 			? array_values(array_filter($value, 'is_float'))
@@ -92,7 +92,7 @@ final class TypeCheck
 	}
 
 	/** @return list<bool>|null */
-	public static function BoolArray(mixed $value): ?array
+	public static function BoolList(mixed $value): ?array
 	{
 		return is_array($value)
 			? array_values(array_filter($value, 'is_bool'))

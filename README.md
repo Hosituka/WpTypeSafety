@@ -2,21 +2,60 @@
 
 **English** | [日本語](README.ja.md)
 
-WpTypeSafety is a PHP library for safely handling loosely shaped values returned by WordPress and Advanced Custom Fields (ACF) through APIs with predictable return types.
+WpTypeSafety is a PHP library that checks and normalizes loosely shaped values returned by WordPress and Advanced Custom Fields (ACF) into predictable return types.
 
-It returns typed values and Data objects such as `string`, `?ImgData`, and `list<AcfGet>`. You can adopt it incrementally only where needed, keep using native APIs alongside it, and avoid rewriting an entire site or converting every value into a Data object.
+It does not require rewriting an existing theme.
+
+- Add it to check the result of a single native API call.
+- Keep using native WordPress and ACF APIs alongside it.
+- Preserve the standard WordPress template hierarchy and `get_template_part()`.
+- Move only selected areas to `AcfGet` or Data objects.
+- Treat project-specific Data and View classes as optional.
+
+WpTypeSafety is not a framework that enforces a particular theme architecture. It adds type checks and normalization only at the data boundaries where a project needs them.
+
+## Start with the smallest useful scope
+
+You can check one result from the native ACF API. `TypeCheck` does not convert values.
+
+```php
+<?php
+use WpTypeSafety\Core\Check\TypeCheck;
+
+$title = TypeCheck::String(get_field('title')) ?? '';
+```
+
+An existing template part can check only the `$args` it receives.
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ArrayGet;
+
+$argsGet = new ArrayGet($args);
+$title = $argsGet->String('title');
+```
+
+You can also normalize a single ACF field into a purpose-specific fixed type.
+
+```php
+<?php
+use WpTypeSafety\Acf\Get\AcfGet;
+
+$postGet = new AcfGet($post);
+$mainImg = $postGet->Img('main_img');
+```
+
+Unmodified code, code using only `TypeCheck`, code using `AcfGet`, and code using dedicated Data objects can coexist in the same theme. Simple areas do not need dedicated Data or View classes.
 
 ## What it simplifies
 
-ACF's `get_field()` can return different value types depending on the field configuration and whether a value has been entered. When a string is required, the result normally needs to be checked after retrieval.
+ACF's `get_field()` can return different value types depending on the field configuration and whether a value has been entered. WpTypeSafety centralizes post-retrieval checks and normalization in purpose-specific accessors.
 
 ```php
 <?php
 $raw = get_field('title', $post->ID);
 $title = is_string($raw) && trim($raw) !== '' ? $raw : '';
 ```
-
-With WpTypeSafety, you first specify the retrieval subject and then read values through purpose-specific accessors with fixed return types.
 
 ```php
 <?php
@@ -25,39 +64,13 @@ use WpTypeSafety\Acf\Get\AcfGet;
 $postGet = new AcfGet($post);
 $title = $postGet->Text('title'); // string; '' when missing or invalid
 $mainImg = $postGet->Img('main_img'); // ?ImgData; null when unavailable
-```
 
-This is especially useful for deeply nested ACF groups because you do not need to repeat array checks at every level.
-
-```php
-<?php
-$title = $postGet
-	->Nested('first_view')
-	->Nested('heading')
-	->Text('title');
-```
-
-`Nested()` returns an accessor backed by an empty source even when the requested group is missing or is not an array. You can therefore traverse the full chain without adding `isset()` or `is_array()` branches at every level.
-
-When `Nested()`, `Repeater()`, or `Flexible()` is reached from an ACF subject such as a post, unformatted values and child field definitions are carried into the child accessors. This allows the date/time and Icon Picker accessors to work inside groups, repeater rows, and flexible-content layouts, including nested combinations. When these methods are called on a custom `AcfGet` subclass, their child accessors preserve the same subclass and injected dependencies.
-
-`AcfGet` accepts posts, users, and terms as a common field source. Pass `WP_User` / `WpUserData` or `WP_Term` / `TermData` directly to read fields attached to that subject. `PostFields()`, `UserFields()`, and `TermFields()` switch to one referenced subject. `PostsFields()`, `UsersFields()`, and `TermsFields()` return one accessor for each referenced subject. All of these methods preserve the caller's `AcfGet` subclass and injected adapter.
-
-Repeater rows are also returned as `AcfGet` instances from the beginning. Nested groups and repeaters inside each row can be read in the same way.
-
-```php
-<?php
-foreach ($postGet->Repeater('sections') as $sectionGet) {
-	$title = $sectionGet->Nested('heading')->Text('title');
-	$mainImg = $sectionGet->Nested('media')->Img('main_img');
+foreach ($postGet->Repeater('items') as $rowGet) {
+	$label = $rowGet->Text('label');
 }
 ```
 
-From simple fields to deeply nested structures, you can follow the shape of ACF data and receive values with predictable return types at each point. Native WordPress and ACF APIs remain available wherever they are more appropriate.
-
-- Centralize handling of field return formats, missing values, and type mismatches in accessors.
-- Let templates rely on fixed return contracts instead of repeatedly validating raw WordPress objects and ACF arrays.
-- Convert values into Data objects when useful, separating retrieval from presentation.
+Groups, repeaters, Flexible Content, and post, user, or term references use the same retrieval model. You can traverse missing structures without repeating `isset()` or `is_array()` at every level and receive predictable return types at each point. See [ACF accessors](docs/acf.md) for the detailed contracts for nesting, custom `AcfGet` subclasses, and referenced subjects. The detailed documentation is currently written in Japanese.
 
 ## Features
 
@@ -158,7 +171,7 @@ $resultGet = new ObjectGet($resultObject);
 $count = $postGet->Int('count');                                  // ?int
 $postObject = TypeCheck::Instance(get_post(123), WP_Post::class); // ?WP_Post
 $title = $argsGet->String('title');                                // string
-$items = $argsGet->NestedArray('items');                           // list<ArrayGet>
+$items = $argsGet->NestedList('items');                            // list<ArrayGet>
 $status = $resultGet->String('status');                            // string
 ```
 
@@ -169,33 +182,80 @@ $status = $resultGet->String('status');                            // string
 | Goal | Main entry point |
 |---|---|
 | Read ACF fields through typed accessors | `AcfGet` |
-| Convert WordPress objects into Data objects | `PostFactory`, `CommentFactory`, `UserFactory`, `TermFactory`, and `MenuNodeFactory` |
+| Convert WordPress objects into Data objects | `PostFactory`, `CommentFactory`, `UserFactory`, `TermFactory`, `MenuNodeFactory`, and `AttachmentFactory` |
 | Convert ACF block information into Data objects | `AcfDataFactory` |
 | Check the type of a standalone value | `TypeCheck` |
+| Validate a complete string-keyed dictionary | `DictCheck` |
 | Read typed values from an array | `ArrayGet` |
 | Read typed values from public object properties | `ObjectGet` |
 
-## Choose the level of adoption incrementally
+## Choose the guarantee at each data boundary
 
-WpTypeSafety does not require an existing WordPress theme to adopt a custom architecture all at once. The following approaches can coexist within the same theme according to the complexity and purpose of each area. The numbers describe scope, not quality or maturity. Simple code does not need to be moved into dedicated Data or View classes.
+These entry points are not maturity levels. They are options that can coexist within the same project and can be selected according to the shape of the data and the guarantees required.
 
-| Approach | Purpose | Main entry points |
+| Scope | Main entry point | Purpose |
 |---|---|---|
-| 1. Standard WordPress plus type checks | Keep the template structure while safely handling raw values and `$args` | `TypeCheck`, `ArrayGet`, `ObjectGet` |
-| 2. Get/Factory plus project-specific Data | Separate retrieval, validation, and conversion from templates | `AcfGet`, target-specific factories, project-specific Data |
-| 3. Data plus View classes | Manage template paths through class references as well as typed Data inputs | `Psr4Autoload`, `XxxView::Render()` |
+| Check one value | `TypeCheck` | Check a native API value without converting it |
+| Read values from an array or object | `ArrayGet`, `ObjectGet` | Read `$args` or external API structures without changing the surrounding code |
+| Validate a complete dictionary | `DictCheck` | Accept only string-keyed dictionaries whose values all satisfy one type contract |
+| Normalize ACF values | `AcfGet` | Retrieve images, numbers, choices, references, and nested values through purpose-specific fixed types |
+| Convert WordPress values into Data | Target-specific factories | Convert WordPress objects into shared Data objects |
+| Build project-specific Data | Members and derived Data | Express the input contract for complex components and project-specific post types |
 
-At level 1, you can keep `get_template_part()` and the standard WordPress template hierarchy while protecting only the data boundaries. Level 2 moves complex retrieval into Data construction. Level 3 lets you replace only selected Views with class references. Continuing to use the standard WordPress structure is also a supported approach. See [Examples](docs/examples.md) for code samples. The detailed documentation is currently written in Japanese.
+See [Examples](docs/examples.md) for code samples. The detailed documentation is currently written in Japanese.
+
+## Choose the presentation architecture independently
+
+Presentation is independent from the guarantee selected at a data boundary. Using `AcfGet` or Data objects does not require adopting View classes.
+
+| Presentation style | Status |
+|---|---|
+| Standard PHP templates | Supported |
+| `get_template_part()` | Supported |
+| Passing Data through `$args` | Optional |
+| `XxxView::Render()` | Optional |
+| Optional PSR-4 loading for project classes | Optional |
+
+See [Autoloading and optional PSR-4 mappings](docs/autoload.md) for configuration and View examples. The detailed documentation is currently written in Japanese.
 
 ## Design scope and guarantees
 
-Accessors validate and normalize external values. Data constructors accept types expressible through PHP declarations, but they do not universally validate conditions such as URL formats or positive IDs and dimensions. When constructing Data directly, validate those conditions at the call site. Accessor-specific restrictions, such as image and file fields configured to return only URLs or arrays whose ACF field definitions are unavailable, are documented in the detailed guides.
+WpTypeSafety guarantees the PHP return types of its public accessors and their fallback rules for missing or invalid values. Supported ACF accessors normalize values into purpose-specific fixed types.
+
+| Item | Guarantee |
+|---|---|
+| PHP return types of public accessors | Yes |
+| Results for missing or invalid values | Yes |
+| ACF normalization performed by supported accessors | Yes |
+| Semantic validity of values passed directly to Data constructors | No |
+| Existence of a field name supplied as a string | No |
+| Safety of rendered HTML | No |
+| Integration with a particular runtime environment | Must also be verified by the adopter |
+
+Data constructors accept types expressible through PHP declarations, but they do not universally validate conditions such as URL formats or positive IDs and dimensions. When constructing Data directly, validate those conditions at the call site. Accessor-specific restrictions, such as image and file fields configured to return only URLs or arrays whose ACF field definitions are unavailable, are documented in the detailed guides.
 
 HTML composition and output escaping remain the responsibility of the caller. Use escaping appropriate for each output context, such as `esc_html()` for plain text and `esc_url()` for URLs.
 
-## Advanced usage
+## What WpTypeSafety does not do
 
-At level 3, optional PSR-4 mappings can load project-specific Data and View classes. See [Autoloading and optional PSR-4 mappings](docs/autoload.md) for configuration and View examples. The detailed documentation is currently written in Japanese.
+- Statically verify ACF field names.
+- Generate PHP types from ACF field definitions in the current release.
+- Replace static analysis tools such as PHPStan or Psalm.
+- Automatically escape rendered HTML.
+- Enforce a project-wide theme architecture.
+- Guarantee integration with every WordPress and ACF version.
+
+## Dependencies by feature area
+
+Installing the complete library does not require using every feature area.
+
+| Area | PHP | WordPress | ACF |
+|---|---:|---:|---:|
+| `Core` | Required | Not required | Not required |
+| `Wp` | Required | Required | Not required |
+| `Acf` | Required | Required | Required |
+| `Support\Esc` | Required | Required | Not required |
+| Optional PSR-4 loading | Required | Not required | Not required |
 
 ## Detailed documentation
 
