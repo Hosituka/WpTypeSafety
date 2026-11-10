@@ -124,6 +124,7 @@ $numericGet = new ArrayGet([
 	'negative_int' => '-12',
 	'leading_zero_int' => '01',
 	'plus_int' => '+1',
+	'plus_max_int' => '+' . PHP_INT_MAX,
 	'negative_zero_int' => '-0',
 	'max_int' => (string) PHP_INT_MAX,
 	'min_int' => (string) PHP_INT_MIN,
@@ -134,7 +135,10 @@ $numericGet = new ArrayGet([
 	'one_dot_zero_int' => '1.0',
 	'exponent_int' => '1e2',
 	'spaced_int' => ' 12 ',
+	'spaced_negative_int' => "\t-12\n",
+	'internal_space_int' => '1 2',
 	'overflow_int' => (string) PHP_INT_MAX . '0',
+	'plus_overflow_int' => '+' . PHP_INT_MAX . '0',
 	'huge_float' => '1e400',
 	'float' => '12.5',
 	'float_from_int' => 12,
@@ -157,7 +161,8 @@ $numericGet = new ArrayGet([
 $check($numericGet->Int('int') === 12, 'NumericStr Int normalizes an integer string');
 $check($numericGet->Int('negative_int') === -12, 'NumericStr Int normalizes a negative integer string');
 $check($numericGet->Int('leading_zero_int') === 1, 'NumericStr Int accepts leading zeroes');
-$check($numericGet->Int('plus_int') === null, 'NumericStr Int rejects an explicit plus sign');
+$check($numericGet->Int('plus_int') === 1, 'NumericStr Int accepts an explicit plus sign');
+$check($numericGet->Int('plus_max_int') === PHP_INT_MAX, 'NumericStr Int accepts a plus-signed PHP_INT_MAX');
 $check($numericGet->Int('negative_zero_int') === 0, 'NumericStr Int normalizes negative zero');
 $check($numericGet->Int('max_int') === PHP_INT_MAX, 'NumericStr Int accepts PHP_INT_MAX');
 $check($numericGet->Int('min_int') === PHP_INT_MIN, 'NumericStr Int accepts PHP_INT_MIN');
@@ -167,8 +172,11 @@ $check($numericGet->Int('nan_float') === null, 'NumericStr Int rejects NAN');
 $check($numericGet->Int('decimal_int') === null, 'NumericStr Int rejects a decimal string');
 $check($numericGet->Int('one_dot_zero_int') === null, 'NumericStr Int rejects a decimal-formatted integer string');
 $check($numericGet->Int('exponent_int') === null, 'NumericStr Int rejects exponent notation');
-$check($numericGet->Int('spaced_int') === null, 'NumericStr Int rejects surrounding whitespace');
+$check($numericGet->Int('spaced_int') === 12, 'NumericStr Int accepts surrounding ASCII whitespace');
+$check($numericGet->Int('spaced_negative_int') === -12, 'NumericStr Int accepts surrounding ASCII whitespace around a negative integer');
+$check($numericGet->Int('internal_space_int') === null, 'NumericStr Int rejects whitespace inside digits');
 $check($numericGet->Int('overflow_int') === null, 'NumericStr Int rejects an out-of-range integer string');
+$check($numericGet->Int('plus_overflow_int') === null, 'NumericStr Int rejects a plus-signed out-of-range integer string');
 $check($numericGet->Float('float') === 12.5, 'NumericStr Float normalizes a numeric string');
 $check($numericGet->Float('float_from_int') === 12.0, 'NumericStr Float normalizes an integer');
 $check($numericGet->Float('exponent_int') === 100.0, 'NumericStr Float follows PHP exponent conversion');

@@ -237,12 +237,18 @@ final class ValueRules
 			return (float) $integer === $value ? $integer : null;
 		}
 
-		if (! is_string($value) || preg_match('/^-?\d+$/D', $value) !== 1) {
+		if (! is_string($value)) {
 			return null;
 		}
 
-		$negative = str_starts_with($value, '-');
-		$digits = ltrim($negative ? substr($value, 1) : $value, '0');
+		$normalizedValue = trim($value, " \t\n\r\v\f");
+		if (preg_match('/^[+-]?\d+$/D', $normalizedValue) !== 1) {
+			return null;
+		}
+
+		$negative = str_starts_with($normalizedValue, '-');
+		$hasSign = $negative || str_starts_with($normalizedValue, '+');
+		$digits = ltrim($hasSign ? substr($normalizedValue, 1) : $normalizedValue, '0');
 		$digits = $digits === '' ? '0' : $digits;
 		$limit = $negative ? ltrim((string) PHP_INT_MIN, '-') : (string) PHP_INT_MAX;
 		if (

@@ -21,6 +21,9 @@
 	"autoload": {
 		"psr-4": {
 			"WpTypeSafety\\": "./"
-		}
+		},
+		"exclude-from-classmap": [
+			"/tests/"
+		]
 	}
 }
