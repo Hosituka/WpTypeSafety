@@ -8,9 +8,10 @@ CoreはWordPress・ACFへ依存せず、取得済みのPHP値だけを扱いま�
 | 文字列キーと全要素の型をまとめて確認する辞書 | `DictCheck` |
 | 配列内の値 | `ArrayGet` |
 | objectのpublicインスタンスプロパティ | `ObjectGet` |
+| 配列とobjectが混在する木構造 | `TreeGet` |
 | ACFのフィールド種別を解釈して正規化したい値 | `AcfGet` |
 
-`DictCheck`はキーごとの取得口ではなく、辞書全体が一つの型契約を満たすか確認する機能です。`ArrayGet`と`ObjectGet`は既定で厳密な型確認を行い、必要な境界だけ数値の正規化規則へ切り替えられます。ACFのフィールド種別や返却形式まで解釈する必要がある場合はCoreではなく`AcfGet`を使用します。
+`DictCheck`はキーごとの取得口ではなく、辞書全体が一つの型契約を満たすか確認する機能です。`ArrayGet`・`ObjectGet`・`TreeGet`は既定で厳密な型確認を行い、必要な境界だけ数値の正規化規則へ切り替えられます。ACFのフィールド種別や返却形式まで解釈する必要がある場合はCoreではなく`AcfGet`を使用します。
 
 ## 取得値の型確認：TypeCheck
 
@@ -78,7 +79,7 @@ use WpTypeSafety\Core\Check\ArrayGet;
 
 $postGet = new AcfGet($post);
 $acfGet = new ArrayGet($postGet->Array('outer'));
-$title = $acfGet->Nested('middle')->Nested('inner')->String('title');
+$title = $acfGet->NestedPath('middle', 'inner')->String('title');
 ```
 
 `ArrayGet`はテンプレートパーツの`$args`や取得済みの連想配列からキーを取り出します。コンストラクターには`mixed`を渡せます。配列以外は空配列として扱うため、`get_field()`の戻り値やリピーターの各行をそのまま渡せます。既定の`ValueMode::Strict`では型判定を`TypeCheck`と同じ基準で行い、値を変換しません。文字列は空文字、配列は空配列、それ以外はnullを型違い・未指定時に返します。`Instance()`と`InstanceList()`は案件固有データクラスにも使用できます。`*List()`は受け入れられない要素を除外して0からキーを振り直し、すべての要素が除外された場合は空配列を返します。
@@ -195,7 +196,7 @@ $count = $nullGet->Int('count');      // 0。明示的なnullを正規化
 
 NormalizerプロパティのPHPDocは、PHPStanやPsalm等の静的解析でClosureの引数・戻り値型を検査するための契約です。PHPはClosure代入時にそのシグネチャを検査しませんが、実行結果は`NormalizeString(): ?string`・`NormalizeInt(): ?int`・`NormalizeFloat(): ?float`・`NormalizeBool(): ?bool`のPHP戻り値型でも検査されます。不正な型を返すNormalizerは呼び出し時に`TypeError`になります。カスタムNormalizerを利用するコードでは静的解析の併用を推奨します。
 
-`ArrayGet`と`ObjectGet`は受け取ったRulesを複製して保持します。そのため、生成後に元のRulesのNormalizerプロパティを書き換えても既存の取得口は変化しません。`Nested()`・`NestedList()`・`NestedObject()`・`NestedObjectList()`で生成される子取得口には、保持している同じ基準のスナップショットが引き継がれます。Closureが外部の可変オブジェクトをキャプチャしている場合、そのオブジェクトの状態まではcloneで固定しません。`Array()`・`Instance()`・Core Data用アクセサーはRulesの対象外で、従来どおり元のPHP型を確認します。
+`ArrayGet`と`ObjectGet`は受け取ったRulesを複製して保持します。そのため、生成後に元のRulesのNormalizerプロパティを書き換えても既存の取得口は変化しません。`Nested()`・`NestedPath()`・`NestedList()`・`NestedObject()`・`NestedObjectList()`で生成される子取得口には、保持している同じ基準のスナップショットが引き継がれます。Closureが外部の可変オブジェクトをキャプチャしている場合、そのオブジェクトの状態まではcloneで固定しません。`Array()`・`Instance()`・Core Data用アクセサーはRulesの対象外で、従来どおり元のPHP型を確認します。
 
 チェーンの途中から判定基準を切り替える場合は、`WithMode()`または`WithRules()`を使用します。どちらも同じ取得元を持つ新しい取得口を返し、呼び出し元の取得口は変更しません。切り替え後に生成したNested系の子取得口には、新しく選んだ基準が引き継がれます。
 
@@ -215,7 +216,7 @@ $strictValue = $fieldsGet
 	->Int('strict_value');
 ```
 
-`Nested()`は単一の子配列を`ArrayGet`で包み、`NestedList()`は配列である各要素を`list<ArrayGet>`として返します。`NestedObject()`はobjectである単一の値を`ObjectGet`で包み、`NestedObjectList()`はobjectである各要素を`list<ObjectGet>`として返します。いずれもキーがない・値が対象の型でない場合は空の取得結果を返します。
+`Nested()`は単一の子配列を`ArrayGet`で包み、`NestedPath('outer', 'middle', 'inner')`は複数階層の配列を一度に辿ります。`NestedPath()`は配列だけを対象とし、途中にobjectが現れても自動的に`ObjectGet`へ切り替えません。型をまたぐ箇所では`NestedObject()`を明示的に使用します。`NestedList()`は配列である各要素を`list<ArrayGet>`として返し、`NestedObject()`はobjectである単一の値を`ObjectGet`で包み、`NestedObjectList()`はobjectである各要素を`list<ObjectGet>`として返します。いずれもキーがない・値が対象の型でない場合は空の取得結果を返します。
 
 WordPress専用の`PostData()`・`TermData()`・`WpUserData()`・`MenuNodeData()`と、それらの`*List()`は持ちません。`$argsGet->Instance('post', PostData::class)`、`$argsGet->InstanceList('posts', PostData::class)`のように型を指定します。これによりCoreからWp・Acfへの依存をなくしています。
 
@@ -262,7 +263,7 @@ $name = $profileGet->String('name');
 
 対象は、初期化済みのpublicインスタンスプロパティ、`stdClass`のプロパティ、既存の動的プロパティ、public readonlyプロパティです。private・protected・static・未初期化プロパティ、存在しないプロパティ、`__get()`だけで提供される値、getterメソッドは対象外です。PHP 8.4以降のpublicなgetフックは通常のプロパティ読み取りとして実行し、フックが投げた例外はそのまま伝播します。
 
-`Nested()`はobjectである単一プロパティを`ObjectGet`で包み、`NestedList()`は配列内のobjectだけを`list<ObjectGet>`として返します。`NestedArray()`はarrayである単一プロパティを`ArrayGet`で包み、`NestedArrayList()`は配列内のarrayだけを`list<ArrayGet>`として返します。これにより、配列とオブジェクトが交互に現れる木構造でも取得口を切り替えながらたどれます。ValueMode・Rulesと、プリミティブ値・型付きリスト・`Instance()`・Core Data用アクセサーの戻り値規則は`ArrayGet`と同じです。HTMLエスケープや値の意味に関するバリデーションは行いません。
+`Nested()`はobjectである単一プロパティを`ObjectGet`で包み、`NestedPath('Outer', 'Middle', 'Inner')`は複数階層のobjectを一度に辿ります。`NestedPath()`はobjectだけを対象とし、途中にarrayが現れても自動的に`ArrayGet`へ切り替えません。型をまたぐ箇所では`NestedArray()`を明示的に使用します。`NestedList()`は配列内のobjectだけを`list<ObjectGet>`として返し、`NestedArray()`はarrayである単一プロパティを`ArrayGet`で包み、`NestedArrayList()`は配列内のarrayだけを`list<ArrayGet>`として返します。これにより、配列とオブジェクトが交互に現れる木構造でも取得口を切り替えながらたどれます。ValueMode・Rulesと、プリミティブ値・型付きリスト・`Instance()`・Core Data用アクセサーの戻り値規則は`ArrayGet`と同じです。HTMLエスケープや値の意味に関するバリデーションは行いません。
 
 ```php
 <?php
@@ -273,3 +274,33 @@ $ownerName = $ownerGet->String('name');
 ```
 
 WordPressやプラグインの値が整数と数値文字列の間で揺れるだけなら、`ValueMode::NumericStr`を指定できます。フィールド種別、ID参照、日時、画像等の意味まで解釈する場合は、対象に対応するGet・Factory・Adapterを使用します。通常の型付きDataや正式なgetterがあるクラスでは、それらを直接使うことを優先します。
+
+## 配列とオブジェクトが混在する木構造
+
+`TreeGet`は、現在のノードがarrayなら配列キー、objectならpublicインスタンスプロパティとして次の値を解決します。階層ごとにarrayとobjectが切り替わる外部APIレスポンス等を、一つの取得口で辿るための機能です。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\TreeGet;
+use WpTypeSafety\Core\Check\ValueMode;
+
+$responseGet = new TreeGet($response, ValueMode::NumericStr);
+
+$profileGet = $responseGet->NestedPath(
+	'company', // array
+	'owner',   // object
+	'profiles', // array
+	'main',    // object
+);
+
+$name = $profileGet->String('name');
+$age = $profileGet->Int('age');
+```
+
+`Nested()`と`NestedPath()`は各階層でarray・objectを自動判定します。途中でキー・プロパティが欠損するか、スカラー値へ到達した場合は、それ以降を空の取得元として扱います。ドット区切り文字列は使用せず、キーにドットが含まれる場合と区別できる可変長引数を使用します。
+
+`NestedList()`は対象値が配列の場合、arrayまたはobjectである要素だけを`list<TreeGet>`として返します。プリミティブ値は除外します。プリミティブ取得、型付きリスト、`Instance()`、backed Enum、Core Data、`WithMode()`・`WithRules()`の契約は`ArrayGet`・`ObjectGet`と同じです。
+
+objectの対象範囲も`ObjectGet`と同じです。初期化済みのpublicインスタンスプロパティと既存の動的プロパティを読み、private・protected・static・未初期化・マジックプロパティは対象にしません。同じobjectのプロパティ変更は後続の取得へ反映されます。
+
+構造上arrayまたはobjectであること自体を確認したい場合は、`ArrayGet`または`ObjectGet`を優先します。`TreeGet`は型の切り替わりを許容するため、想定外のコンテナ型への変化も受け入れます。

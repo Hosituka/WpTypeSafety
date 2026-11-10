@@ -9,6 +9,7 @@ use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
 use WpTypeSafety\Core\Internal\ResolvedValue;
+use WpTypeSafety\Core\Internal\ValueResolver;
 
 /** publicインスタンスプロパティを動的に読み、設定した基準で値を取得します。 */
 final class ObjectGet
@@ -34,36 +35,7 @@ final class ObjectGet
 
 	private function resolveValue(string $propertyName): ResolvedValue
 	{
-		if ($this->source === null) {
-			return new ResolvedValue(Exists: false, Value: null);
-		}
-
-		$reflection = new \ReflectionObject($this->source);
-		if (! $reflection->hasProperty($propertyName)) {
-			return new ResolvedValue(Exists: false, Value: null);
-		}
-
-		$property = $reflection->getProperty($propertyName);
-		if (! $property->isPublic() || $property->isStatic()) {
-			return new ResolvedValue(Exists: false, Value: null);
-		}
-
-		if (! $property->isInitialized($this->source)) {
-			return new ResolvedValue(Exists: false, Value: null);
-		}
-
-		if (
-			method_exists($property, 'isVirtual')
-			&& $property->isVirtual()
-			&& ! isset($property->getHooks()['get'])
-		) {
-			return new ResolvedValue(Exists: false, Value: null);
-		}
-
-		return new ResolvedValue(
-			Exists: true,
-			Value: $property->getValue($this->source),
-		);
+		return ValueResolver::ResolveObject($this->source, $propertyName);
 	}
 
 	public function WithMode(ValueMode $mode): self
@@ -198,6 +170,16 @@ final class ObjectGet
 	public function Nested(string $propertyName): self
 	{
 		return new self($this->value($propertyName), $this->rules);
+	}
+
+	public function NestedPath(string $propertyName, string ...$propertyNames): self
+	{
+		$nestedGet = $this->Nested($propertyName);
+		foreach ($propertyNames as $nestedPropertyName) {
+			$nestedGet = $nestedGet->Nested($nestedPropertyName);
+		}
+
+		return $nestedGet;
 	}
 
 	public function NestedArray(string $propertyName): ArrayGet

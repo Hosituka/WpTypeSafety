@@ -9,6 +9,7 @@ use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
 use WpTypeSafety\Core\Internal\ResolvedValue;
+use WpTypeSafety\Core\Internal\ValueResolver;
 
 /** 連想配列からキーを指定し、設定した基準で値を取得します。 */
 final class ArrayGet
@@ -35,17 +36,7 @@ final class ArrayGet
 
 	private function resolveValue(string $key): ResolvedValue
 	{
-		if (! array_key_exists($key, $this->values)) {
-			return new ResolvedValue(
-				Exists: false,
-				Value: null,
-			);
-		}
-
-		return new ResolvedValue(
-			Exists: true,
-			Value: $this->values[$key],
-		);
+		return ValueResolver::ResolveArray($this->values, $key);
 	}
 
 	public function WithMode(ValueMode $mode): self
@@ -180,6 +171,16 @@ final class ArrayGet
 	public function Nested(string $key): self
 	{
 		return new self($this->value($key), $this->rules);
+	}
+
+	public function NestedPath(string $key, string ...$keys): self
+	{
+		$nestedGet = $this->Nested($key);
+		foreach ($keys as $nestedKey) {
+			$nestedGet = $nestedGet->Nested($nestedKey);
+		}
+
+		return $nestedGet;
 	}
 
 	public function NestedObject(string $key): ObjectGet

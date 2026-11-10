@@ -35,6 +35,14 @@ $get = new ArrayGet([
 	'group' => [
 		'title' => 'Group',
 	],
+	'deep_group' => [
+		'middle' => [
+			'inner' => [
+				'title' => 'Deep group',
+			],
+			'object' => (object) ['title' => 'Object in array path'],
+		],
+	],
 	'object' => (object) [
 		'title' => 'Object',
 	],
@@ -58,6 +66,9 @@ $get = new ArrayGet([
 ]);
 
 $check($get->Nested('group')->String('title') === 'Group', 'Nested reads an associative array');
+$check($get->NestedPath('deep_group', 'middle', 'inner')->String('title') === 'Deep group', 'NestedPath reads a path containing only arrays');
+$check($get->NestedPath('deep_group', 'middle', 'object')->String('title') === '', 'NestedPath does not cross from an array to an object');
+$check($get->NestedPath('deep_group', 'missing', 'inner')->String('title') === '', 'NestedPath returns an empty getter after a missing segment');
 $check($get->NestedObject('object')->String('title') === 'Object', 'NestedObject reads an object value');
 $check($get->NestedObject('group')->String('title') === '', 'NestedObject returns an empty ObjectGet for a non-object value');
 
@@ -104,6 +115,7 @@ $numericGet = new ArrayGet([
 	'floats' => [1.5, '2.5', 3, 'invalid'],
 	'invalid_ints' => ['invalid', false, null],
 	'nested' => ['count' => '4'],
+	'nested_path' => ['middle' => ['count' => '8']],
 	'nested_list' => [
 		['count' => '5'],
 	],
@@ -141,6 +153,7 @@ $check($numericGet->IntList('ints') === [1, 2, 3], 'NumericStr IntList normalize
 $check($numericGet->FloatList('floats') === [1.5, 2.5, 3.0], 'NumericStr FloatList normalizes valid elements and filters invalid elements');
 $check($numericGet->IntList('invalid_ints') === [], 'IntList returns an empty list when every element is rejected');
 $check($numericGet->Nested('nested')->Int('count') === 4, 'Nested inherits NumericStr rules');
+$check($numericGet->NestedPath('nested_path', 'middle')->Int('count') === 8, 'NestedPath inherits NumericStr rules');
 $check($numericGet->NestedList('nested_list')[0]->Int('count') === 5, 'NestedList inherits NumericStr rules');
 $check($numericGet->NestedObject('nested_object')->Int('count') === 6, 'NestedObject inherits NumericStr rules');
 $check($numericGet->NestedObjectList('nested_object_list')[0]->Int('count') === 7, 'NestedObjectList inherits NumericStr rules');

@@ -220,7 +220,7 @@ $items = $argsGet->NestedList('items');                  // list<ArrayGet>
 $status = $resultGet->String('status');                  // string
 ```
 
-`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet`は配列のキー、`ObjectGet`はpublicインスタンスプロパティを読み、既定では同じ厳密な基準を使います。必要な境界だけ`ValueMode::NumericStr`・`ValueMode::BoolStr`・`ValueMode::BoolInt`・`ValueMode::EmptyStrAsFalse`または`ValueRules`で受け入れ基準を変更でき、複数モードは`ValueRules::FromModes()`で合成できます。`BackedEnum()`・`BackedEnumList()`では文字列・整数のbacking valueをEnumへ正規化できます。欠損時はNormalizerを呼ばず、存在する値としての`null`はカスタムNormalizerへ渡します。その基準はNested系の子取得口にも継承されます。`ObjectGet`はアクセサーを呼ぶたびに同じオブジェクトの現在値を読み、private・protected・static・未初期化・マジックプロパティは対象にしません。詳しくは[Coreの型確認と配列・オブジェクト取得](docs/core.md)と[利用例](docs/examples.md)を参照してください。空文字だけでは「未入力」と「取得失敗」を区別できません。
+`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet`は配列のキー、`ObjectGet`はpublicインスタンスプロパティを読み、`TreeGet`は配列とオブジェクトが混在する木構造を型を自動判定しながら辿ります。既定では同じ厳密な基準を使います。必要な境界だけ`ValueMode::NumericStr`・`ValueMode::BoolStr`・`ValueMode::BoolInt`・`ValueMode::EmptyStrAsFalse`または`ValueRules`で受け入れ基準を変更でき、複数モードは`ValueRules::FromModes()`で合成できます。`BackedEnum()`・`BackedEnumList()`では文字列・整数のbacking valueをEnumへ正規化できます。欠損時はNormalizerを呼ばず、存在する値としての`null`はカスタムNormalizerへ渡します。その基準はNested系の子取得口にも継承されます。`ObjectGet`とobjectを保持する`TreeGet`は、アクセサーを呼ぶたびに同じオブジェクトの現在値を読み、private・protected・static・未初期化・マジックプロパティは対象にしません。詳しくは[Coreの型確認と配列・オブジェクト取得](docs/core.md)と[利用例](docs/examples.md)を参照してください。空文字だけでは「未入力」と「取得失敗」を区別できません。
 
 ## 入口の選び方
 
@@ -243,6 +243,7 @@ $status = $resultGet->String('status');                  // string
 |---|---|---|
 | 単独の値を確認 | `TypeCheck` | ネイティブAPIの値を変換せず型確認する |
 | 配列・オブジェクト内の値を確認 | `ArrayGet`・`ObjectGet` | `$args`や外部APIの構造を既存コードのまま読む |
+| 配列・オブジェクト混在の木を確認 | `TreeGet` | 型が階層ごとに変わる外部データを一つの取得口で辿る |
 | 辞書全体の要素型を確認 | `DictCheck` | 文字列キーと全要素の型が揃った辞書だけを受け入れる |
 | ACF値を正規化 | `AcfGet` | 画像、数値、選択、参照、入れ子などを用途別の固定型で取得する |
 | WordPress値をData化 | 対象別Factory | WordPressオブジェクトを共通Dataへ変換する |
