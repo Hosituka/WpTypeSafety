@@ -10,13 +10,13 @@ final class ValueResolver
 	{
 	}
 
-	public static function Resolve(mixed $source, string $segment): ResolvedValue
+	public static function Resolve(mixed $source, int|string $segment): ResolvedValue
 	{
 		if (is_array($source)) {
 			return self::ResolveArray($source, $segment);
 		}
 
-		if (is_object($source)) {
+		if (is_object($source) && is_string($segment)) {
 			return self::ResolveObject($source, $segment);
 		}
 
@@ -24,7 +24,7 @@ final class ValueResolver
 	}
 
 	/** @param array<array-key, mixed> $source */
-	public static function ResolveArray(array $source, string $key): ResolvedValue
+	public static function ResolveArray(array $source, int|string $key): ResolvedValue
 	{
 		if (! array_key_exists($key, $source)) {
 			return self::missing();

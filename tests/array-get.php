@@ -32,6 +32,13 @@ $check = static function (bool $condition, string $message) use (&$checks): void
 $openingTime = new TimeData(Hour: 9, Minute: 30, Second: 0);
 $closingTime = new TimeData(Hour: 18, Minute: 0, Second: 0);
 $get = new ArrayGet([
+	0 => 'Zero index',
+	-1 => [
+		'title' => 'Negative index',
+	],
+	1 => ['First index item', 2, 'Second index item'],
+	2 => ArrayGetPublishStatus::Published,
+	3 => $openingTime,
 	'group' => [
 		'title' => 'Group',
 	],
@@ -41,6 +48,13 @@ $get = new ArrayGet([
 				'title' => 'Deep group',
 			],
 			'object' => (object) ['title' => 'Object in array path'],
+		],
+	],
+	'indexed_path' => [
+		[
+			'inner' => [
+				'title' => 'Indexed path',
+			],
 		],
 	],
 	'object' => (object) [
@@ -65,6 +79,12 @@ $get = new ArrayGet([
 	],
 ]);
 
+$check($get->String(0) === 'Zero index', 'String reads an integer array key');
+$check($get->Nested(-1)->String('title') === 'Negative index', 'Nested reads a negative integer array key');
+$check($get->StringList(1) === ['First index item', 'Second index item'], 'StringList reads an integer array key');
+$check($get->BackedEnum(2, ArrayGetPublishStatus::class) === ArrayGetPublishStatus::Published, 'BackedEnum reads an integer array key');
+$check($get->TimeData(3) === $openingTime, 'Core Data accessors read an integer array key');
+$check($get->NestedPath('indexed_path', 0, 'inner')->String('title') === 'Indexed path', 'NestedPath accepts an integer path segment');
 $check($get->Nested('group')->String('title') === 'Group', 'Nested reads an associative array');
 $check($get->NestedPath('deep_group', 'middle', 'inner')->String('title') === 'Deep group', 'NestedPath reads a path containing only arrays');
 $check($get->NestedPath('deep_group', 'middle', 'object')->String('title') === '', 'NestedPath does not cross from an array to an object');

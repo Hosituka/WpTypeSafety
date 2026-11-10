@@ -82,7 +82,7 @@ $acfGet = new ArrayGet($postGet->Array('outer'));
 $title = $acfGet->NestedPath('middle', 'inner')->String('title');
 ```
 
-`ArrayGet`はテンプレートパーツの`$args`や取得済みの連想配列からキーを取り出します。コンストラクターには`mixed`を渡せます。配列以外は空配列として扱うため、`get_field()`の戻り値やリピーターの各行をそのまま渡せます。既定の`ValueMode::Strict`では型判定を`TypeCheck`と同じ基準で行い、値を変換しません。文字列は空文字、配列は空配列、それ以外はnullを型違い・未指定時に返します。`Instance()`と`InstanceList()`は案件固有データクラスにも使用できます。`*List()`は受け入れられない要素を除外して0からキーを振り直し、すべての要素が除外された場合は空配列を返します。
+`ArrayGet`はテンプレートパーツの`$args`や取得済みの配列からキーを取り出します。キーにはPHPの`array-key`と同じ`int|string`を指定でき、負の整数キーも対象です。コンストラクターには`mixed`を渡せます。配列以外は空配列として扱うため、`get_field()`の戻り値やリピーターの各行をそのまま渡せます。既定の`ValueMode::Strict`では型判定を`TypeCheck`と同じ基準で行い、値を変換しません。文字列は空文字、配列は空配列、それ以外はnullを型違い・未指定時に返します。`Instance()`と`InstanceList()`は案件固有データクラスにも使用できます。`*List()`は受け入れられない要素を除外して0からキーを振り直し、すべての要素が除外された場合は空配列を返します。
 
 数値がPHPの数値型と数値文字列の間で揺れる境界では、第2引数に`ValueMode::NumericStr`を指定できます。
 
@@ -287,19 +287,36 @@ use WpTypeSafety\Core\Check\ValueMode;
 $responseGet = new TreeGet($response, ValueMode::NumericStr);
 
 $profileGet = $responseGet->NestedPath(
-	'company', // array
-	'owner',   // object
-	'profiles', // array
-	'main',    // object
+	'users',   // array key
+	0,         // array index
+	'profiles', // object property
+	0,         // array index
 );
 
 $name = $profileGet->String('name');
 $age = $profileGet->Int('age');
 ```
 
+`TreeGet`の取得メソッドと`Nested()`・`NestedPath()`には`int|string`のセグメントを指定できます。現在のノードがarrayなら整数・文字列をそのまま配列キーとして使い、objectなら文字列だけをプロパティ名として使います。object上の整数セグメントは欠損扱いです。数値名のobjectプロパティを読む場合は`'0'`のような文字列を指定します。
+
 `Nested()`と`NestedPath()`は各階層でarray・objectを自動判定します。途中でキー・プロパティが欠損するか、スカラー値へ到達した場合は、それ以降を空の取得元として扱います。ドット区切り文字列は使用せず、キーにドットが含まれる場合と区別できる可変長引数を使用します。
 
-`NestedList()`は対象値が配列の場合、arrayまたはobjectである要素だけを`list<TreeGet>`として返します。プリミティブ値は除外します。プリミティブ取得、型付きリスト、`Instance()`、backed Enum、Core Data、`WithMode()`・`WithRules()`の契約は`ArrayGet`・`ObjectGet`と同じです。
+`NestedList()`は対象値が配列の場合、arrayまたはobjectである要素だけを`list<TreeGet>`として返します。プリミティブ値は除外します。子ノードの型が既知なら、`NestedArray()`・`NestedObject()`で直接`ArrayGet`・`ObjectGet`へ切り替えられます。リストでは`NestedArrayList()`・`NestedObjectList()`が対象型の要素だけを抽出します。型違い・欠損時は単体なら空のGet、リストなら空配列を返し、Rulesは引き継がれます。
+
+プリミティブ取得、型付きリスト、`Instance()`、backed Enum、Core Data、`WithMode()`・`WithRules()`の契約は`ArrayGet`・`ObjectGet`と同じです。
+
+混在する区間を辿ったあと、現在ノードのコンテナ型を固定した取得口へ戻す場合は`AsArrayGet()`・`AsObjectGet()`を使用します。実際の値を別の型へ変換する機能ではなく、現在値が対象型なら同じRulesを引き継いだGetで包みます。型が一致しない場合は`null`を返すため、想定外の構造を空の取得結果と区別できます。
+
+```php
+<?php
+$payloadGet = $responseGet
+	->NestedPath('response', 'payload')
+	->AsArrayGet();
+
+if ($payloadGet !== null) {
+	$title = $payloadGet->String('title');
+}
+```
 
 objectの対象範囲も`ObjectGet`と同じです。初期化済みのpublicインスタンスプロパティと既存の動的プロパティを読み、private・protected・static・未初期化・マジックプロパティは対象にしません。同じobjectのプロパティ変更は後続の取得へ反映されます。
 

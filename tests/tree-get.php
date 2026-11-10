@@ -53,12 +53,20 @@ $check = static function (bool $condition, string $message) use (&$checks): void
 };
 
 $source = [
+	0 => 'Root index',
 	'company' => (object) [
 		'users' => [
 			'john' => (object) [
 				'Name' => 'John',
 				'Age' => '30',
 				'Status' => 'published',
+			],
+		],
+	],
+	'users' => [
+		(object) [
+			'Profiles' => [
+				(object) ['Name' => 'Indexed user'],
 			],
 		],
 	],
@@ -71,19 +79,45 @@ $source = [
 ];
 
 $treeGet = new TreeGet($source, ValueMode::NumericStr);
+$check($treeGet->String(0) === 'Root index', 'TreeGet reads an integer key from an array node');
+$arrayGet = $treeGet->AsArrayGet();
+$check($arrayGet !== null, 'AsArrayGet returns ArrayGet for an array node');
+$check($arrayGet?->IntList('counts') === [1, 2], 'AsArrayGet inherits TreeGet rules');
+$check($treeGet->AsObjectGet() === null, 'AsObjectGet returns null for an array node');
 $johnGet = $treeGet->NestedPath('company', 'users', 'john');
 $check($johnGet->String('Name') === 'John', 'TreeGet crosses array, object, array, and object nodes');
+$johnObjectGet = $johnGet->AsObjectGet();
+$check($johnObjectGet !== null, 'AsObjectGet returns ObjectGet for an object node');
+$check($johnObjectGet?->Int('Age') === 30, 'AsObjectGet inherits TreeGet rules');
+$check($johnGet->AsArrayGet() === null, 'AsArrayGet returns null for an object node');
 $check($johnGet->Int('Age') === 30, 'TreeGet inherits ValueMode through a mixed path');
 $check($johnGet->BackedEnum('Status', TreeGetPublishStatus::class) === TreeGetPublishStatus::Published, 'TreeGet delegates BackedEnum normalization');
 $check($treeGet->IntList('counts') === [1, 2], 'TreeGet delegates primitive list normalization');
 $check($treeGet->NestedPath('company', 'missing', 'john')->String('Name') === '', 'TreeGet returns an empty getter after a missing segment');
 $check($treeGet->NestedPath('company', 'users', 'john', 'Name')->String('value') === '', 'TreeGet returns an empty getter after reaching a scalar');
+$check($treeGet->NestedPath('users', 0, 'Profiles', 0)->String('Name') === 'Indexed user', 'TreeGet crosses array indexes and object properties in one path');
 
 $items = $treeGet->NestedList('items');
 $check(count($items) === 2, 'TreeGet NestedList accepts array and object elements');
 $check($items[0]->String('Name') === 'Array item', 'TreeGet NestedList wraps an array element');
 $check($items[1]->String('Name') === 'Object item', 'TreeGet NestedList wraps an object element');
 $check($treeGet->NestedList('missing') === [], 'TreeGet NestedList returns an empty list for a missing segment');
+
+$arrayItems = $treeGet->NestedArrayList('items');
+$check(count($arrayItems) === 1, 'TreeGet NestedArrayList filters non-array elements');
+$check($arrayItems[0]->String('Name') === 'Array item', 'TreeGet NestedArrayList returns ArrayGet instances');
+$objectItems = $treeGet->NestedObjectList('items');
+$check(count($objectItems) === 1, 'TreeGet NestedObjectList filters non-object elements');
+$check($objectItems[0]->String('Name') === 'Object item', 'TreeGet NestedObjectList returns ObjectGet instances');
+$check($treeGet->NestedArrayList('missing') === [], 'TreeGet NestedArrayList returns an empty list for a missing segment');
+$check($treeGet->NestedObjectList('missing') === [], 'TreeGet NestedObjectList returns an empty list for a missing segment');
+
+$companyGet = $treeGet->NestedObject('company');
+$check($companyGet->NestedArray('users')->NestedObject('john')->Int('Age') === 30, 'TreeGet NestedObject inherits rules and can switch to ArrayGet');
+$usersGet = $treeGet->NestedArray('users');
+$check($usersGet->NestedObject(0)->NestedArray('Profiles')->NestedObject(0)->String('Name') === 'Indexed user', 'TreeGet NestedArray returns ArrayGet for an array child');
+$check($treeGet->NestedArray('company')->String('missing') === '', 'TreeGet NestedArray returns an empty ArrayGet for an object child');
+$check($treeGet->NestedObject('users')->String('missing') === '', 'TreeGet NestedObject returns an empty ObjectGet for an array child');
 
 $strictGet = new TreeGet(['Count' => '10']);
 $check($strictGet->Int('Count') === null, 'TreeGet is strict by default');
@@ -109,6 +143,11 @@ $check($liveGet->Int('Count') === 1, 'TreeGet reads an object property');
 $liveSource->Count = '2';
 $check($liveGet->Int('Count') === 2, 'TreeGet reflects changes to its object source');
 
+$numericPropertySource = (object) [0 => 'Numeric property'];
+$numericPropertyGet = new TreeGet($numericPropertySource);
+$check($numericPropertyGet->String(0) === '', 'TreeGet does not treat an integer segment as an object property name');
+$check($numericPropertyGet->String('0') === 'Numeric property', 'TreeGet reads a numeric object property through its string name');
+
 $restrictedSource = new TreeGetRestrictedSource();
 $restrictedGet = new TreeGet($restrictedSource);
 $check($restrictedGet->Nested('PublicNode')->String('Name') === 'Public', 'TreeGet reads a public initialized property');
@@ -122,5 +161,7 @@ $check($restrictedSource->MagicReadCount === 0, 'TreeGet does not invoke __get o
 $scalarGet = new TreeGet('invalid');
 $check($scalarGet->String('Name') === '', 'TreeGet treats a scalar source as empty');
 $check($scalarGet->Nested('Child')->Int('Count') === null, 'TreeGet cannot traverse a scalar source');
+$check($scalarGet->AsArrayGet() === null, 'AsArrayGet returns null for a scalar node');
+$check($scalarGet->AsObjectGet() === null, 'AsObjectGet returns null for a scalar node');
 
 echo "TreeGet: {$checks} checks passed\n";

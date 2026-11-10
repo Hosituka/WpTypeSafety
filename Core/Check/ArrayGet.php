@@ -29,12 +29,12 @@ final class ArrayGet
 			: ValueRules::FromMode($modeOrRules);
 	}
 
-	private function value(string $key): mixed
+	private function value(int|string $key): mixed
 	{
 		return $this->resolveValue($key)->Value;
 	}
 
-	private function resolveValue(string $key): ResolvedValue
+	private function resolveValue(int|string $key): ResolvedValue
 	{
 		return ValueResolver::ResolveArray($this->values, $key);
 	}
@@ -54,7 +54,7 @@ final class ArrayGet
 	 * @param class-string<T> $className
 	 * @return T|null
 	 */
-	public function Instance(string $key, string $className): ?object
+	public function Instance(int|string $key, string $className): ?object
 	{
 		return TypeCheck::Instance($this->value($key), $className);
 	}
@@ -64,13 +64,13 @@ final class ArrayGet
 	 * @param class-string<T> $className
 	 * @return list<T>
 	 */
-	public function InstanceList(string $key, string $className): array
+	public function InstanceList(int|string $key, string $className): array
 	{
 		return TypeCheck::InstanceList($this->value($key), $className) ?? [];
 	}
 
 	/** @return list<string> */
-	public function StringList(string $key): array
+	public function StringList(int|string $key): array
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -79,7 +79,7 @@ final class ArrayGet
 	}
 
 	/** @return list<int> */
-	public function IntList(string $key): array
+	public function IntList(int|string $key): array
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -88,7 +88,7 @@ final class ArrayGet
 	}
 
 	/** @return list<float> */
-	public function FloatList(string $key): array
+	public function FloatList(int|string $key): array
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -97,7 +97,7 @@ final class ArrayGet
 	}
 
 	/** @return list<bool> */
-	public function BoolList(string $key): array
+	public function BoolList(int|string $key): array
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -105,7 +105,7 @@ final class ArrayGet
 			: [];
 	}
 
-	public function String(string $key): string
+	public function String(int|string $key): string
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -113,7 +113,7 @@ final class ArrayGet
 			: '';
 	}
 
-	public function Int(string $key): ?int
+	public function Int(int|string $key): ?int
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -121,7 +121,7 @@ final class ArrayGet
 			: null;
 	}
 
-	public function Float(string $key): ?float
+	public function Float(int|string $key): ?float
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -129,7 +129,7 @@ final class ArrayGet
 			: null;
 	}
 
-	public function Bool(string $key): ?bool
+	public function Bool(int|string $key): ?bool
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -142,7 +142,7 @@ final class ArrayGet
 	 * @param class-string<T> $enumClass
 	 * @return T|null
 	 */
-	public function BackedEnum(string $key, string $enumClass): ?\BackedEnum
+	public function BackedEnum(int|string $key, string $enumClass): ?\BackedEnum
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -155,7 +155,7 @@ final class ArrayGet
 	 * @param class-string<T> $enumClass
 	 * @return list<T>
 	 */
-	public function BackedEnumList(string $key, string $enumClass): array
+	public function BackedEnumList(int|string $key, string $enumClass): array
 	{
 		$resolved = $this->resolveValue($key);
 		return $resolved->Exists
@@ -163,17 +163,17 @@ final class ArrayGet
 			: [];
 	}
 
-	public function Array(string $key): array
+	public function Array(int|string $key): array
 	{
 		return TypeCheck::Array($this->value($key)) ?? [];
 	}
 
-	public function Nested(string $key): self
+	public function Nested(int|string $key): self
 	{
 		return new self($this->value($key), $this->rules);
 	}
 
-	public function NestedPath(string $key, string ...$keys): self
+	public function NestedPath(int|string $key, int|string ...$keys): self
 	{
 		$nestedGet = $this->Nested($key);
 		foreach ($keys as $nestedKey) {
@@ -183,13 +183,13 @@ final class ArrayGet
 		return $nestedGet;
 	}
 
-	public function NestedObject(string $key): ObjectGet
+	public function NestedObject(int|string $key): ObjectGet
 	{
 		return new ObjectGet($this->value($key), $this->rules);
 	}
 
 	/** @return list<self> */
-	public function NestedList(string $key): array
+	public function NestedList(int|string $key): array
 	{
 		$items = [];
 		foreach ($this->Array($key) as $value) {
@@ -202,7 +202,7 @@ final class ArrayGet
 	}
 
 	/** @return list<ObjectGet> */
-	public function NestedObjectList(string $key): array
+	public function NestedObjectList(int|string $key): array
 	{
 		$items = [];
 		foreach ($this->Array($key) as $value) {
@@ -216,57 +216,57 @@ final class ArrayGet
 		return $items;
 	}
 
-	public function ImgData(string $key): ?ImgData
+	public function ImgData(int|string $key): ?ImgData
 	{
 		return $this->Instance($key, ImgData::class);
 	}
 
-	public function LinkData(string $key): ?LinkData
+	public function LinkData(int|string $key): ?LinkData
 	{
 		return $this->Instance($key, LinkData::class);
 	}
 
-	public function ChoiceData(string $key): ?ChoiceData
+	public function ChoiceData(int|string $key): ?ChoiceData
 	{
 		return $this->Instance($key, ChoiceData::class);
 	}
 
-	public function FileData(string $key): ?FileData
+	public function FileData(int|string $key): ?FileData
 	{
 		return $this->Instance($key, FileData::class);
 	}
 
-	public function TimeData(string $key): ?TimeData
+	public function TimeData(int|string $key): ?TimeData
 	{
 		return $this->Instance($key, TimeData::class);
 	}
 
 	/** @return list<ImgData> */
-	public function ImgDataList(string $key): array
+	public function ImgDataList(int|string $key): array
 	{
 		return $this->InstanceList($key, ImgData::class);
 	}
 
 	/** @return list<LinkData> */
-	public function LinkDataList(string $key): array
+	public function LinkDataList(int|string $key): array
 	{
 		return $this->InstanceList($key, LinkData::class);
 	}
 
 	/** @return list<ChoiceData> */
-	public function ChoiceDataList(string $key): array
+	public function ChoiceDataList(int|string $key): array
 	{
 		return $this->InstanceList($key, ChoiceData::class);
 	}
 
 	/** @return list<FileData> */
-	public function FileDataList(string $key): array
+	public function FileDataList(int|string $key): array
 	{
 		return $this->InstanceList($key, FileData::class);
 	}
 
 	/** @return list<TimeData> */
-	public function TimeDataList(string $key): array
+	public function TimeDataList(int|string $key): array
 	{
 		return $this->InstanceList($key, TimeData::class);
 	}

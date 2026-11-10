@@ -155,6 +155,9 @@ $check($magicGet->String('Virtual') === '', 'String ignores a magic-only propert
 $check($magicSource->MagicReadCount === 0, 'ObjectGet does not invoke __get or __isset');
 $check((new ObjectGet(false))->String('Title') === '', 'A non-object source behaves as an empty source');
 
+$numericPropertyGet = new ObjectGet((object) [0 => 'Numeric property']);
+$check($numericPropertyGet->String('0') === 'Numeric property', 'ObjectGet reads a numeric property name as a string');
+
 $numericSource = (object) [
 	'Int' => '12',
 	'Float' => '12.5',
