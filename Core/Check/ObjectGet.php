@@ -8,35 +8,48 @@ use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
+use WpTypeSafety\Core\Internal\ResolvedValue;
 
-/** publicインスタンスプロパティから値を動的に読み、型を確認します。値の変換は行いません。 */
+/** publicインスタンスプロパティを動的に読み、設定した基準で値を取得します。 */
 final class ObjectGet
 {
 	private readonly ?object $source;
+	private readonly ValueRules $rules;
 
-	public function __construct(mixed $source)
+	public function __construct(
+		mixed $source,
+		ValueMode|ValueRules $modeOrRules = ValueMode::Strict,
+	)
 	{
 		$this->source = is_object($source) ? $source : null;
+		$this->rules = $modeOrRules instanceof ValueRules
+			? clone $modeOrRules
+			: ValueRules::FromMode($modeOrRules);
 	}
 
 	private function value(string $propertyName): mixed
 	{
+		return $this->resolveValue($propertyName)->Value;
+	}
+
+	private function resolveValue(string $propertyName): ResolvedValue
+	{
 		if ($this->source === null) {
-			return null;
+			return new ResolvedValue(Exists: false, Value: null);
 		}
 
 		$reflection = new \ReflectionObject($this->source);
 		if (! $reflection->hasProperty($propertyName)) {
-			return null;
+			return new ResolvedValue(Exists: false, Value: null);
 		}
 
 		$property = $reflection->getProperty($propertyName);
 		if (! $property->isPublic() || $property->isStatic()) {
-			return null;
+			return new ResolvedValue(Exists: false, Value: null);
 		}
 
 		if (! $property->isInitialized($this->source)) {
-			return null;
+			return new ResolvedValue(Exists: false, Value: null);
 		}
 
 		if (
@@ -44,10 +57,23 @@ final class ObjectGet
 			&& $property->isVirtual()
 			&& ! isset($property->getHooks()['get'])
 		) {
-			return null;
+			return new ResolvedValue(Exists: false, Value: null);
 		}
 
-		return $property->getValue($this->source);
+		return new ResolvedValue(
+			Exists: true,
+			Value: $property->getValue($this->source),
+		);
+	}
+
+	public function WithMode(ValueMode $mode): self
+	{
+		return new self($this->source, $mode);
+	}
+
+	public function WithRules(ValueRules $rules): self
+	{
+		return new self($this->source, $rules);
 	}
 
 	/**
@@ -73,45 +99,69 @@ final class ObjectGet
 	/** @return list<string> */
 	public function StringList(string $propertyName): array
 	{
-		return TypeCheck::StringList($this->value($propertyName)) ?? [];
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? ($this->rules->NormalizeStringList($resolved->Value) ?? [])
+			: [];
 	}
 
 	/** @return list<int> */
 	public function IntList(string $propertyName): array
 	{
-		return TypeCheck::IntList($this->value($propertyName)) ?? [];
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? ($this->rules->NormalizeIntList($resolved->Value) ?? [])
+			: [];
 	}
 
 	/** @return list<float> */
 	public function FloatList(string $propertyName): array
 	{
-		return TypeCheck::FloatList($this->value($propertyName)) ?? [];
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? ($this->rules->NormalizeFloatList($resolved->Value) ?? [])
+			: [];
 	}
 
 	/** @return list<bool> */
 	public function BoolList(string $propertyName): array
 	{
-		return TypeCheck::BoolList($this->value($propertyName)) ?? [];
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? ($this->rules->NormalizeBoolList($resolved->Value) ?? [])
+			: [];
 	}
 
 	public function String(string $propertyName): string
 	{
-		return TypeCheck::String($this->value($propertyName)) ?? '';
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? ($this->rules->NormalizeString($resolved->Value) ?? '')
+			: '';
 	}
 
 	public function Int(string $propertyName): ?int
 	{
-		return TypeCheck::Int($this->value($propertyName));
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? $this->rules->NormalizeInt($resolved->Value)
+			: null;
 	}
 
 	public function Float(string $propertyName): ?float
 	{
-		return TypeCheck::Float($this->value($propertyName));
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? $this->rules->NormalizeFloat($resolved->Value)
+			: null;
 	}
 
 	public function Bool(string $propertyName): ?bool
 	{
-		return TypeCheck::Bool($this->value($propertyName));
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? $this->rules->NormalizeBool($resolved->Value)
+			: null;
 	}
 
 	public function Array(string $propertyName): array
@@ -121,12 +171,12 @@ final class ObjectGet
 
 	public function Nested(string $propertyName): self
 	{
-		return new self($this->value($propertyName));
+		return new self($this->value($propertyName), $this->rules);
 	}
 
 	public function NestedArray(string $propertyName): ArrayGet
 	{
-		return new ArrayGet($this->value($propertyName));
+		return new ArrayGet($this->value($propertyName), $this->rules);
 	}
 
 	/** @return list<self> */
@@ -138,7 +188,7 @@ final class ObjectGet
 				continue;
 			}
 
-			$items[] = new self($value);
+			$items[] = new self($value, $this->rules);
 		}
 
 		return $items;
@@ -153,7 +203,7 @@ final class ObjectGet
 				continue;
 			}
 
-			$items[] = new ArrayGet($value);
+			$items[] = new ArrayGet($value, $this->rules);
 		}
 
 		return $items;

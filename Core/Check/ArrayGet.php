@@ -8,21 +8,54 @@ use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
+use WpTypeSafety\Core\Internal\ResolvedValue;
 
-/** 連想配列からキーを指定して値の型を確認します。値の変換は行いません。 */
+/** 連想配列からキーを指定し、設定した基準で値を取得します。 */
 final class ArrayGet
 {
 	/** @var array<array-key, mixed> */
 	private readonly array $values;
+	private readonly ValueRules $rules;
 
-	public function __construct(mixed $values)
+	public function __construct(
+		mixed $values,
+		ValueMode|ValueRules $modeOrRules = ValueMode::Strict,
+	)
 	{
 		$this->values = TypeCheck::Array($values) ?? [];
+		$this->rules = $modeOrRules instanceof ValueRules
+			? clone $modeOrRules
+			: ValueRules::FromMode($modeOrRules);
 	}
 
 	private function value(string $key): mixed
 	{
-		return $this->values[$key] ?? null;
+		return $this->resolveValue($key)->Value;
+	}
+
+	private function resolveValue(string $key): ResolvedValue
+	{
+		if (! array_key_exists($key, $this->values)) {
+			return new ResolvedValue(
+				Exists: false,
+				Value: null,
+			);
+		}
+
+		return new ResolvedValue(
+			Exists: true,
+			Value: $this->values[$key],
+		);
+	}
+
+	public function WithMode(ValueMode $mode): self
+	{
+		return new self($this->values, $mode);
+	}
+
+	public function WithRules(ValueRules $rules): self
+	{
+		return new self($this->values, $rules);
 	}
 
 	/**
@@ -48,45 +81,69 @@ final class ArrayGet
 	/** @return list<string> */
 	public function StringList(string $key): array
 	{
-		return TypeCheck::StringList($this->value($key)) ?? [];
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? ($this->rules->NormalizeStringList($resolved->Value) ?? [])
+			: [];
 	}
 
 	/** @return list<int> */
 	public function IntList(string $key): array
 	{
-		return TypeCheck::IntList($this->value($key)) ?? [];
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? ($this->rules->NormalizeIntList($resolved->Value) ?? [])
+			: [];
 	}
 
 	/** @return list<float> */
 	public function FloatList(string $key): array
 	{
-		return TypeCheck::FloatList($this->value($key)) ?? [];
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? ($this->rules->NormalizeFloatList($resolved->Value) ?? [])
+			: [];
 	}
 
 	/** @return list<bool> */
 	public function BoolList(string $key): array
 	{
-		return TypeCheck::BoolList($this->value($key)) ?? [];
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? ($this->rules->NormalizeBoolList($resolved->Value) ?? [])
+			: [];
 	}
 
 	public function String(string $key): string
 	{
-		return TypeCheck::String($this->value($key)) ?? '';
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? ($this->rules->NormalizeString($resolved->Value) ?? '')
+			: '';
 	}
 
 	public function Int(string $key): ?int
 	{
-		return TypeCheck::Int($this->value($key));
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? $this->rules->NormalizeInt($resolved->Value)
+			: null;
 	}
 
 	public function Float(string $key): ?float
 	{
-		return TypeCheck::Float($this->value($key));
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? $this->rules->NormalizeFloat($resolved->Value)
+			: null;
 	}
 
 	public function Bool(string $key): ?bool
 	{
-		return TypeCheck::Bool($this->value($key));
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? $this->rules->NormalizeBool($resolved->Value)
+			: null;
 	}
 
 	public function Array(string $key): array
@@ -96,12 +153,12 @@ final class ArrayGet
 
 	public function Nested(string $key): self
 	{
-		return new self($this->value($key));
+		return new self($this->value($key), $this->rules);
 	}
 
 	public function NestedObject(string $key): ObjectGet
 	{
-		return new ObjectGet($this->value($key));
+		return new ObjectGet($this->value($key), $this->rules);
 	}
 
 	/** @return list<self> */
@@ -112,7 +169,7 @@ final class ArrayGet
 			if (!is_array($value))
 			{continue;}
 
-			$items[] = new self($value);
+			$items[] = new self($value, $this->rules);
 		}
 		return $items;
 	}
@@ -126,7 +183,7 @@ final class ArrayGet
 				continue;
 			}
 
-			$items[] = new ObjectGet($value);
+			$items[] = new ObjectGet($value, $this->rules);
 		}
 
 		return $items;

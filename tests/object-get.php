@@ -5,6 +5,9 @@ require_once dirname(__DIR__) . '/autoload.php';
 
 use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Core\Check\ObjectGet;
+use WpTypeSafety\Core\Check\TypeCheck;
+use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\TimeData;
 
 final class ObjectGetTestSource
@@ -129,6 +132,89 @@ $magicGet = new ObjectGet($magicSource);
 $check($magicGet->String('Virtual') === '', 'String ignores a magic-only property');
 $check($magicSource->MagicReadCount === 0, 'ObjectGet does not invoke __get or __isset');
 $check((new ObjectGet(false))->String('Title') === '', 'A non-object source behaves as an empty source');
+
+$numericSource = (object) [
+	'Int' => '12',
+	'Float' => '12.5',
+	'Ints' => [1, '2', 'invalid'],
+	'Child' => (object) ['Count' => '3'],
+	'Group' => ['Count' => '4'],
+	'Children' => [(object) ['Count' => '5']],
+	'Groups' => [['Count' => '6']],
+];
+$numericObjectGet = new ObjectGet($numericSource, ValueMode::NumericStr);
+$check($numericObjectGet->Int('Int') === 12, 'ObjectGet NumericStr normalizes an integer string');
+$check($numericObjectGet->Float('Float') === 12.5, 'ObjectGet NumericStr normalizes a float string');
+$check($numericObjectGet->IntList('Ints') === [1, 2], 'ObjectGet NumericStr normalizes list elements');
+$numericSource->Int = '13';
+$check($numericObjectGet->Int('Int') === 13, 'ObjectGet NumericStr reads and normalizes the current property value');
+$check($numericObjectGet->Nested('Child')->Int('Count') === 3, 'ObjectGet Nested inherits NumericStr rules');
+$check($numericObjectGet->NestedArray('Group')->Int('Count') === 4, 'ObjectGet NestedArray inherits NumericStr rules');
+$check($numericObjectGet->NestedList('Children')[0]->Int('Count') === 5, 'ObjectGet NestedList inherits NumericStr rules');
+$check($numericObjectGet->NestedArrayList('Groups')[0]->Int('Count') === 6, 'ObjectGet NestedArrayList inherits NumericStr rules');
+
+$objectRules = ValueRules::FromMode(ValueMode::Strict);
+$objectRules->StringNormalizer = static fn(mixed $value): ?string => is_int($value)
+	? "number-{$value}"
+	: null;
+$customObjectGet = new ObjectGet((object) [
+	'Value' => 8,
+	'Child' => (object) ['Value' => 9],
+], $objectRules);
+$objectRules->StringNormalizer = static fn(mixed $value): ?string => 'changed';
+
+$check($customObjectGet->String('Value') === 'number-8', 'ObjectGet accepts a partial ValueRules override');
+$check($customObjectGet->Nested('Child')->String('Value') === 'number-9', 'ObjectGet Nested inherits a custom rule snapshot');
+
+$nullObjectRules = ValueRules::FromMode(ValueMode::Strict);
+$nullObjectRules->IntNormalizer = static fn(mixed $value): ?int => $value === null
+	? 100
+	: TypeCheck::Int($value);
+$nullObjectGet = new ObjectGet((object) [
+	'NullValue' => null,
+	'NullItems' => [1, null, 2],
+], $nullObjectRules);
+$check($nullObjectGet->Int('Missing') === null, 'A missing property bypasses the custom normalizer');
+$check($nullObjectGet->Int('NullValue') === 100, 'An explicitly stored null property is passed to the custom normalizer');
+$check($nullObjectGet->IntList('NullItems') === [1, 100, 2], 'An explicit null list element is passed to the custom normalizer');
+
+$switchObjectSource = (object) [
+	'Count' => '20',
+	'Child' => (object) ['Count' => '21'],
+];
+$switchObjectGet = new ObjectGet($switchObjectSource);
+$numericSwitchObjectGet = $switchObjectGet->WithMode(ValueMode::NumericStr);
+$check($switchObjectGet->Int('Count') === null, 'ObjectGet WithMode does not mutate the original getter');
+$check($numericSwitchObjectGet->Int('Count') === 20, 'ObjectGet WithMode changes the mode without ending the chain');
+$check($numericSwitchObjectGet->Nested('Child')->Int('Count') === 21, 'ObjectGet WithMode is inherited by Nested');
+$check($numericSwitchObjectGet->WithMode(ValueMode::Strict)->Int('Count') === null, 'ObjectGet WithMode can return a chain to Strict');
+$check($switchObjectGet->WithRules($objectRules)->String('Count') === 'changed', 'ObjectGet WithRules replaces its current rules');
+
+$combinedObjectGet = new ObjectGet((object) [
+	'Count' => '40',
+	'Enabled' => 'false',
+], ValueRules::FromModes(
+	ValueMode::BoolStr,
+	ValueMode::BoolInt,
+	ValueMode::NumericStr,
+));
+$check($combinedObjectGet->Int('Count') === 40, 'ObjectGet accepts composed numeric rules');
+$check($combinedObjectGet->Bool('Enabled') === false, 'ObjectGet accepts composed boolean rules');
+
+$booleanIntObjectGet = new ObjectGet((object) [
+	'Enabled' => 1,
+	'Disabled' => 0,
+	'Invalid' => 2,
+], ValueMode::BoolInt);
+$check($booleanIntObjectGet->Bool('Enabled') === true, 'ObjectGet BoolInt normalizes integer one');
+$check($booleanIntObjectGet->Bool('Disabled') === false, 'ObjectGet BoolInt normalizes integer zero');
+$check($booleanIntObjectGet->Bool('Invalid') === null, 'ObjectGet BoolInt rejects other integers');
+
+$emptyObjectGet = new ObjectGet((object) [
+	'Enabled' => '',
+], ValueMode::EmptyStrAsFalse);
+$check($emptyObjectGet->Bool('Enabled') === false, 'ObjectGet accepts EmptyStrAsFalse');
+$check($emptyObjectGet->Bool('Missing') === null, 'ObjectGet EmptyStrAsFalse keeps a missing property as null');
 
 if (PHP_VERSION_ID >= 80400) {
 	eval(<<<'PHP'

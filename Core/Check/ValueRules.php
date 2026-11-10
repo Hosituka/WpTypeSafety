@@ -1,0 +1,217 @@
+<?php
+declare(strict_types=1);
+
+namespace WpTypeSafety\Core\Check;
+
+/** ArrayGetとObjectGetがプリミティブ値を受け入れる基準を保持します。 */
+final class ValueRules
+{
+	/** @var \Closure(mixed): ?string */
+	public \Closure $StringNormalizer;
+
+	/** @var \Closure(mixed): ?int */
+	public \Closure $IntNormalizer;
+
+	/** @var \Closure(mixed): ?float */
+	public \Closure $FloatNormalizer;
+
+	/** @var \Closure(mixed): ?bool */
+	public \Closure $BoolNormalizer;
+
+	/**
+	 * @param \Closure(mixed): ?string $StringNormalizer
+	 * @param \Closure(mixed): ?int $IntNormalizer
+	 * @param \Closure(mixed): ?float $FloatNormalizer
+	 * @param \Closure(mixed): ?bool $BoolNormalizer
+	 */
+	private function __construct(
+		\Closure $StringNormalizer,
+		\Closure $IntNormalizer,
+		\Closure $FloatNormalizer,
+		\Closure $BoolNormalizer,
+	) {
+		$this->StringNormalizer = $StringNormalizer;
+		$this->IntNormalizer = $IntNormalizer;
+		$this->FloatNormalizer = $FloatNormalizer;
+		$this->BoolNormalizer = $BoolNormalizer;
+	}
+
+	public static function FromMode(ValueMode $mode): self
+	{
+		return self::FromModes($mode);
+	}
+
+	public static function FromModes(ValueMode ...$modes): self
+	{
+		$rules = self::strict();
+		foreach ($modes as $mode) {
+			match ($mode) {
+				ValueMode::Strict => null,
+				ValueMode::NumericStr => $rules->applyNumericStr(),
+				ValueMode::BoolStr => $rules->applyBoolStr(),
+				ValueMode::BoolInt => $rules->applyBoolInt(),
+				ValueMode::EmptyStrAsFalse => $rules->applyEmptyStrAsFalse(),
+			};
+		}
+
+		return $rules;
+	}
+
+	public function NormalizeString(mixed $value): ?string
+	{
+		return ($this->StringNormalizer)($value);
+	}
+
+	public function NormalizeInt(mixed $value): ?int
+	{
+		return ($this->IntNormalizer)($value);
+	}
+
+	public function NormalizeFloat(mixed $value): ?float
+	{
+		return ($this->FloatNormalizer)($value);
+	}
+
+	public function NormalizeBool(mixed $value): ?bool
+	{
+		return ($this->BoolNormalizer)($value);
+	}
+
+	/** @return list<string>|null */
+	public function NormalizeStringList(mixed $value): ?array
+	{
+		return $this->normalizeList(
+			$value,
+			fn(mixed $item): ?string => $this->NormalizeString($item),
+		);
+	}
+
+	/** @return list<int>|null */
+	public function NormalizeIntList(mixed $value): ?array
+	{
+		return $this->normalizeList(
+			$value,
+			fn(mixed $item): ?int => $this->NormalizeInt($item),
+		);
+	}
+
+	/** @return list<float>|null */
+	public function NormalizeFloatList(mixed $value): ?array
+	{
+		return $this->normalizeList(
+			$value,
+			fn(mixed $item): ?float => $this->NormalizeFloat($item),
+		);
+	}
+
+	/** @return list<bool>|null */
+	public function NormalizeBoolList(mixed $value): ?array
+	{
+		return $this->normalizeList(
+			$value,
+			fn(mixed $item): ?bool => $this->NormalizeBool($item),
+		);
+	}
+
+	/**
+	 * @param \Closure(mixed): mixed $normalizer
+	 * @return list<mixed>|null
+	 */
+	private function normalizeList(mixed $value, \Closure $normalizer): ?array
+	{
+		if (! is_array($value)) {
+			return null;
+		}
+
+		$items = [];
+		foreach ($value as $item) {
+			$normalized = $normalizer($item);
+			if ($normalized === null) {
+				continue;
+			}
+
+			$items[] = $normalized;
+		}
+
+		return $items;
+	}
+
+	private static function strict(): self
+	{
+		return new self(
+			StringNormalizer: static fn(mixed $value): ?string => TypeCheck::String($value),
+			IntNormalizer: static fn(mixed $value): ?int => TypeCheck::Int($value),
+			FloatNormalizer: static fn(mixed $value): ?float => TypeCheck::Float($value),
+			BoolNormalizer: static fn(mixed $value): ?bool => TypeCheck::Bool($value),
+		);
+	}
+
+	private function applyNumericStr(): void
+	{
+		$this->IntNormalizer = self::normalizeNumericInt(...);
+		$this->FloatNormalizer = static fn(mixed $value): ?float => is_numeric($value)
+			? (float) $value
+			: null;
+	}
+
+	private function applyBoolStr(): void
+	{
+		$previous = $this->BoolNormalizer;
+		$this->BoolNormalizer = static fn(mixed $value): ?bool => match ($value) {
+			'true', '1' => true,
+			'false', '0' => false,
+			default => $previous($value),
+		};
+	}
+
+	private function applyBoolInt(): void
+	{
+		$previous = $this->BoolNormalizer;
+		$this->BoolNormalizer = static fn(mixed $value): ?bool => match ($value) {
+			1 => true,
+			0 => false,
+			default => $previous($value),
+		};
+	}
+
+	private function applyEmptyStrAsFalse(): void
+	{
+		$previous = $this->BoolNormalizer;
+		$this->BoolNormalizer = static fn(mixed $value): ?bool => $value === ''
+			? false
+			: $previous($value);
+	}
+
+	private static function normalizeNumericInt(mixed $value): ?int
+	{
+		if (is_int($value)) {
+			return $value;
+		}
+
+		if (is_float($value)) {
+			if (! is_finite($value) || floor($value) !== $value) {
+				return null;
+			}
+
+			$integer = (int) $value;
+			return (float) $integer === $value ? $integer : null;
+		}
+
+		if (! is_string($value) || preg_match('/^-?\d+$/D', $value) !== 1) {
+			return null;
+		}
+
+		$negative = str_starts_with($value, '-');
+		$digits = ltrim($negative ? substr($value, 1) : $value, '0');
+		$digits = $digits === '' ? '0' : $digits;
+		$limit = $negative ? ltrim((string) PHP_INT_MIN, '-') : (string) PHP_INT_MAX;
+		if (
+			strlen($digits) > strlen($limit)
+			|| (strlen($digits) === strlen($limit) && strcmp($digits, $limit) > 0)
+		) {
+			return null;
+		}
+
+		return (int) (($negative ? '-' : '') . $digits);
+	}
+}
