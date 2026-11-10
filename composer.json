@@ -1,6 +1,6 @@
 {
 	"name": "hosituka/wp-type-safety",
-	"description": "Typed accessors and data objects for WordPress and ACF.",
+	"description": "Read WordPress and ACF values with predictable return types, and traverse nested groups and repeaters without isset() chains.",
 	"keywords": [
 		"wordpress",
 		"acf",
