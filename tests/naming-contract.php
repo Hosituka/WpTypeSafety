@@ -6,6 +6,8 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+require_once __DIR__ . '/../autoload.php';
+
 require_once __DIR__ . '/../Acf/Data/AcfBlockData.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';

@@ -36,7 +36,7 @@ APIの分類から探す場合は、次の目次を利用できます。
 | `Text()` | `string` | 文字列。未入力・型違いは空文字 |
 | `Float()` | `?float` | 整数・float・数値文字列をfloatへ正規化。数値以外は`null` |
 | `Int()` | `?int` | 整数・整数相当のfloat・整数形式の数値文字列をintへ正規化。それ以外は`null` |
-| `Bool()` | `?bool` | 真偽値。型違いは`null` |
+| `Bool()` | `?bool` | 真偽値、整数・文字列の`1`・`0`、文字列の`true`・`false`を真偽値へ正規化。型違いは`null` |
 | `Link()` | `?LinkData` | ACFリンク配列 |
 | `Url()` | `?string` | HTTP(S)の絶対URL |
 | `Img()` | `?ImgData` | ID・寸法を取得できる画像 |
@@ -58,6 +58,7 @@ APIの分類から探す場合は、次の目次を利用できます。
 | `PostGets()`・`UserGets()`・`TermGets()` | `list<呼び出し元と同じAcfGet派生型>` | 複数参照先それぞれのACFフィールド取得口を返す |
 | `Native()` | `mixed` | 通常のACF戻り値をWpTypeSafetyで変換せず返す |
 | `Nested()` | `AcfGet` | グループなどの子配列へ進む |
+| `NestedPath()` | `AcfGet` | Groupだけで構成された複数階層をまとめて進む |
 | `Array()` | `array<mixed>` | 生配列。要素型は保証しない |
 | `Repeater()` | `list<AcfGet>` | リピーターの各行 |
 | `Flexible()` | `list<FlexibleNode>` | レイアウト名と行の取得口 |
@@ -90,7 +91,7 @@ $price = $postGet->Float('price'); // "12.5"も12.5へ正規化
 $count = $postGet->Int('count');    // "12"も12へ正規化
 ```
 
-`Float()`はPHPの`is_numeric()`に従うため、前後に空白がある数値文字列や指数表記も受け入れて`float`へ変換します。`Int()`は整数、整数として正確に表現できるfloat、符号と数字だけで構成された整数形式の文字列を受け入れます。小数文字列・指数表記・空白を含む文字列・PHPの整数範囲外は`null`です。`TypeCheck::Int()`は変換を行わず、最初から`int`である値だけを通すCore APIです。
+`Float()`はPHPの`is_numeric()`に従うため、前後に空白がある数値文字列や指数表記も受け入れて`float`へ変換します。`Int()`は整数、整数として正確に表現できるfloat、前後のASCII空白を除いて符号と数字だけで構成された整数形式の文字列を受け入れます。小数文字列・指数表記・数字の途中に空白がある文字列・PHPの整数範囲外は`null`です。`TypeCheck::Int()`は変換を行わず、最初から`int`である値だけを通すCore APIです。
 
 ## ACFの取得先の指定
 
@@ -101,10 +102,12 @@ $count = $postGet->Int('count');    // "12"も12へ正規化
 $postGet = new AcfGet($post);
 $firstViewGet = $postGet->Nested('first_view');
 $label = $firstViewGet->Text('label');
-$title = $postGet->Nested('outer')->Nested('inner')->Text('title');
+$title = $postGet->NestedPath('outer', 'inner')->Text('title');
 ```
 
-`Nested()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。戻り値は呼び出し元と同じ`AcfGet`派生型です。
+`NestedPath()`は指定したフィールド名ごとに`Nested()`を順番に呼び出す省略形です。Groupだけで構成された経路を対象とし、RepeaterやFlexible Contentの行を自動選択しません。
+
+`Nested()`と`NestedPath()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。戻り値は呼び出し元と同じ`AcfGet`派生型です。
 
 単一選択のACF投稿オブジェクト・関連・ユーザー・タクソノミーフィールドが参照する先のACF値を読むときは、`PostGet()`・`UserGet()`・`TermGet()`を使えます。内部では既存の`Post()`・`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserGet()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
 

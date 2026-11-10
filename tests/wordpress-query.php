@@ -203,6 +203,7 @@ use WpTypeSafety\Wp\Get\CommentQuery;
 use WpTypeSafety\Wp\Get\PostQuery;
 use WpTypeSafety\Wp\Get\TermQuery;
 use WpTypeSafety\Wp\Get\UserQuery;
+use WpTypeSafety\Wp\Internal\QueryPagination;
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -211,6 +212,11 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	}
 	$checks++;
 };
+
+$check(QueryPagination::PageNumber(' +3 ') === 3, 'ページ番号の整数文字列を正規化する');
+$check(QueryPagination::PageNumber('1.5') === 1, '小数のページ番号を既定値へ戻す');
+$check(QueryPagination::PositiveInt(0) === null, '0件指定をページング上限として扱わない');
+$check(QueryPagination::MaxPageCount(5, '2') === 3, '共通処理で最大ページ数を計算する');
 
 $postResult = PostQuery::Get([
 	'post_type' => 'staff',

@@ -6,6 +6,8 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+require_once __DIR__ . '/../autoload.php';
+
 use WpTypeSafety\Acf\Get\AcfGet;
 
 class WP_Post { public function __construct(public int $ID) {} }
@@ -58,4 +60,24 @@ $GLOBALS['arrayCalls'] = [];
 (new AcfGet(new WP_User(9)))->Array('field');
 $check($GLOBALS['arrayCalls'] === [['field', 7], ['field', 'term_8'], ['field', 'user_9']], 'source forwarding');
 $check(method_exists(AcfGet::class, 'Array') && ! method_exists(AcfGet::class, 'Group'), 'renamed public API');
+
+$boolCases = [
+	[true, true],
+	[false, false],
+	[1, true],
+	[0, false],
+	['true', true],
+	['false', false],
+	['1', true],
+	['0', false],
+	['', null],
+	['yes', null],
+	[null, null],
+];
+foreach ($boolCases as [$value, $expected]) {
+	$GLOBALS['arrayFields']['bool'] = $value;
+	$check((new AcfGet(123))->Bool('bool') === $expected, 'Bool direct value');
+	$check((new AcfGet(['bool' => $value]))->Bool('bool') === $expected, 'Bool array value');
+}
+
 echo "Array accessors: {$checks} checks passed\n";

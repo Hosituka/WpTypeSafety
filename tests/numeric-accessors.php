@@ -6,6 +6,8 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+require_once __DIR__ . '/../autoload.php';
+
 use WpTypeSafety\Acf\Get\AcfGet;
 
 class WP_Post { public function __construct(public int $ID) {} }
@@ -50,10 +52,13 @@ $intCases = [
 	[-5, -5],
 	['-5', -5],
 	['0', 0],
+	['+5', 5],
 	[5.5, null],
 	[PHP_INT_MAX * 2.0, null],
 	['5.5', null],
-	[' 12', null],
+	[' 12', 12],
+	["\t-12\n", -12],
+	['1 2', null],
 	['1e3', null],
 	['', null],
 	['abc', null],

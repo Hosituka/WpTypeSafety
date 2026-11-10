@@ -42,12 +42,7 @@ final class PostQueryAdapter
 			Posts: $posts,
 			TotalCount: $hasTotal ? max(0, (int) $query->found_posts) : null,
 			MaxPageCount: $hasTotal ? max(0, (int) $query->max_num_pages) : null,
-			CurrentPageNumber: self::pageNumber($query->get('paged')),
+			CurrentPageNumber: QueryPagination::PageNumber($query->get('paged')),
 		);
-	}
-
-	private static function pageNumber(mixed $value): int
-	{
-		return is_numeric($value) && (int) $value > 0 ? (int) $value : 1;
 	}
 }

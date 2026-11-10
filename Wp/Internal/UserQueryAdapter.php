@@ -47,22 +47,8 @@ final class UserQueryAdapter
 		return new UserQueryData(
 			Users: $users,
 			TotalCount: $totalCount,
-			MaxPageCount: $hasTotal ? self::maxPageCount($totalCount ?? 0, $query->get('number')) : null,
-			CurrentPageNumber: self::pageNumber($query->get('paged')),
+			MaxPageCount: $hasTotal ? QueryPagination::MaxPageCount($totalCount ?? 0, $query->get('number')) : null,
+			CurrentPageNumber: QueryPagination::PageNumber($query->get('paged')),
 		);
-	}
-
-	private static function maxPageCount(int $totalCount, mixed $number): int
-	{
-		if (! is_numeric($number) || (int) $number <= 0) {
-			return $totalCount > 0 ? 1 : 0;
-		}
-
-		return (int) ceil($totalCount / (int) $number);
-	}
-
-	private static function pageNumber(mixed $value): int
-	{
-		return is_numeric($value) && (int) $value > 0 ? (int) $value : 1;
 	}
 }

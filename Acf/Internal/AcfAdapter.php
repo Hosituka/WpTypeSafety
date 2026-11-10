@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Acf\Internal;
 
+use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\ChoiceData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
@@ -26,84 +28,78 @@ class AcfAdapter
 	/** @return array<mixed> */
 	public function GetArray(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
 	{
-		return is_array($source)
-			? self::arrayFrom($fieldName, $source)
-			: self::arrayField($fieldName, $source);
+		return self::asArray($this->GetRaw($fieldName, $source));
 	}
 
 	/** @return array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>} */
 	public function GetNested(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
 	{
 		return is_array($source)
-			? ['values' => self::arrayFrom($fieldName, $source), 'rawValues' => null, 'subFields' => null]
+			? ['values' => $this->GetArray($fieldName, $source), 'rawValues' => null, 'subFields' => null]
 			: self::nested($fieldName, $source);
 	}
 
 	public function GetText(string $fieldName, \WP_Post|PostData|int|string|array|null $source): string
 	{
-		return is_array($source) ? self::textFrom($fieldName, $source) : self::text($fieldName, $source);
+		return self::textValue($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetPost(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?PostData
 	{
-		return is_array($source) ? self::postFrom($fieldName, $source) : self::post($fieldName, $source);
+		return AcfDtoFactory::PostFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	/** @return list<PostData> */
 	public function GetPosts(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
 	{
-		return is_array($source) ? self::postsFrom($fieldName, $source) : self::posts($fieldName, $source);
+		return AcfDtoFactory::PostsFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetTerm(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?TermData
 	{
-		return is_array($source) ? self::termFrom($fieldName, $source) : self::term($fieldName, $source);
+		return AcfDtoFactory::TermFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	/** @return list<TermData> */
 	public function GetTerms(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
 	{
-		return is_array($source) ? self::termsFrom($fieldName, $source) : self::terms($fieldName, $source);
+		return AcfDtoFactory::TermsFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetUser(string $fieldName, \WP_Post|PostData|int|string|array|null $source, int $avatarSize): ?WpUserData
 	{
-		return is_array($source)
-			? self::userFrom($fieldName, $source, $avatarSize)
-			: self::user($fieldName, $source, $avatarSize);
+		return AcfDtoFactory::UserFromAcf($this->GetRaw($fieldName, $source), $avatarSize);
 	}
 
 	/** @return list<WpUserData> */
 	public function GetUsers(string $fieldName, \WP_Post|PostData|int|string|array|null $source, int $avatarSize): array
 	{
-		return is_array($source)
-			? self::usersFrom($fieldName, $source, $avatarSize)
-			: self::users($fieldName, $source, $avatarSize);
+		return AcfDtoFactory::UsersFromAcf($this->GetRaw($fieldName, $source), $avatarSize);
 	}
 
 	public function GetLink(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?LinkData
 	{
-		return is_array($source) ? self::linkFrom($fieldName, $source) : self::link($fieldName, $source);
+		return AcfDtoFactory::LinkFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetFloat(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?float
 	{
-		return is_array($source) ? self::floatFrom($fieldName, $source) : self::floatField($fieldName, $source);
+		return self::numericRules()->NormalizeFloat($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetInt(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?int
 	{
-		return is_array($source) ? self::intFrom($fieldName, $source) : self::int($fieldName, $source);
+		return self::numericRules()->NormalizeInt($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetImg(string $fieldName, \WP_Post|PostData|int|string|array|null $source, string|array $size): ?ImgData
 	{
-		return is_array($source) ? self::imgFrom($fieldName, $source, $size) : self::img($fieldName, $source, $size);
+		return AcfDtoFactory::ImgFromAcf($this->GetRaw($fieldName, $source), $size);
 	}
 
 	public function GetImgUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
 	{
-		return is_array($source) ? self::imgUrlFrom($fieldName, $source) : self::imgUrl($fieldName, $source);
+		return self::httpUrl($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetIconClass(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
@@ -154,20 +150,18 @@ class AcfAdapter
 
 	public function GetFile(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?FileData
 	{
-		return is_array($source) ? self::fileFrom($fieldName, $source) : self::file($fieldName, $source);
+		return AcfDtoFactory::FileFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetFileUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
 	{
-		return is_array($source) ? self::fileUrlFrom($fieldName, $source) : self::fileUrl($fieldName, $source);
+		return self::httpUrl($this->GetRaw($fieldName, $source));
 	}
 
 	/** @return list<ImgData> */
 	public function GetGallery(string $fieldName, \WP_Post|PostData|int|string|array|null $source, string|array $size): array
 	{
-		return is_array($source)
-			? self::galleryFrom($fieldName, $source, $size)
-			: self::gallery($fieldName, $source, $size);
+		return self::galleryValue($this->GetRaw($fieldName, $source), $size);
 	}
 
 	/** @return list<string> */
@@ -183,14 +177,16 @@ class AcfAdapter
 		if (is_array($source) || ! function_exists('get_field_object'))
 		{return $this->ConvertRepeater($values);}
 
-		$field = \get_field_object($fieldName, self::postId($source), false, true);
-		if (! is_array($field) || ($field['type'] ?? null) !== 'repeater')
+		$field = AcfFieldDefinition::From(
+			\get_field_object($fieldName, self::postId($source), false, true),
+		);
+		if ($field === null || ! $field->IsType('repeater'))
 		{return $this->ConvertRepeater($values);}
 
 		return $this->ConvertRepeater(
 			values: $values,
-			rawValues: $field['value'] ?? null,
-			subFields: $field['sub_fields'] ?? null,
+			rawValues: $field->Value(),
+			subFields: $field->SubFields(),
 		);
 	}
 
@@ -201,14 +197,16 @@ class AcfAdapter
 		if (is_array($source) || ! function_exists('get_field_object'))
 		{return $this->ConvertFlexible($values);}
 
-		$field = \get_field_object($fieldName, self::postId($source), false, true);
-		if (! is_array($field) || ($field['type'] ?? null) !== 'flexible_content')
+		$field = AcfFieldDefinition::From(
+			\get_field_object($fieldName, self::postId($source), false, true),
+		);
+		if ($field === null || ! $field->IsType('flexible_content'))
 		{return $this->ConvertFlexible($values);}
 
 		return $this->ConvertFlexible(
 			values: $values,
-			rawValues: $field['value'] ?? null,
-			layouts: $field['layouts'] ?? null,
+			rawValues: $field->Value(),
+			layouts: $field->Layouts(),
 		);
 	}
 
@@ -257,7 +255,7 @@ class AcfAdapter
 
 	public function GetBool(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?bool
 	{
-		return is_array($source) ? self::boolFrom($fieldName, $source) : self::bool($fieldName, $source);
+		return self::boolRules()->NormalizeBool($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetDate(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?\DateTimeImmutable
@@ -390,166 +388,29 @@ class AcfAdapter
 		return $urls;
 	}
 
-	/** @return array<mixed> */
-	private static function arrayField(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): array
-	{
-		return self::asArray(self::field($fieldName, $postId));
-	}
-
-	/** @return array<mixed> */
-	private static function arrayFrom(string $key, mixed $parent): array
-	{
-		return self::asArray(self::valueFrom($key, $parent));
-	}
-
 	/** @return array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>} */
 	private static function nested(
 		string $fieldName,
 		\WP_Post|PostData|int|string|null $postId = null,
 	): array {
-		$values = self::arrayField($fieldName, $postId);
+		$values = self::asArray(self::field($fieldName, $postId));
 		if (! function_exists('get_field_object')) {
 			return ['values' => $values, 'rawValues' => null, 'subFields' => null];
 		}
 
-		$field = \get_field_object($fieldName, self::postId($postId), false, true);
-		if (! is_array($field) || ($field['type'] ?? null) !== 'group') {
+		$field = AcfFieldDefinition::From(
+			\get_field_object($fieldName, self::postId($postId), false, true),
+		);
+		if ($field === null || ! $field->IsType('group')) {
 			return ['values' => $values, 'rawValues' => null, 'subFields' => null];
 		}
 
-		$rawValues = $field['value'] ?? null;
-		$subFields = $field['sub_fields'] ?? null;
+		$rawValues = $field->Value();
 		return [
 			'values' => $values,
 			'rawValues' => is_array($rawValues) ? $rawValues : [],
-			'subFields' => is_array($subFields) ? $subFields : [],
+			'subFields' => $field->SubFields() ?? [],
 		];
-	}
-
-	private static function text(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): string
-	{
-		return self::textValue(self::field($fieldName, $postId));
-	}
-
-	private static function textFrom(string $key, mixed $parent): string
-	{
-		return self::textValue(self::valueFrom($key, $parent));
-	}
-
-	private static function post(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?PostData
-	{
-		return AcfDtoFactory::PostFromAcf(self::field($fieldName, $postId));
-	}
-
-	private static function postFrom(string $key, mixed $parent): ?PostData
-	{
-		return AcfDtoFactory::PostFromAcf(self::valueFrom($key, $parent));
-	}
-
-	/** @return list<PostData> */
-	private static function posts(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): array
-	{
-		return AcfDtoFactory::PostsFromAcf(self::field($fieldName, $postId));
-	}
-
-	/** @return list<PostData> */
-	private static function postsFrom(string $key, mixed $parent): array
-	{
-		return AcfDtoFactory::PostsFromAcf(self::valueFrom($key, $parent));
-	}
-
-	private static function term(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?TermData
-	{
-		return AcfDtoFactory::TermFromAcf(self::field($fieldName, $postId));
-	}
-
-	private static function termFrom(string $key, mixed $parent): ?TermData
-	{
-		return AcfDtoFactory::TermFromAcf(self::valueFrom($key, $parent));
-	}
-
-	/** @return list<TermData> */
-	private static function terms(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): array
-	{
-		return AcfDtoFactory::TermsFromAcf(self::field($fieldName, $postId));
-	}
-
-	/** @return list<TermData> */
-	private static function termsFrom(string $key, mixed $parent): array
-	{
-		return AcfDtoFactory::TermsFromAcf(self::valueFrom($key, $parent));
-	}
-
-	private static function user(string $fieldName, \WP_Post|PostData|int|string|null $postId = null, int $avatarSize = 96): ?WpUserData
-	{
-		return AcfDtoFactory::UserFromAcf(self::field($fieldName, $postId), $avatarSize);
-	}
-
-	private static function userFrom(string $key, mixed $parent, int $avatarSize = 96): ?WpUserData
-	{
-		return AcfDtoFactory::UserFromAcf(self::valueFrom($key, $parent), $avatarSize);
-	}
-
-	/** @return list<WpUserData> */
-	private static function users(string $fieldName, \WP_Post|PostData|int|string|null $postId = null, int $avatarSize = 96): array
-	{
-		return AcfDtoFactory::UsersFromAcf(self::field($fieldName, $postId), $avatarSize);
-	}
-
-	/** @return list<WpUserData> */
-	private static function usersFrom(string $key, mixed $parent, int $avatarSize = 96): array
-	{
-		return AcfDtoFactory::UsersFromAcf(self::valueFrom($key, $parent), $avatarSize);
-	}
-
-	private static function link(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?LinkData
-	{
-		return AcfDtoFactory::LinkFromAcf(self::field($fieldName, $postId));
-	}
-
-	private static function linkFrom(string $key, mixed $parent): ?LinkData
-	{
-		return AcfDtoFactory::LinkFromAcf(self::valueFrom($key, $parent));
-	}
-
-	private static function floatField(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?float
-	{
-		return self::floatValue(self::field($fieldName, $postId));
-	}
-
-	private static function floatFrom(string $key, mixed $parent): ?float
-	{
-		return self::floatValue(self::valueFrom($key, $parent));
-	}
-
-	private static function int(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?int
-	{
-		return self::intValue(self::field($fieldName, $postId));
-	}
-
-	private static function intFrom(string $key, mixed $parent): ?int
-	{
-		return self::intValue(self::valueFrom($key, $parent));
-	}
-
-	private static function img(string $fieldName, \WP_Post|PostData|int|string|null $postId = null, string|array $size = 'full'): ?ImgData
-	{
-		return AcfDtoFactory::ImgFromAcf(self::field($fieldName, $postId), $size);
-	}
-
-	private static function imgFrom(string $key, mixed $parent, string|array $size = 'full'): ?ImgData
-	{
-		return AcfDtoFactory::ImgFromAcf(self::valueFrom($key, $parent), $size);
-	}
-
-	private static function imgUrl(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?string
-	{
-		return self::httpUrl(self::field($fieldName, $postId));
-	}
-
-	private static function imgUrlFrom(string $key, mixed $parent): ?string
-	{
-		return self::httpUrl(self::valueFrom($key, $parent));
 	}
 
 	private static function iconFieldValue(
@@ -560,9 +421,11 @@ class AcfAdapter
 			return self::valueFrom($fieldName, $source);
 		}
 
-		$field = \get_field_object($fieldName, self::postId($source), false, true);
-		return is_array($field) && ($field['type'] ?? null) === 'icon_picker'
-			? ($field['value'] ?? null)
+		$field = AcfFieldDefinition::From(
+			\get_field_object($fieldName, self::postId($source), false, true),
+		);
+		return $field !== null && $field->IsType('icon_picker')
+			? $field->Value()
 			: null;
 	}
 
@@ -587,38 +450,6 @@ class AcfAdapter
 		return UrlCheck::IsHttpUrl($value)
 			? ['type' => 'url', 'value' => $value]
 			: null;
-	}
-
-	private static function file(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?FileData
-	{
-		return AcfDtoFactory::FileFromAcf(self::field($fieldName, $postId));
-	}
-
-	private static function fileFrom(string $key, mixed $parent): ?FileData
-	{
-		return AcfDtoFactory::FileFromAcf(self::valueFrom($key, $parent));
-	}
-
-	private static function fileUrl(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?string
-	{
-		return self::httpUrl(self::field($fieldName, $postId));
-	}
-
-	private static function fileUrlFrom(string $key, mixed $parent): ?string
-	{
-		return self::httpUrl(self::valueFrom($key, $parent));
-	}
-
-	/** @return list<ImgData> */
-	private static function gallery(string $fieldName, \WP_Post|PostData|int|string|null $postId = null, string|array $size = 'full'): array
-	{
-		return self::galleryValue(self::field($fieldName, $postId), $size);
-	}
-
-	/** @return list<ImgData> */
-	private static function galleryFrom(string $key, mixed $parent, string|array $size = 'full'): array
-	{
-		return self::galleryValue(self::valueFrom($key, $parent), $size);
 	}
 
 	/** @return list<array{values: array<mixed>, rawValues: null|array<mixed>, subFields: null|array<mixed>}> */
@@ -650,11 +481,11 @@ class AcfAdapter
 		if (! is_array($layouts))
 		{return null;}
 		foreach ($layouts as $layout) {
-			if (! is_array($layout) || self::textValue($layout['name'] ?? null) !== $layoutName)
+			$definition = AcfFieldDefinition::From($layout);
+			if ($definition === null || $definition->Name() !== $layoutName)
 			{continue;}
 
-			$subFields = $layout['sub_fields'] ?? null;
-			return is_array($subFields) ? $subFields : [];
+			return $definition->SubFields() ?? [];
 		}
 		return null;
 	}
@@ -691,16 +522,6 @@ class AcfAdapter
 		return AcfDtoFactory::ChoiceFromAcf($value);
 	}
 
-	private static function bool(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?bool
-	{
-		return self::boolValue(self::field($fieldName, $postId));
-	}
-
-	private static function boolFrom(string $key, mixed $parent): ?bool
-	{
-		return self::boolValue(self::valueFrom($key, $parent));
-	}
-
 	private static function date(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?\DateTimeImmutable
 	{
 		$value = self::rawTemporalField($fieldName, $postId, 'date_picker');
@@ -724,12 +545,14 @@ class AcfAdapter
 		\WP_Post|PostData|int|string|null $postId,
 		string $expectedType,
 	): mixed {
-		$field = \get_field_object($fieldName, self::postId($postId), false, true);
-		if (! is_array($field) || ($field['type'] ?? null) !== $expectedType) {
+		$field = AcfFieldDefinition::From(
+			\get_field_object($fieldName, self::postId($postId), false, true),
+		);
+		if ($field === null || ! $field->IsType($expectedType)) {
 			return null;
 		}
 
-		return $field['value'] ?? null;
+		return $field->Value();
 	}
 
 	private static function field(string $name, \WP_Post|PostData|int|string|null $postId): mixed
@@ -762,36 +585,19 @@ class AcfAdapter
 		return is_string($value) && trim($value) !== '' ? $value : '';
 	}
 
-	private static function floatValue(mixed $value): ?float
+	private static function numericRules(): ValueRules
 	{
-		return is_numeric($value) ? (float) $value : null;
+		static $rules;
+		return $rules ??= ValueRules::FromMode(ValueMode::NumericStr);
 	}
 
-	private static function intValue(mixed $value): ?int
+	private static function boolRules(): ValueRules
 	{
-		if (is_int($value)) {
-			return $value;
-		}
-		if (is_float($value)) {
-			if (! is_finite($value) || floor($value) !== $value) {
-				return null;
-			}
-			$integer = (int) $value;
-			return (float) $integer === $value ? $integer : null;
-		}
-		if (! is_string($value) || preg_match('/^-?\d+$/D', $value) !== 1) {
-			return null;
-		}
-		$negative = str_starts_with($value, '-');
-		$digits = ltrim($negative ? substr($value, 1) : $value, '0');
-		$digits = $digits === '' ? '0' : $digits;
-		$limit = $negative ? ltrim((string) PHP_INT_MIN, '-') : (string) PHP_INT_MAX;
-		if (strlen($digits) > strlen($limit)
-			|| (strlen($digits) === strlen($limit) && strcmp($digits, $limit) > 0)
-		) {
-			return null;
-		}
-		return (int) (($negative ? '-' : '') . $digits);
+		static $rules;
+		return $rules ??= ValueRules::FromModes(
+			ValueMode::BoolStr,
+			ValueMode::BoolInt,
+		);
 	}
 
 	private static function httpUrl(mixed $value): ?string
@@ -845,12 +651,11 @@ class AcfAdapter
 	/** フィールド型・返り値設定が合わなければ変換せずnullを返す。 */
 	private static function choiceFieldValue(string $name, \WP_Post|PostData|int|string|null $postId, string $type, string $format): mixed
 	{
-		$field = \get_field_object($name, self::postId($postId));
-		if (! is_array($field) || ($field['type'] ?? null) !== $type
-			|| ($field['return_format'] ?? 'value') !== $format) {
+		$field = AcfFieldDefinition::From(\get_field_object($name, self::postId($postId)));
+		if ($field === null || ! $field->IsType($type) || $field->ReturnFormat() !== $format) {
 			return null;
 		}
-		return $field['value'] ?? null;
+		return $field->Value();
 	}
 
 	private static function radioText(string $name, \WP_Post|PostData|int|string|array|null $source, string $format): ?string
@@ -897,13 +702,13 @@ class AcfAdapter
 		if (is_array($source)) {
 			return self::valueFrom($name, $source);
 		}
-		$field = \get_field_object($name, self::postId($source));
-		if (! is_array($field) || ($field['type'] ?? null) !== 'select'
-			|| ($field['return_format'] ?? 'value') !== $format
-			|| (bool) ($field['multiple'] ?? false) !== $multiple) {
+		$field = AcfFieldDefinition::From(\get_field_object($name, self::postId($source)));
+		if ($field === null || ! $field->IsType('select')
+			|| $field->ReturnFormat() !== $format
+			|| $field->IsMultiple() !== $multiple) {
 			return null;
 		}
-		return $field['value'] ?? null;
+		return $field->Value();
 	}
 
 	private static function selectChoice(string $name, \WP_Post|PostData|int|string|array|null $source): ?ChoiceData
@@ -939,12 +744,4 @@ class AcfAdapter
 		return $result;
 	}
 
-	private static function boolValue(mixed $value): ?bool
-	{
-		return match ($value) {
-			true, 1, '1' => true,
-			false, 0, '0' => false,
-			default => null,
-		};
-	}
 }

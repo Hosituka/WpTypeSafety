@@ -38,7 +38,7 @@ final class CommentQueryAdapter
 		}
 
 		$number = $queryVars['number'] ?? null;
-		$hasLimit = is_numeric($number) && (int) $number > 0;
+		$hasLimit = QueryPagination::PositiveInt($number) !== null;
 		$noFoundRows = (bool) ($queryVars['no_found_rows'] ?? true);
 
 		if (! $hasLimit) {
@@ -56,12 +56,7 @@ final class CommentQueryAdapter
 			Comments: $comments,
 			TotalCount: $totalCount,
 			MaxPageCount: $maxPageCount,
-			CurrentPageNumber: self::pageNumber($queryVars['paged'] ?? null),
+			CurrentPageNumber: QueryPagination::PageNumber($queryVars['paged'] ?? null),
 		);
-	}
-
-	private static function pageNumber(mixed $value): int
-	{
-		return is_numeric($value) && (int) $value > 0 ? (int) $value : 1;
 	}
 }

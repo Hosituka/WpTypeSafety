@@ -6,6 +6,8 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+require_once __DIR__ . '/../autoload.php';
+
 use WpTypeSafety\Acf\Get\AcfGet;
 
 class WP_Post { public function __construct(public int $ID) {} }

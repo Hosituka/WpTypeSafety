@@ -5,6 +5,8 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+require_once __DIR__ . '/../autoload.php';
+
 use WpTypeSafety\Acf\Data\FlexibleNode;
 use WpTypeSafety\Acf\Get\AcfGet;
 

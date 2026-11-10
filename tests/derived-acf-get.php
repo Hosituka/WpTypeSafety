@@ -6,6 +6,8 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+require_once __DIR__ . '/../autoload.php';
+
 use WpTypeSafety\Acf\Data\FlexibleNode;
 use WpTypeSafety\Acf\Get\AcfGet;
 
@@ -55,12 +57,27 @@ $GLOBALS['derivedFields'] = [
 		'type' => 'group',
 		'value' => [
 			'field_event_date' => '20261110',
+			'field_details' => [
+				'field_details_date' => '20261113',
+			],
 		],
 		'formatted_value' => [
 			'event_date' => '2026年11月10日',
+			'details' => [
+				'event_date' => '2026年11月13日',
+			],
 		],
 		'sub_fields' => [
 			['key' => 'field_event_date', 'name' => 'settings_event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+			[
+				'key' => 'field_details',
+				'name' => 'settings_details',
+				'_name' => 'details',
+				'type' => 'group',
+				'sub_fields' => [
+					['key' => 'field_details_date', 'name' => 'details_event_date', '_name' => 'event_date', 'type' => 'date_picker'],
+				],
+			],
 		],
 	],
 	'rows' => [
@@ -108,6 +125,11 @@ $nestedGet = $get->Nested('settings');
 $check($nestedGet instanceof ProjectAcfGet, 'Nested preserves derived type');
 $check($nestedGet->Dependency() === 'injected dependency', 'Nested preserves injected dependency');
 $check($nestedGet->Date('event_date')?->format('Y-m-d') === '2026-11-10', 'Nested preserves temporal context');
+
+$nestedPathGet = $get->NestedPath('settings', 'details');
+$check($nestedPathGet instanceof ProjectAcfGet, 'NestedPath preserves derived type');
+$check($nestedPathGet->Dependency() === 'injected dependency', 'NestedPath preserves injected dependency');
+$check($nestedPathGet->Date('event_date')?->format('Y-m-d') === '2026-11-13', 'NestedPath preserves temporal context through multiple groups');
 
 $rows = $get->Repeater('rows');
 $check(($rows[0] ?? null) instanceof ProjectAcfGet, 'Repeater preserves derived type');

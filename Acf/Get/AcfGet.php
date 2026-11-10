@@ -5,6 +5,7 @@ namespace WpTypeSafety\Acf\Get;
 
 use WpTypeSafety\Acf\Data\FlexibleNode;
 use WpTypeSafety\Acf\Internal\AcfAdapter;
+use WpTypeSafety\Acf\Internal\AcfFieldDefinition;
 use WpTypeSafety\Core\Data\ChoiceData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
@@ -98,6 +99,17 @@ class AcfGet
 			rawValues: $data['rawValues'],
 			subFields: $data['subFields'],
 		);
+	}
+
+	/** Groupだけで構成された複数階層を順番にたどります。 */
+	public function NestedPath(string $fieldName, string ...$fieldNames): static
+	{
+		$nestedGet = $this->Nested($fieldName);
+		foreach ($fieldNames as $nestedFieldName) {
+			$nestedGet = $nestedGet->Nested($nestedFieldName);
+		}
+
+		return $nestedGet;
 	}
 
 	public function Text(string $fieldName): string
@@ -423,16 +435,15 @@ class AcfGet
 	{
 		$values = $this->Array($fieldName);
 		$field = $this->nestedField($fieldName);
-		if ($field === null || ($field['type'] ?? null) !== 'group') {
+		if ($field === null || ! $field->IsType('group')) {
 			return ['values' => $values, 'rawValues' => null, 'subFields' => null];
 		}
 
 		$rawValues = $this->nestedRawValue($field);
-		$subFields = $field['sub_fields'] ?? null;
 		return [
 			'values' => $values,
 			'rawValues' => is_array($rawValues) ? $rawValues : [],
-			'subFields' => is_array($subFields) ? $subFields : [],
+			'subFields' => $field->SubFields() ?? [],
 		];
 	}
 
@@ -441,13 +452,13 @@ class AcfGet
 	{
 		$values = $this->Array($fieldName);
 		$field = $this->nestedField($fieldName);
-		if ($field === null || ($field['type'] ?? null) !== 'repeater')
+		if ($field === null || ! $field->IsType('repeater'))
 		{return $this->adapter->ConvertRepeater($values);}
 
 		return $this->adapter->ConvertRepeater(
 			values: $values,
 			rawValues: $this->nestedRawValue($field),
-			subFields: $field['sub_fields'] ?? null,
+			subFields: $field->SubFields(),
 		);
 	}
 
@@ -456,46 +467,43 @@ class AcfGet
 	{
 		$values = $this->Array($fieldName);
 		$field = $this->nestedField($fieldName);
-		if ($field === null || ($field['type'] ?? null) !== 'flexible_content')
+		if ($field === null || ! $field->IsType('flexible_content'))
 		{return $this->adapter->ConvertFlexible($values);}
 
 		return $this->adapter->ConvertFlexible(
 			values: $values,
 			rawValues: $this->nestedRawValue($field),
-			layouts: $field['layouts'] ?? null,
+			layouts: $field->Layouts(),
 		);
 	}
 
-	/** @return null|array<mixed> */
-	private function nestedFieldOfType(string $fieldName, string $expectedType): ?array
+	private function nestedFieldOfType(string $fieldName, string $expectedType): ?AcfFieldDefinition
 	{
 		$field = $this->nestedField($fieldName);
-		return $field !== null && ($field['type'] ?? null) === $expectedType
+		return $field !== null && $field->IsType($expectedType)
 			? $field
 			: null;
 	}
 
-	/** @return null|array<mixed> */
-	private function nestedField(string $fieldName): ?array
+	private function nestedField(string $fieldName): ?AcfFieldDefinition
 	{
 		foreach ($this->nestedSubFields as $field) {
-			if (! is_array($field))
+			$definition = AcfFieldDefinition::From($field);
+			if ($definition === null)
 			{continue;}
 
-			$name = $field['_name'] ?? $field['name'] ?? null;
-			if ($name === $fieldName) {
-				return $field;
+			if ($definition->Name() === $fieldName) {
+				return $definition;
 			}
 		}
 
 		return null;
 	}
 
-	/** @param array<mixed> $field */
-	private function nestedRawValue(array $field): mixed
+	private function nestedRawValue(AcfFieldDefinition $field): mixed
 	{
-		foreach ([$field['key'] ?? null, $field['_name'] ?? null, $field['name'] ?? null] as $key) {
-			if (is_string($key) && array_key_exists($key, $this->nestedRawValues)) {
+		foreach ($field->RawValueKeys() as $key) {
+			if (array_key_exists($key, $this->nestedRawValues)) {
 				return $this->nestedRawValues[$key];
 			}
 		}
