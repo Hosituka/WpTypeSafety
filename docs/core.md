@@ -4,7 +4,8 @@ CoreはWordPress・ACFへ依存せず、取得済みのPHP値だけを扱いま�
 
 | 入力 | 入口 |
 |---|---|
-| 単独の値 | `TypeCheck` |
+| 単独の値を変換せず確認する | `TypeCheck` |
+| 単独の値を規則に従って正規化する | `ValueReader` |
 | 文字列キーと全要素の型をまとめて確認する辞書 | `DictCheck` |
 | 配列内の値 | `ArrayGet` |
 | objectのpublicインスタンスプロパティ | `ObjectGet` |
@@ -29,6 +30,68 @@ $enabled = TypeCheck::Bool($args['enabled'] ?? null) ?? false;
 ACFのNumberフィールドは数値文字列を返すことがあるため、`TypeCheck::Int(get_field(...))`ではなく`AcfGet::Int()`または`AcfGet::Float()`を使用します。
 
 `String()`、`Int()`、`Float()`、`Bool()`、`Array()`、`Instance($value, SomeClass::class)`を用意しています。`StringList()`、`IntList()`、`FloatList()`、`BoolList()`、`InstanceList($value, SomeClass::class)`は、入力が配列なら型違いの要素を除いて0からキーを振り直し、配列以外ならnullを返します。配列に合う要素がない場合は空配列です。`Array()`は要素を検証せず、連想配列のキーも保持します。
+
+## 単体値の規則付き読み取り：ValueReader
+
+`ValueReader`は、単独の値とリストを`ValueRules`に従って正規化します。既定値は`ValueMode::Strict`であり、引数を省略した場合は`TypeCheck`と同じく元のPHP型が一致する値だけを受け入れます。数値文字列や真偽値表現を明示的に許可する場合は、コンストラクターへ`ValueMode`または`ValueRules`を渡します。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\ValueReader;
+use WpTypeSafety\Core\Check\ValueRules;
+
+$strictReader = new ValueReader();
+$strictCount = $strictReader->Int('12'); // null
+
+$numericReader = new ValueReader(ValueMode::NumericStr);
+$count = $numericReader->Int('12');       // 12
+$ids = $numericReader->IntList(['1', 'invalid', 2]); // [1, 2]
+
+$booleanReader = new ValueReader(ValueRules::FromModes(
+	ValueMode::BoolStr,
+	ValueMode::BoolInt,
+	ValueMode::EmptyStrAsFalse,
+));
+$enabled = $booleanReader->Bool('true');
+```
+
+単数取得は正規化できなければ`null`を返します。リスト取得は入力が配列でなければ`null`、配列なら正規化できない要素を除外して0からキーを振り直します。`BackedEnum()`・`BackedEnumList()`にも同じRulesを適用します。`Array()`・`Instance()`・`InstanceList()`は変換規則の対象外で、`TypeCheck`と同じく元のPHP型だけを確認します。
+
+`WithMode()`・`WithRules()`は新しい`ValueReader`を返し、元のReaderを変更しません。渡された`ValueRules`は生成時にcloneされるため、生成後に元のRulesを書き換えても既存Readerの判定基準は変化しません。
+
+## 正規化後の値条件：predicate
+
+`ValueReader`・`ArrayGet`・`ObjectGet`・`TreeGet`の最終的な値を返すGetterには、省略可能な`predicate`を指定できます。predicateは型確認・ValueRulesによる正規化が成功した値だけを受け取り、値を採用する場合は`true`、既存のフォールバックへ戻す場合は`false`を返します。欠損値や正規化できない値ではpredicateを実行しません。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ArrayGet;
+use WpTypeSafety\Core\Check\ValueMode;
+
+$get = new ArrayGet([
+	'age' => '20',
+	'prices' => ['100', -50, 'invalid', 200, 0],
+], ValueMode::NumericStr);
+
+$age = $get->Int(
+	'age',
+	predicate: static fn(int $value): bool => $value >= 18,
+); // 20
+
+$prices = $get->IntList(
+	'prices',
+	predicate: static fn(int $value): bool => $value > 0,
+); // [100, 200]
+```
+
+単数Getterでpredicateが`false`を返した場合は、それぞれの既存フォールバックを返します。`ValueReader`なら`null`、各Getの`String()`なら空文字、`Array()`なら空配列、それ以外のnullableな単数Getterなら`null`です。正しい値の`0`・`false`・空文字・空配列にもpredicateを実行します。戻り値だけでは、元からフォールバックと同じ値だった場合と条件不一致を区別できません。必要な場合は`Exists()`や別の状態管理を併用します。
+
+List系Getterのpredicateは、正規化済みの各要素を一度ずつ検証します。`false`の要素を除外し、順序を維持したまま0からキーを振り直します。全件不一致なら空配列です。`Array()`のpredicateは配列内の各要素ではなく、取得した配列全体を受け取ります。`Instance()`・`BackedEnum()`と専用Data系Getterにも同じ仕組みがあり、専用Data系は内部で`Instance()`・`InstanceList()`へ委譲します。
+
+predicateがbool以外を返した場合は`UnexpectedValueException`を投げます。predicate自身が投げた例外は捕捉・変換せず、そのまま呼び出し元へ伝播します。PHPDocには各Getterが正規化した後の型をcallback引数として記載しているため、PHPStan・Psalm等を使用する場合は引数型を検査できます。predicateは値条件だけを判定する、副作用のない関数として記述することを推奨します。
+
+`TypeCheck`は変換や追加条件を持たない厳密な型確認の入口として維持し、predicateには対応しません。ValueRulesは入力表現の許容範囲、Getterは期待する型、predicateは取得操作ごとの値条件を担当します。
 
 ## 連想配列の型確認：DictCheck
 
@@ -85,6 +148,29 @@ $title = $acfGet->NestedPath('middle', 'inner')->String('title');
 `ArrayGet`はテンプレートパーツの`$args`や取得済みの配列からキーを取り出します。キーにはPHPの`array-key`と同じ`int|string`を指定でき、負の整数キーも対象です。コンストラクターには`mixed`を渡せます。配列以外は空配列として扱うため、`get_field()`の戻り値やリピーターの各行をそのまま渡せます。既定の`ValueMode::Strict`では型判定を`TypeCheck`と同じ基準で行い、値を変換しません。文字列は空文字、配列は空配列、それ以外はnullを型違い・未指定時に返します。`Instance()`と`InstanceList()`は案件固有データクラスにも使用できます。`*List()`は受け入れられない要素を除外して0からキーを振り直し、すべての要素が除外された場合は空配列を返します。
 
 `Exists()`はキーが存在するかだけを確認し、`ExistsPath()`は`NestedPath()`と同じくarrayだけで構成された経路の終端が存在するかを確認します。値の型やNormalizerの結果には依存せず、終端の値が明示的な`null`でも`true`、キーの欠損や経路途中の型違いがあれば`false`です。
+
+`Transform()`は、指定キーに格納された値をコールバックへ渡し、その戻り値を新しい`ArrayGet`の探索対象にします。JSON文字列など、そのままでは`Nested()`できない値を探索途中で配列へ変換する場合に使用します。変換後も現在のValueRulesを引き継ぎ、元の`ArrayGet`は変更しません。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ArrayGet;
+use WpTypeSafety\Core\Check\ValueMode;
+
+$payloadGet = new ArrayGet([
+	'payload' => '{"price":"1500"}',
+], ValueMode::NumericStr);
+
+$price = $payloadGet
+	->Transform(
+		'payload',
+		static fn(mixed $value): mixed => is_string($value)
+			? json_decode($value, true)
+			: null,
+	)
+	->Int('price'); // 1500
+```
+
+指定キーが欠損している場合はコールバックを実行せず、空の`ArrayGet`を返します。キーが存在して値が明示的な`null`の場合は、その`null`をコールバックへ渡します。戻り値が配列以外の場合も空の`ArrayGet`として扱います。コールバック自身が投げた例外は捕捉・変換せず、そのまま呼び出し元へ伝播します。失敗を空配列として扱う場合は、利用者がコールバック内で対象の例外を捕捉して`[]`を返します。
 
 数値がPHPの数値型と数値文字列の間で揺れる境界では、第2引数に`ValueMode::NumericStr`を指定できます。
 
@@ -269,6 +355,8 @@ $name = $profileGet->String('name');
 
 `Nested()`はobjectである単一プロパティを`ObjectGet`で包み、`NestedPath('Outer', 'Middle', 'Inner')`は複数階層のobjectを一度に辿ります。`NestedPath()`はobjectだけを対象とし、途中にarrayが現れても自動的に`ArrayGet`へ切り替えません。型をまたぐ箇所では`NestedArray()`を明示的に使用します。`NestedList()`は配列内のobjectだけを`list<ObjectGet>`として返し、`NestedArray()`はarrayである単一プロパティを`ArrayGet`で包み、`NestedArrayList()`は配列内のarrayだけを`list<ArrayGet>`として返します。これにより、配列とオブジェクトが交互に現れる木構造でも取得口を切り替えながらたどれます。ValueMode・Rulesと、プリミティブ値・型付きリスト・`Instance()`・Core Data用アクセサーの戻り値規則は`ArrayGet`と同じです。HTMLエスケープや値の意味に関するバリデーションは行いません。
 
+`Transform()`は指定したpublicプロパティの値をコールバックへ渡し、戻り値を新しい`ObjectGet`の探索対象にします。欠損プロパティではコールバックを呼ばず、オブジェクト以外の戻り値は空の`ObjectGet`として扱います。明示的な`null`、Rulesの継承、元インスタンスの不変性、例外伝播の契約は`ArrayGet::Transform()`と同じです。
+
 ```php
 <?php
 $responseGet = new ObjectGet($response);
@@ -306,6 +394,8 @@ $age = $profileGet->Int('age');
 `Exists()`は現在ノードに直下のキーまたは対象プロパティが存在するかを確認し、`ExistsPath()`は`NestedPath()`と同じくarray・objectが混在する経路を確認します。終端の明示的な`null`は`true`、欠損、経路途中の`null`・スカラー値、対象外プロパティは`false`です。ValueModeやNormalizerによる値の正規化は行いません。
 
 `Nested()`と`NestedPath()`は各階層でarray・objectを自動判定します。途中でキー・プロパティが欠損するか、スカラー値へ到達した場合は、それ以降を空の取得元として扱います。ドット区切り文字列は使用せず、キーにドットが含まれる場合と区別できる可変長引数を使用します。
+
+`Transform()`は現在ノードの指定セグメントをコールバックで変換し、その戻り値を新しい`TreeGet`の探索対象にします。変換結果がarrayでもobjectでも同じ取得口で探索を継続できます。欠損セグメントではコールバックを呼ばず、明示的な`null`と例外伝播、Rulesの継承、元インスタンスの不変性は`ArrayGet::Transform()`と同じです。
 
 `NestedList()`は対象値が配列の場合、arrayまたはobjectである要素だけを`list<TreeGet>`として返します。プリミティブ値は除外します。子ノードの型が既知なら、`NestedArray()`・`NestedObject()`で直接`ArrayGet`・`ObjectGet`へ切り替えられます。リストでは`NestedArrayList()`・`NestedObjectList()`が対象型の要素だけを抽出します。型違い・欠損時は単体なら空のGet、リストなら空配列を返し、Rulesは引き継がれます。
 

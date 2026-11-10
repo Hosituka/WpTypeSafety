@@ -9,6 +9,7 @@ use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
 use WpTypeSafety\Core\Internal\ResolvedValue;
+use WpTypeSafety\Core\Internal\ValuePredicate;
 use WpTypeSafety\Core\Internal\ValueResolver;
 
 /** 連想配列からキーを指定し、設定した基準で値を取得します。 */
@@ -49,6 +50,21 @@ final class ArrayGet
 		return new self($this->values, $rules);
 	}
 
+	/**
+	 * 指定キーの値を変換し、戻り値を新しい探索対象として使用します。
+	 *
+	 * @param callable(mixed): mixed $transformer
+	 */
+	public function Transform(int|string $key, callable $transformer): self
+	{
+		$resolved = $this->resolveValue($key);
+		$transformed = $resolved->Exists
+			? $transformer($resolved->Value)
+			: [];
+
+		return new self($transformed, $this->rules);
+	}
+
 	public function Exists(int|string $key): bool
 	{
 		return $this->resolveValue($key)->Exists;
@@ -66,120 +82,183 @@ final class ArrayGet
 	/**
 	 * @template T of object
 	 * @param class-string<T> $className
+	 * @param (callable(T): bool)|null $predicate
 	 * @return T|null
 	 */
-	public function Instance(int|string $key, string $className): ?object
+	public function Instance(int|string $key, string $className, ?callable $predicate = null): ?object
 	{
-		return TypeCheck::Instance($this->value($key), $className);
+		$normalized = TypeCheck::Instance($this->value($key), $className);
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
 	}
 
 	/**
 	 * @template T of object
 	 * @param class-string<T> $className
+	 * @param (callable(T): bool)|null $predicate
 	 * @return list<T>
 	 */
-	public function InstanceList(int|string $key, string $className): array
+	public function InstanceList(int|string $key, string $className, ?callable $predicate = null): array
 	{
-		return TypeCheck::InstanceList($this->value($key), $className) ?? [];
-	}
-
-	/** @return list<string> */
-	public function StringList(int|string $key): array
-	{
-		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
-			? ($this->rules->NormalizeStringList($resolved->Value) ?? [])
+		$normalized = TypeCheck::InstanceList($this->value($key), $className);
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	/** @return list<int> */
-	public function IntList(int|string $key): array
+	/**
+	 * @param (callable(string): bool)|null $predicate
+	 * @return list<string>
+	 */
+	public function StringList(int|string $key, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
-			? ($this->rules->NormalizeIntList($resolved->Value) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeStringList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	/** @return list<float> */
-	public function FloatList(int|string $key): array
+	/**
+	 * @param (callable(int): bool)|null $predicate
+	 * @return list<int>
+	 */
+	public function IntList(int|string $key, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
-			? ($this->rules->NormalizeFloatList($resolved->Value) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeIntList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	/** @return list<bool> */
-	public function BoolList(int|string $key): array
+	/**
+	 * @param (callable(float): bool)|null $predicate
+	 * @return list<float>
+	 */
+	public function FloatList(int|string $key, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
-			? ($this->rules->NormalizeBoolList($resolved->Value) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeFloatList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	public function String(int|string $key): string
+	/**
+	 * @param (callable(bool): bool)|null $predicate
+	 * @return list<bool>
+	 */
+	public function BoolList(int|string $key, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
-			? ($this->rules->NormalizeString($resolved->Value) ?? '')
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeBoolList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
+			: [];
+	}
+
+	/** @param (callable(string): bool)|null $predicate */
+	public function String(int|string $key, ?callable $predicate = null): string
+	{
+		$resolved = $this->resolveValue($key);
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeString($resolved->Value)
+			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
 			: '';
 	}
 
-	public function Int(int|string $key): ?int
+	/** @param (callable(int): bool)|null $predicate */
+	public function Int(int|string $key, ?callable $predicate = null): ?int
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
+		$normalized = $resolved->Exists
 			? $this->rules->NormalizeInt($resolved->Value)
 			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
 	}
 
-	public function Float(int|string $key): ?float
+	/** @param (callable(float): bool)|null $predicate */
+	public function Float(int|string $key, ?callable $predicate = null): ?float
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
+		$normalized = $resolved->Exists
 			? $this->rules->NormalizeFloat($resolved->Value)
 			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
 	}
 
-	public function Bool(int|string $key): ?bool
+	/** @param (callable(bool): bool)|null $predicate */
+	public function Bool(int|string $key, ?callable $predicate = null): ?bool
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
+		$normalized = $resolved->Exists
 			? $this->rules->NormalizeBool($resolved->Value)
 			: null;
-	}
-
-	/**
-	 * @template T of \BackedEnum
-	 * @param class-string<T> $enumClass
-	 * @return T|null
-	 */
-	public function BackedEnum(int|string $key, string $enumClass): ?\BackedEnum
-	{
-		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
-			? $this->rules->NormalizeBackedEnum($resolved->Value, $enumClass)
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
 			: null;
 	}
 
 	/**
 	 * @template T of \BackedEnum
 	 * @param class-string<T> $enumClass
-	 * @return list<T>
+	 * @param (callable(T): bool)|null $predicate
+	 * @return T|null
 	 */
-	public function BackedEnumList(int|string $key, string $enumClass): array
+	public function BackedEnum(int|string $key, string $enumClass, ?callable $predicate = null): ?\BackedEnum
 	{
 		$resolved = $this->resolveValue($key);
-		return $resolved->Exists
-			? ($this->rules->NormalizeBackedEnumList($resolved->Value, $enumClass) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeBackedEnum($resolved->Value, $enumClass)
+			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
+	}
+
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @param (callable(T): bool)|null $predicate
+	 * @return list<T>
+	 */
+	public function BackedEnumList(int|string $key, string $enumClass, ?callable $predicate = null): array
+	{
+		$resolved = $this->resolveValue($key);
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeBackedEnumList($resolved->Value, $enumClass)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	public function Array(int|string $key): array
+	/** @param (callable(array<array-key, mixed>): bool)|null $predicate */
+	public function Array(int|string $key, ?callable $predicate = null): array
 	{
-		return TypeCheck::Array($this->value($key)) ?? [];
+		$resolved = $this->resolveValue($key);
+		$normalized = $resolved->Exists
+			? TypeCheck::Array($resolved->Value)
+			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: [];
 	}
 
 	public function Nested(int|string $key): self
@@ -230,58 +309,78 @@ final class ArrayGet
 		return $items;
 	}
 
-	public function ImgData(int|string $key): ?ImgData
+	/** @param (callable(ImgData): bool)|null $predicate */
+	public function ImgData(int|string $key, ?callable $predicate = null): ?ImgData
 	{
-		return $this->Instance($key, ImgData::class);
+		return $this->Instance($key, ImgData::class, $predicate);
 	}
 
-	public function LinkData(int|string $key): ?LinkData
+	/** @param (callable(LinkData): bool)|null $predicate */
+	public function LinkData(int|string $key, ?callable $predicate = null): ?LinkData
 	{
-		return $this->Instance($key, LinkData::class);
+		return $this->Instance($key, LinkData::class, $predicate);
 	}
 
-	public function ChoiceData(int|string $key): ?ChoiceData
+	/** @param (callable(ChoiceData): bool)|null $predicate */
+	public function ChoiceData(int|string $key, ?callable $predicate = null): ?ChoiceData
 	{
-		return $this->Instance($key, ChoiceData::class);
+		return $this->Instance($key, ChoiceData::class, $predicate);
 	}
 
-	public function FileData(int|string $key): ?FileData
+	/** @param (callable(FileData): bool)|null $predicate */
+	public function FileData(int|string $key, ?callable $predicate = null): ?FileData
 	{
-		return $this->Instance($key, FileData::class);
+		return $this->Instance($key, FileData::class, $predicate);
 	}
 
-	public function TimeData(int|string $key): ?TimeData
+	/** @param (callable(TimeData): bool)|null $predicate */
+	public function TimeData(int|string $key, ?callable $predicate = null): ?TimeData
 	{
-		return $this->Instance($key, TimeData::class);
+		return $this->Instance($key, TimeData::class, $predicate);
 	}
 
-	/** @return list<ImgData> */
-	public function ImgDataList(int|string $key): array
+	/**
+	 * @param (callable(ImgData): bool)|null $predicate
+	 * @return list<ImgData>
+	 */
+	public function ImgDataList(int|string $key, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($key, ImgData::class);
+		return $this->InstanceList($key, ImgData::class, $predicate);
 	}
 
-	/** @return list<LinkData> */
-	public function LinkDataList(int|string $key): array
+	/**
+	 * @param (callable(LinkData): bool)|null $predicate
+	 * @return list<LinkData>
+	 */
+	public function LinkDataList(int|string $key, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($key, LinkData::class);
+		return $this->InstanceList($key, LinkData::class, $predicate);
 	}
 
-	/** @return list<ChoiceData> */
-	public function ChoiceDataList(int|string $key): array
+	/**
+	 * @param (callable(ChoiceData): bool)|null $predicate
+	 * @return list<ChoiceData>
+	 */
+	public function ChoiceDataList(int|string $key, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($key, ChoiceData::class);
+		return $this->InstanceList($key, ChoiceData::class, $predicate);
 	}
 
-	/** @return list<FileData> */
-	public function FileDataList(int|string $key): array
+	/**
+	 * @param (callable(FileData): bool)|null $predicate
+	 * @return list<FileData>
+	 */
+	public function FileDataList(int|string $key, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($key, FileData::class);
+		return $this->InstanceList($key, FileData::class, $predicate);
 	}
 
-	/** @return list<TimeData> */
-	public function TimeDataList(int|string $key): array
+	/**
+	 * @param (callable(TimeData): bool)|null $predicate
+	 * @return list<TimeData>
+	 */
+	public function TimeDataList(int|string $key, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($key, TimeData::class);
+		return $this->InstanceList($key, TimeData::class, $predicate);
 	}
 }

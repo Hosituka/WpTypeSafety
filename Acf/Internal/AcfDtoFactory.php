@@ -11,6 +11,7 @@ use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Internal\DtoFactory as WpDtoFactory;
+use WpTypeSafety\Wp\Internal\ReferenceAdapter;
 use WpTypeSafety\Wp\Internal\TermAdapter;
 use WpTypeSafety\Core\Internal\UrlCheck;
 
@@ -21,14 +22,8 @@ final class AcfDtoFactory
 
 	public static function PostFromAcf(mixed $value): ?PostData
 	{
-		if ($value instanceof \WP_Post) {
-			return WpDtoFactory::PostFromWpPost($value);
-		}
-		if (! self::isPositiveId($value)) {
-			return null;
-		}
-		$post = \get_post((int) $value);
-		return $post instanceof \WP_Post ? WpDtoFactory::PostFromWpPost($post) : null;
+		$post = self::WpPostFromAcf($value);
+		return $post !== null ? WpDtoFactory::PostFromWpPost($post) : null;
 	}
 
 	/** @return list<PostData> */
@@ -37,16 +32,21 @@ final class AcfDtoFactory
 		return self::listFromAcf($value, self::PostFromAcf(...));
 	}
 
+	public static function WpPostFromAcf(mixed $value): ?\WP_Post
+	{
+		return ReferenceAdapter::WpPost($value);
+	}
+
+	/** @return list<\WP_Post> */
+	public static function WpPostsFromAcf(mixed $value): array
+	{
+		return self::listFromAcf($value, self::WpPostFromAcf(...));
+	}
+
 	public static function TermFromAcf(mixed $value): ?TermData
 	{
-		if ($value instanceof \WP_Term) {
-			return TermAdapter::FromWpTerm($value);
-		}
-		if (! self::isPositiveId($value)) {
-			return null;
-		}
-		$term = \get_term((int) $value);
-		return $term instanceof \WP_Term ? TermAdapter::FromWpTerm($term) : null;
+		$term = self::WpTermFromAcf($value);
+		return $term !== null ? TermAdapter::FromWpTerm($term) : null;
 	}
 
 	/** @return list<TermData> */
@@ -55,17 +55,21 @@ final class AcfDtoFactory
 		return self::listFromAcf($value, self::TermFromAcf(...));
 	}
 
+	public static function WpTermFromAcf(mixed $value): ?\WP_Term
+	{
+		return ReferenceAdapter::WpTerm($value);
+	}
+
+	/** @return list<\WP_Term> */
+	public static function WpTermsFromAcf(mixed $value): array
+	{
+		return self::listFromAcf($value, self::WpTermFromAcf(...));
+	}
+
 	public static function UserFromAcf(mixed $value, int $avatarSize = 96): ?WpUserData
 	{
-		if ($value instanceof \WP_User) {
-			return WpDtoFactory::UserFromWpUser($value, $avatarSize);
-		}
-		$id = is_array($value) ? ($value['ID'] ?? null) : $value;
-		if (! self::isPositiveId($id)) {
-			return null;
-		}
-		$user = \get_userdata((int) $id);
-		return $user instanceof \WP_User ? WpDtoFactory::UserFromWpUser($user, $avatarSize) : null;
+		$user = self::WpUserFromAcf($value);
+		return $user !== null ? WpDtoFactory::UserFromWpUser($user, $avatarSize) : null;
 	}
 
 	/** @return list<WpUserData> */
@@ -75,6 +79,17 @@ final class AcfDtoFactory
 			$value,
 			static fn (mixed $item): ?WpUserData => self::UserFromAcf($item, $avatarSize),
 		);
+	}
+
+	public static function WpUserFromAcf(mixed $value): ?\WP_User
+	{
+		return ReferenceAdapter::WpUser($value);
+	}
+
+	/** @return list<\WP_User> */
+	public static function WpUsersFromAcf(mixed $value): array
+	{
+		return self::listFromAcf($value, self::WpUserFromAcf(...));
 	}
 
 	/**

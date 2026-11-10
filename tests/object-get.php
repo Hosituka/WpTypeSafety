@@ -133,6 +133,90 @@ $check($pathGet->NestedPath('Middle', 'Inner')->String('Name') === 'Deep object'
 $check($pathGet->NestedPath('Middle', 'Array')->String('Name') === '', 'ObjectGet NestedPath does not cross from an object to an array');
 $check($pathGet->NestedPath('Middle', 'Missing')->String('Name') === '', 'ObjectGet NestedPath returns an empty getter after a missing segment');
 
+$transformGet = new ObjectGet((object) [
+	'Payload' => '{"Name":"Transformed object","Count":"12"}',
+	'Nullable' => null,
+], ValueMode::NumericStr);
+$transformCalls = 0;
+$transformedGet = $transformGet->Transform(
+	'Payload',
+	static function (mixed $value) use (&$transformCalls): mixed {
+		$transformCalls++;
+		return is_string($value) ? json_decode($value) : null;
+	},
+);
+$check($transformCalls === 1, 'ObjectGet Transform calls the transformer exactly once');
+$check($transformedGet->String('Name') === 'Transformed object', 'ObjectGet Transform uses an object result as the new source');
+$check($transformedGet->Int('Count') === 12, 'ObjectGet Transform inherits ValueRules');
+$check($transformGet->String('Name') === '', 'ObjectGet Transform does not change the original source');
+
+$receivedTransformNull = false;
+$check(
+	$transformGet->Transform(
+		'Nullable',
+		static function (mixed $value) use (&$receivedTransformNull): object {
+			$receivedTransformNull = $value === null;
+			return (object) ['Received' => true];
+		},
+	)->Bool('Received') === true,
+	'ObjectGet Transform can use the result produced from an explicit null',
+);
+$check($receivedTransformNull, 'ObjectGet Transform passes an explicitly stored null to the transformer');
+
+$missingTransformCalls = 0;
+$missingTransformedGet = $transformGet->Transform(
+	'Missing',
+	static function (mixed $value) use (&$missingTransformCalls): object {
+		$missingTransformCalls++;
+		return (object) ['Unexpected' => $value];
+	},
+);
+$check($missingTransformCalls === 0, 'ObjectGet Transform does not call the transformer for a missing property');
+$check($missingTransformedGet->String('Unexpected') === '', 'ObjectGet Transform returns an empty getter for a missing property');
+$check(
+	$transformGet->Transform('Payload', static fn(mixed $value): mixed => [])->String('Name') === '',
+	'ObjectGet Transform returns an empty getter for a non-object result',
+);
+
+$transformException = new RuntimeException('ObjectGet Transform failure');
+$caughtTransformException = null;
+try {
+	$transformGet->Transform(
+		'Payload',
+		static fn(mixed $value): mixed => throw $transformException,
+	);
+} catch (RuntimeException $exception) {
+	$caughtTransformException = $exception;
+}
+$check($caughtTransformException === $transformException, 'ObjectGet Transform propagates the transformer exception unchanged');
+
+$predicateOpeningTime = new TimeData(Hour: 9, Minute: 30, Second: 0);
+$predicateClosingTime = new TimeData(Hour: 18, Minute: 0, Second: 0);
+$predicateGet = new ObjectGet((object) [
+	'Age' => '20',
+	'Enabled' => false,
+	'Prices' => ['100', -50, 'invalid', 200, 0],
+	'Settings' => ['color' => 'blue'],
+	'Item' => $predicateOpeningTime,
+	'Items' => [$predicateOpeningTime, 'invalid', $predicateClosingTime],
+	'Status' => 'published',
+], ValueMode::NumericStr);
+$check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value >= 18) === 20, 'ObjectGet applies a predicate after ValueRules normalization');
+$check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value > 20) === null, 'ObjectGet returns null when an Int predicate rejects the value');
+$check($predicateGet->Bool('Enabled', predicate: static fn(bool $value): bool => ! $value) === false, 'ObjectGet passes a valid false to a predicate');
+$check($predicateGet->IntList('Prices', predicate: static fn(int $value): bool => $value > 0) === [100, 200], 'ObjectGet filters normalized list values with a predicate');
+$check($predicateGet->Array('Settings', predicate: static fn(array $value): bool => isset($value['color'])) === ['color' => 'blue'], 'ObjectGet applies a predicate to an entire array');
+$check($predicateGet->TimeData('Item', predicate: static fn(TimeData $value): bool => $value->Hour < 12) === $predicateOpeningTime, 'ObjectGet Data accessors delegate a predicate to Instance');
+$check($predicateGet->TimeDataList('Items', predicate: static fn(TimeData $value): bool => $value->Hour >= 12) === [$predicateClosingTime], 'ObjectGet Data list accessors delegate a predicate to InstanceList');
+$check($predicateGet->BackedEnum('Status', ObjectGetPublishStatus::class, predicate: static fn(ObjectGetPublishStatus $value): bool => $value === ObjectGetPublishStatus::Published) === ObjectGetPublishStatus::Published, 'ObjectGet applies a predicate after backed Enum normalization');
+
+$skippedPredicateCalls = 0;
+$predicateGet->Int('Missing', predicate: static function (int $value) use (&$skippedPredicateCalls): bool {
+	$skippedPredicateCalls++;
+	return true;
+});
+$check($skippedPredicateCalls === 0, 'ObjectGet does not call a predicate for a missing property');
+
 $children = $get->NestedList('Children');
 $check(count($children) === 2, 'NestedList filters non-object items');
 $check($children[0] instanceof ObjectGet, 'NestedList returns ObjectGet instances');

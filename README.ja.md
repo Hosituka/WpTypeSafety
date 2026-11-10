@@ -85,6 +85,8 @@ foreach ($postGet->Repeater('items') as $rowGet) {
 - `Text(): string`、`Float(): ?float`、`Int(): ?int`、`Img(): ?ImgData`、`IconClass(): ?string`、`IconImg(): ?ImgData`、`IconUrl(): ?string`、`Posts(): list<PostData>`、`Terms(): list<TermData>`、`Users(): list<WpUserData>`、`Repeater(): list<AcfGet>`、`Flexible(): list<FlexibleNode>`など、用途ごとに戻り値型を固定した取得口。
 - 未対応・独自ACFフィールド向けの明示的な拡張口`Native(): mixed`。通常のACF戻り値をWpTypeSafetyで変換せず返す。
 - `PostData`は投稿状態・投稿タイプ・スラッグ・パスワード保護の有無・WordPressの公開閲覧可否を保持し、パスワード自体は公開しない。
+- `MetaGet`は投稿・ターム・ユーザー・コメントのメタについて、欠損と保存済みの空値を区別して型付き取得する。`Nested()`後も同じ取得口で保存値をたどり、明示したIDをWordPressのDataや別の`MetaGet`へ変換できる。
+- `WpPost()`・`WpTerm()`・`WpUser()`・`WpComment()`により、必要な境界だけWordPressネイティブオブジェクトへ明示的に戻せる。
 - 既存のWordPress・ACF APIと併用しながら、必要な取得処理から段階的に置き換えられる。Dataは直接`new`でも生成できる。
 - WordPress・ACFに依存しないCoreの型確認と、配列・オブジェクトのpublicプロパティからの取得。
 - Composerコマンドや`vendor`ディレクトリを必要とせず配置できる。テーマ側Data用のPSR-4読み込みは任意。
@@ -227,6 +229,7 @@ $status = $resultGet->String('status');                  // string
 | やりたいこと | 主な入口 |
 |---|---|
 | ACFフィールドを型付きで取得する | `AcfGet` |
+| WordPressメタを型付きで取得し、保存された木構造をたどる | `MetaGet` |
 | WordPressオブジェクトをDataへ変換する | `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`・`AttachmentFactory` |
 | WordPressクエリを実行してDataへ変換する | `PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery` |
 | ACFブロック情報をDataへ変換する | `AcfDataFactory` |
@@ -304,7 +307,6 @@ HTMLの組み立てと出力時のエスケープは利用側で行います。�
 | `Core` | 必須 | 不要 | 不要 |
 | `Wp` | 必須 | 必須 | 不要 |
 | `Acf` | 必須 | 必須 | 必須 |
-| `Support\Esc` | 必須 | 必須 | 不要 |
 | 任意PSR-4読み込み | 必須 | 不要 | 不要 |
 
 ## 詳細ドキュメント
@@ -316,7 +318,6 @@ HTMLの組み立てと出力時のエスケープは利用側で行います。�
 | 型確認と配列・オブジェクトからの取得 | [Core](docs/core.md) | 利用者 |
 | Data、Resolver、派生クラス | [Data](docs/data.md) | 利用者 |
 | `autoload.php`と任意PSR-4読み込み | [Autoload](docs/autoload.md) | 利用者 |
-| テーマ開発の補助機能 | [Support](docs/support.md) | 利用者 |
 | 入れ子のACF、派生Data、ACFブロックの実装例 | [利用例](docs/examples.md) | 利用者 |
 | 内部構造と検証手順 | [Architecture](docs/architecture.md) | 保守者 |
 | 旧APIからの移行 | [Migration](docs/migration.md) | 移行時 |

@@ -101,6 +101,128 @@ $check($get->NestedPath('deep_group', 'missing', 'inner')->String('title') === '
 $check($get->NestedObject('object')->String('title') === 'Object', 'NestedObject reads an object value');
 $check($get->NestedObject('group')->String('title') === '', 'NestedObject returns an empty ObjectGet for a non-object value');
 
+$transformGet = new ArrayGet([
+	'payload' => '{"title":"Transformed","count":"12"}',
+	'nullable' => null,
+	'nested' => [
+		'payload' => '{"child":{"title":"Nested transform"}}',
+	],
+	0 => ['title' => 'Integer key'],
+], ValueMode::NumericStr);
+$transformCalls = 0;
+$transformedGet = $transformGet->Transform(
+	'payload',
+	static function (mixed $value) use (&$transformCalls): mixed {
+		$transformCalls++;
+		return is_string($value) ? json_decode($value, true) : null;
+	},
+);
+$check($transformCalls === 1, 'Transform calls the transformer exactly once');
+$check($transformedGet->String('title') === 'Transformed', 'Transform uses an array result as the new source');
+$check($transformedGet->Int('count') === 12, 'Transform inherits ValueRules');
+$check($transformGet->String('title') === '', 'Transform does not change the original ArrayGet source');
+$check(
+	$transformGet->Transform(0, static fn(mixed $value): mixed => $value)->String('title') === 'Integer key',
+	'Transform accepts an integer key',
+);
+$check(
+	$transformGet
+		->Nested('nested')
+		->Transform('payload', static fn(mixed $value): mixed => is_string($value) ? json_decode($value, true) : null)
+		->Nested('child')
+		->String('title') === 'Nested transform',
+	'Transform can continue a nested exploration chain',
+);
+
+$receivedNull = false;
+$nullTransformedGet = $transformGet->Transform(
+	'nullable',
+	static function (mixed $value) use (&$receivedNull): array {
+		$receivedNull = $value === null;
+		return ['received' => true];
+	},
+);
+$check($receivedNull, 'Transform passes an explicitly stored null to the transformer');
+$check($nullTransformedGet->Bool('received') === true, 'Transform can use the result produced from an explicit null');
+
+$missingTransformCalls = 0;
+$missingTransformedGet = $transformGet->Transform(
+	'missing',
+	static function (mixed $value) use (&$missingTransformCalls): array {
+		$missingTransformCalls++;
+		return ['unexpected' => $value];
+	},
+);
+$check($missingTransformCalls === 0, 'Transform does not call the transformer for a missing key');
+$check($missingTransformedGet->String('unexpected') === '', 'Transform returns an empty getter for a missing key');
+$check(
+	$transformGet->Transform('payload', static fn(mixed $value): mixed => 'invalid')->String('title') === '',
+	'Transform returns an empty getter for a non-array result',
+);
+
+$transformException = new RuntimeException('Transform failure');
+$caughtTransformException = null;
+try {
+	$transformGet->Transform(
+		'payload',
+		static fn(mixed $value): mixed => throw $transformException,
+	);
+} catch (RuntimeException $exception) {
+	$caughtTransformException = $exception;
+}
+$check($caughtTransformException === $transformException, 'Transform propagates the transformer exception unchanged');
+
+$predicateGet = new ArrayGet([
+	'age' => '20',
+	'name' => '',
+	'enabled' => false,
+	'prices' => ['100', -50, 'invalid', 200, 0],
+	'settings' => ['color' => 'blue'],
+	'invalid_array' => 'invalid',
+	'item' => $openingTime,
+	'item_list' => [$openingTime, 'invalid', $closingTime],
+	'status' => 'published',
+	'statuses' => ['draft', 'invalid', 'published'],
+], ValueMode::NumericStr);
+$receivedAge = null;
+$check(
+	$predicateGet->Int(
+		'age',
+		predicate: static function (int $value) use (&$receivedAge): bool {
+			$receivedAge = $value;
+			return $value >= 18;
+		},
+	) === 20,
+	'ArrayGet applies a predicate after ValueRules normalization',
+);
+$check($receivedAge === 20, 'ArrayGet passes the normalized value to a predicate');
+$check($predicateGet->Int('age', predicate: static fn(int $value): bool => $value > 20) === null, 'ArrayGet returns null when an Int predicate rejects the value');
+$check($predicateGet->String('name', predicate: static fn(string $value): bool => $value === '') === '', 'ArrayGet passes a valid empty string to a predicate');
+$check($predicateGet->Bool('enabled', predicate: static fn(bool $value): bool => ! $value) === false, 'ArrayGet passes a valid false to a predicate');
+$check(
+	$predicateGet->IntList('prices', predicate: static fn(int $value): bool => $value > 0) === [100, 200],
+	'ArrayGet filters normalized list values with a predicate and reindexes them',
+);
+$check($predicateGet->Array('settings', predicate: static fn(array $value): bool => array_key_exists('color', $value)) === ['color' => 'blue'], 'ArrayGet applies a predicate to an entire array');
+$check($predicateGet->Array('settings', predicate: static fn(array $value): bool => false) === [], 'ArrayGet returns an empty array when an Array predicate rejects the value');
+
+$skippedPredicateCalls = 0;
+$predicateGet->Int('missing', predicate: static function (int $value) use (&$skippedPredicateCalls): bool {
+	$skippedPredicateCalls++;
+	return true;
+});
+$predicateGet->Array('invalid_array', predicate: static function (array $value) use (&$skippedPredicateCalls): bool {
+	$skippedPredicateCalls++;
+	return true;
+});
+$check($skippedPredicateCalls === 0, 'ArrayGet does not call predicates for missing or wrong-type values');
+
+$check($predicateGet->Instance('item', TimeData::class, predicate: static fn(TimeData $value): bool => $value->Hour < 12) === $openingTime, 'ArrayGet applies a predicate to an instance');
+$check($predicateGet->TimeData('item', predicate: static fn(TimeData $value): bool => $value->Hour >= 12) === null, 'ArrayGet Data accessors delegate a predicate to Instance');
+$check($predicateGet->TimeDataList('item_list', predicate: static fn(TimeData $value): bool => $value->Hour >= 12) === [$closingTime], 'ArrayGet Data list accessors delegate a predicate to InstanceList');
+$check($predicateGet->BackedEnum('status', ArrayGetPublishStatus::class, predicate: static fn(ArrayGetPublishStatus $value): bool => $value === ArrayGetPublishStatus::Published) === ArrayGetPublishStatus::Published, 'ArrayGet applies a predicate after backed Enum normalization');
+$check($predicateGet->BackedEnumList('statuses', ArrayGetPublishStatus::class, predicate: static fn(ArrayGetPublishStatus $value): bool => $value === ArrayGetPublishStatus::Published) === [ArrayGetPublishStatus::Published], 'ArrayGet filters a backed Enum list with a predicate');
+
 $items = $get->NestedList('items');
 $check(count($items) === 2, 'NestedList filters non-array items');
 $check($items[0] instanceof ArrayGet, 'NestedList returns ArrayGet instances');

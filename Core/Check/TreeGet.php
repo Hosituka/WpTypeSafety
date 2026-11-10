@@ -9,6 +9,7 @@ use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
 use WpTypeSafety\Core\Internal\ResolvedValue;
+use WpTypeSafety\Core\Internal\ValuePredicate;
 use WpTypeSafety\Core\Internal\ValueResolver;
 
 /** 配列とオブジェクトが混在する木構造を、型を自動判定しながら取得します。 */
@@ -47,6 +48,21 @@ final class TreeGet
 		return new self($this->source, $rules);
 	}
 
+	/**
+	 * 指定セグメントの値を変換し、戻り値を新しい探索対象として使用します。
+	 *
+	 * @param callable(mixed): mixed $transformer
+	 */
+	public function Transform(int|string $segment, callable $transformer): self
+	{
+		$resolved = $this->resolveValue($segment);
+		$transformed = $resolved->Exists
+			? $transformer($resolved->Value)
+			: null;
+
+		return new self($transformed, $this->rules);
+	}
+
 	public function Exists(int|string $segment): bool
 	{
 		return $this->resolveValue($segment)->Exists;
@@ -78,120 +94,183 @@ final class TreeGet
 	/**
 	 * @template T of object
 	 * @param class-string<T> $className
+	 * @param (callable(T): bool)|null $predicate
 	 * @return T|null
 	 */
-	public function Instance(int|string $segment, string $className): ?object
+	public function Instance(int|string $segment, string $className, ?callable $predicate = null): ?object
 	{
-		return TypeCheck::Instance($this->value($segment), $className);
+		$normalized = TypeCheck::Instance($this->value($segment), $className);
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
 	}
 
 	/**
 	 * @template T of object
 	 * @param class-string<T> $className
+	 * @param (callable(T): bool)|null $predicate
 	 * @return list<T>
 	 */
-	public function InstanceList(int|string $segment, string $className): array
+	public function InstanceList(int|string $segment, string $className, ?callable $predicate = null): array
 	{
-		return TypeCheck::InstanceList($this->value($segment), $className) ?? [];
-	}
-
-	/** @return list<string> */
-	public function StringList(int|string $segment): array
-	{
-		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
-			? ($this->rules->NormalizeStringList($resolved->Value) ?? [])
+		$normalized = TypeCheck::InstanceList($this->value($segment), $className);
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	/** @return list<int> */
-	public function IntList(int|string $segment): array
+	/**
+	 * @param (callable(string): bool)|null $predicate
+	 * @return list<string>
+	 */
+	public function StringList(int|string $segment, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
-			? ($this->rules->NormalizeIntList($resolved->Value) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeStringList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	/** @return list<float> */
-	public function FloatList(int|string $segment): array
+	/**
+	 * @param (callable(int): bool)|null $predicate
+	 * @return list<int>
+	 */
+	public function IntList(int|string $segment, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
-			? ($this->rules->NormalizeFloatList($resolved->Value) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeIntList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	/** @return list<bool> */
-	public function BoolList(int|string $segment): array
+	/**
+	 * @param (callable(float): bool)|null $predicate
+	 * @return list<float>
+	 */
+	public function FloatList(int|string $segment, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
-			? ($this->rules->NormalizeBoolList($resolved->Value) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeFloatList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	public function String(int|string $segment): string
+	/**
+	 * @param (callable(bool): bool)|null $predicate
+	 * @return list<bool>
+	 */
+	public function BoolList(int|string $segment, ?callable $predicate = null): array
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
-			? ($this->rules->NormalizeString($resolved->Value) ?? '')
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeBoolList($resolved->Value)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
+			: [];
+	}
+
+	/** @param (callable(string): bool)|null $predicate */
+	public function String(int|string $segment, ?callable $predicate = null): string
+	{
+		$resolved = $this->resolveValue($segment);
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeString($resolved->Value)
+			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
 			: '';
 	}
 
-	public function Int(int|string $segment): ?int
+	/** @param (callable(int): bool)|null $predicate */
+	public function Int(int|string $segment, ?callable $predicate = null): ?int
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
+		$normalized = $resolved->Exists
 			? $this->rules->NormalizeInt($resolved->Value)
 			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
 	}
 
-	public function Float(int|string $segment): ?float
+	/** @param (callable(float): bool)|null $predicate */
+	public function Float(int|string $segment, ?callable $predicate = null): ?float
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
+		$normalized = $resolved->Exists
 			? $this->rules->NormalizeFloat($resolved->Value)
 			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
 	}
 
-	public function Bool(int|string $segment): ?bool
+	/** @param (callable(bool): bool)|null $predicate */
+	public function Bool(int|string $segment, ?callable $predicate = null): ?bool
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
+		$normalized = $resolved->Exists
 			? $this->rules->NormalizeBool($resolved->Value)
 			: null;
-	}
-
-	/**
-	 * @template T of \BackedEnum
-	 * @param class-string<T> $enumClass
-	 * @return T|null
-	 */
-	public function BackedEnum(int|string $segment, string $enumClass): ?\BackedEnum
-	{
-		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
-			? $this->rules->NormalizeBackedEnum($resolved->Value, $enumClass)
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
 			: null;
 	}
 
 	/**
 	 * @template T of \BackedEnum
 	 * @param class-string<T> $enumClass
-	 * @return list<T>
+	 * @param (callable(T): bool)|null $predicate
+	 * @return T|null
 	 */
-	public function BackedEnumList(int|string $segment, string $enumClass): array
+	public function BackedEnum(int|string $segment, string $enumClass, ?callable $predicate = null): ?\BackedEnum
 	{
 		$resolved = $this->resolveValue($segment);
-		return $resolved->Exists
-			? ($this->rules->NormalizeBackedEnumList($resolved->Value, $enumClass) ?? [])
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeBackedEnum($resolved->Value, $enumClass)
+			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: null;
+	}
+
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @param (callable(T): bool)|null $predicate
+	 * @return list<T>
+	 */
+	public function BackedEnumList(int|string $segment, string $enumClass, ?callable $predicate = null): array
+	{
+		$resolved = $this->resolveValue($segment);
+		$normalized = $resolved->Exists
+			? $this->rules->NormalizeBackedEnumList($resolved->Value, $enumClass)
+			: null;
+		return $normalized !== null
+			? ValuePredicate::Filter($normalized, $predicate)
 			: [];
 	}
 
-	public function Array(int|string $segment): array
+	/** @param (callable(array<array-key, mixed>): bool)|null $predicate */
+	public function Array(int|string $segment, ?callable $predicate = null): array
 	{
-		return TypeCheck::Array($this->value($segment)) ?? [];
+		$resolved = $this->resolveValue($segment);
+		$normalized = $resolved->Exists
+			? TypeCheck::Array($resolved->Value)
+			: null;
+		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
+			? $normalized
+			: [];
 	}
 
 	public function Nested(int|string $segment): self
@@ -268,58 +347,78 @@ final class TreeGet
 		return $items;
 	}
 
-	public function ImgData(int|string $segment): ?ImgData
+	/** @param (callable(ImgData): bool)|null $predicate */
+	public function ImgData(int|string $segment, ?callable $predicate = null): ?ImgData
 	{
-		return $this->Instance($segment, ImgData::class);
+		return $this->Instance($segment, ImgData::class, $predicate);
 	}
 
-	public function LinkData(int|string $segment): ?LinkData
+	/** @param (callable(LinkData): bool)|null $predicate */
+	public function LinkData(int|string $segment, ?callable $predicate = null): ?LinkData
 	{
-		return $this->Instance($segment, LinkData::class);
+		return $this->Instance($segment, LinkData::class, $predicate);
 	}
 
-	public function ChoiceData(int|string $segment): ?ChoiceData
+	/** @param (callable(ChoiceData): bool)|null $predicate */
+	public function ChoiceData(int|string $segment, ?callable $predicate = null): ?ChoiceData
 	{
-		return $this->Instance($segment, ChoiceData::class);
+		return $this->Instance($segment, ChoiceData::class, $predicate);
 	}
 
-	public function FileData(int|string $segment): ?FileData
+	/** @param (callable(FileData): bool)|null $predicate */
+	public function FileData(int|string $segment, ?callable $predicate = null): ?FileData
 	{
-		return $this->Instance($segment, FileData::class);
+		return $this->Instance($segment, FileData::class, $predicate);
 	}
 
-	public function TimeData(int|string $segment): ?TimeData
+	/** @param (callable(TimeData): bool)|null $predicate */
+	public function TimeData(int|string $segment, ?callable $predicate = null): ?TimeData
 	{
-		return $this->Instance($segment, TimeData::class);
+		return $this->Instance($segment, TimeData::class, $predicate);
 	}
 
-	/** @return list<ImgData> */
-	public function ImgDataList(int|string $segment): array
+	/**
+	 * @param (callable(ImgData): bool)|null $predicate
+	 * @return list<ImgData>
+	 */
+	public function ImgDataList(int|string $segment, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($segment, ImgData::class);
+		return $this->InstanceList($segment, ImgData::class, $predicate);
 	}
 
-	/** @return list<LinkData> */
-	public function LinkDataList(int|string $segment): array
+	/**
+	 * @param (callable(LinkData): bool)|null $predicate
+	 * @return list<LinkData>
+	 */
+	public function LinkDataList(int|string $segment, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($segment, LinkData::class);
+		return $this->InstanceList($segment, LinkData::class, $predicate);
 	}
 
-	/** @return list<ChoiceData> */
-	public function ChoiceDataList(int|string $segment): array
+	/**
+	 * @param (callable(ChoiceData): bool)|null $predicate
+	 * @return list<ChoiceData>
+	 */
+	public function ChoiceDataList(int|string $segment, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($segment, ChoiceData::class);
+		return $this->InstanceList($segment, ChoiceData::class, $predicate);
 	}
 
-	/** @return list<FileData> */
-	public function FileDataList(int|string $segment): array
+	/**
+	 * @param (callable(FileData): bool)|null $predicate
+	 * @return list<FileData>
+	 */
+	public function FileDataList(int|string $segment, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($segment, FileData::class);
+		return $this->InstanceList($segment, FileData::class, $predicate);
 	}
 
-	/** @return list<TimeData> */
-	public function TimeDataList(int|string $segment): array
+	/**
+	 * @param (callable(TimeData): bool)|null $predicate
+	 * @return list<TimeData>
+	 */
+	public function TimeDataList(int|string $segment, ?callable $predicate = null): array
 	{
-		return $this->InstanceList($segment, TimeData::class);
+		return $this->InstanceList($segment, TimeData::class, $predicate);
 	}
 }

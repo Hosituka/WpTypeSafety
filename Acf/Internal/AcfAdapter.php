@@ -49,15 +49,31 @@ class AcfAdapter
 		return AcfDtoFactory::PostFromAcf($this->GetRaw($fieldName, $source));
 	}
 
+	public function GetWpPost(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?\WP_Post
+	{
+		return AcfDtoFactory::WpPostFromAcf($this->GetRaw($fieldName, $source));
+	}
+
 	/** @return list<PostData> */
 	public function GetPosts(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
 	{
 		return AcfDtoFactory::PostsFromAcf($this->GetRaw($fieldName, $source));
 	}
 
+	/** @return list<\WP_Post> */
+	public function GetWpPosts(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return AcfDtoFactory::WpPostsFromAcf($this->GetRaw($fieldName, $source));
+	}
+
 	public function GetTerm(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?TermData
 	{
 		return AcfDtoFactory::TermFromAcf($this->GetRaw($fieldName, $source));
+	}
+
+	public function GetWpTerm(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?\WP_Term
+	{
+		return AcfDtoFactory::WpTermFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	/** @return list<TermData> */
@@ -66,15 +82,32 @@ class AcfAdapter
 		return AcfDtoFactory::TermsFromAcf($this->GetRaw($fieldName, $source));
 	}
 
+	/** @return list<\WP_Term> */
+	public function GetWpTerms(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return AcfDtoFactory::WpTermsFromAcf($this->GetRaw($fieldName, $source));
+	}
+
 	public function GetUser(string $fieldName, \WP_Post|PostData|int|string|array|null $source, int $avatarSize): ?WpUserData
 	{
 		return AcfDtoFactory::UserFromAcf($this->GetRaw($fieldName, $source), $avatarSize);
+	}
+
+	public function GetWpUser(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?\WP_User
+	{
+		return AcfDtoFactory::WpUserFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	/** @return list<WpUserData> */
 	public function GetUsers(string $fieldName, \WP_Post|PostData|int|string|array|null $source, int $avatarSize): array
 	{
 		return AcfDtoFactory::UsersFromAcf($this->GetRaw($fieldName, $source), $avatarSize);
+	}
+
+	/** @return list<\WP_User> */
+	public function GetWpUsers(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		return AcfDtoFactory::WpUsersFromAcf($this->GetRaw($fieldName, $source));
 	}
 
 	public function GetLink(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?LinkData

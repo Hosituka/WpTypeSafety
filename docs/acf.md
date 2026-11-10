@@ -54,6 +54,9 @@ APIの分類から探す場合は、次の目次を利用できます。
 | `Post()`・`Posts()` | `?PostData`・`list<PostData>` | 投稿オブジェクト・関連フィールド |
 | `Term()`・`Terms()` | `?TermData`・`list<TermData>` | タクソノミーフィールド |
 | `User()`・`Users()` | `?WpUserData`・`list<WpUserData>` | ユーザーフィールド |
+| `WpPost()`・`WpPosts()` | `?WP_Post`・`list<WP_Post>` | 投稿参照をWordPressネイティブ型で取得 |
+| `WpTerm()`・`WpTerms()` | `?WP_Term`・`list<WP_Term>` | ターム参照をWordPressネイティブ型で取得 |
+| `WpUser()`・`WpUsers()` | `?WP_User`・`list<WP_User>` | ユーザー参照をWordPressネイティブ型で取得 |
 | `PostGet()`・`UserGet()`・`TermGet()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
 | `PostGets()`・`UserGets()`・`TermGets()` | `list<呼び出し元と同じAcfGet派生型>` | 複数参照先それぞれのACFフィールド取得口を返す |
 | `Native()` | `mixed` | 通常のACF戻り値をWpTypeSafetyで変換せず返す |
@@ -134,6 +137,18 @@ $members = $postGet->Users('members', avatarSize: 160);
 ```
 
 戻り値はそれぞれ`list<PostData>`・`list<TermData>`・`list<WpUserData>`です。ACFの返却形式がオブジェクトまたはIDのどちらでも変換し、未入力・配列以外は`[]`、取得・変換できない要素は除外します。入力順と重複は維持します。`Users()`の`avatarSize`は各`WpUserData`へ設定するアバター取得用Resolverに渡されます。
+
+WordPressやプラグインのAPIへネイティブオブジェクトを渡す場合は、`WpPost()`・`WpTerm()`・`WpUser()`と、それぞれの複数形を使用できます。Dataを返す既存取得口は変更せず、必要な境界だけ明示的にWordPressの型へ戻します。
+
+```php
+<?php
+$wpPost = $postGet->WpPost('related_post');       // ?WP_Post
+$wpPosts = $postGet->WpPosts('related_posts');    // list<WP_Post>
+$wpTerm = $postGet->WpTerm('category');           // ?WP_Term
+$wpUser = $postGet->WpUser('member');             // ?WP_User
+```
+
+これらはACFの返却形式がIDまたは対応するWPオブジェクトのどちらでも、記載したネイティブ型へ正規化します。`Native()`はACFの値を変換せず返すため、返却形式によって型が変わります。固定されたWP型が必要な場合は`WpPost()`等を使用してください。
 
 各参照先のACFフィールドへ進む場合は、`PostGets()`・`TermGets()`・`UserGets()`を使います。戻り値は`list<AcfGet>`で、派生`AcfGet`から呼んだ場合はリスト内でも同じ派生型とAdapterを維持します。既存の複数取得メソッドで変換できた対象だけを子取得口にするため、入力順・重複・不正要素除外の契約も同じです。
 

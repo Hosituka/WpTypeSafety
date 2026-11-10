@@ -20,7 +20,13 @@ use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Acf\Internal\AcfAdapter;
 use WpTypeSafety\Acf\Internal\AcfDtoFactory;
 use WpTypeSafety\Acf\Internal\BlockAdapter;
+use WpTypeSafety\Core\Check\ValueReader;
+use WpTypeSafety\Core\Internal\ValuePredicate;
 use WpTypeSafety\Wp\Data\WpUserData;
+use WpTypeSafety\Wp\Get\MetaGet;
+use WpTypeSafety\Wp\Internal\MetaAdapter;
+use WpTypeSafety\Wp\Internal\ReferenceAdapter;
+use WpTypeSafety\Wp\Internal\WpValueRules;
 
 $checks = 0;
 $Check = static function (bool $ok, string $label) use (&$checks): void {
@@ -30,7 +36,20 @@ $Check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-foreach ([AcfBlockData::class, AcfGet::class, AcfAdapter::class, AcfDtoFactory::class, BlockAdapter::class, WpUserData::class] as $class) {
+foreach ([
+	AcfBlockData::class,
+	AcfGet::class,
+	AcfAdapter::class,
+	AcfDtoFactory::class,
+	BlockAdapter::class,
+	ValueReader::class,
+	ValuePredicate::class,
+	WpUserData::class,
+	MetaGet::class,
+	MetaAdapter::class,
+	ReferenceAdapter::class,
+	WpValueRules::class,
+] as $class) {
 	$reflection = new ReflectionClass($class);
 	foreach ($reflection->getMethods() as $method) {
 		if (str_starts_with($method->name, '__')) {

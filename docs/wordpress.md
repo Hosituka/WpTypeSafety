@@ -59,6 +59,85 @@ $result = PostQuery::From($wpQuery);
 
 各取得口はDataへ変換するため、`fields => 'ids'`等のオブジェクトを返さない指定には対応しません。該当する指定を渡した場合は`InvalidArgumentException`を投げます。ID・件数だけが必要な処理ではWordPressネイティブのクエリを直接使用してください。
 
+## WordPressメタを型付きで取得する
+
+`MetaGet`は投稿・ターム・ユーザー・コメントの保存済みメタを固定型で取得します。WordPressオブジェクトまたは対応するDataは、`new MetaGet()`へ直接渡せます。整数だけを渡した場合は投稿IDとして扱います。読み取り専用であり、メタ値の追加・更新・削除は行いません。
+
+```php
+<?php
+use WpTypeSafety\Wp\Get\MetaGet;
+
+$postMetaGet = new MetaGet($post);
+$termMetaGet = new MetaGet($term);
+$userMetaGet = new MetaGet($user);
+$commentMetaGet = new MetaGet($comment);
+
+$subtitle = $postMetaGet->String('subtitle');
+$viewCount = $postMetaGet->Int('view_count');
+$settings = $postMetaGet->Array('plugin_settings');
+$hasSubtitle = $postMetaGet->Exists('subtitle');
+```
+
+整数のタームID・ユーザーID・コメントIDは型を推測できないため、`FromTerm()`・`FromUser()`・`FromComment()`で対象を明示します。`FromPost()`も利用できます。
+
+既定ではWordPressの保存表現に合わせ、`NumericStr`・`BoolStr`・`BoolInt`・`EmptyStrAsFalse`を合成した規則を使います。元のPHP型だけを受け入れたい境界では`ValueMode::Strict`を明示できます。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ValueMode;
+
+$strictMetaGet = new MetaGet($post, ValueMode::Strict);
+```
+
+`Exists()`は`metadata_exists()`を使うため、欠損したキーと、保存済みの空文字・`null`相当の値を区別できます。欠損時はNormalizerを呼ばず、`String()`は空文字、`Array()`と各`*List()`は空配列、それ以外の型付き取得口は`null`を返します。0以下の対象IDと空のメタキーも欠損として扱い、WordPress APIを呼びません。
+
+`Native()`は単一値取得の結果を変換せず返し、欠損時は`null`です。`NativeList()`と型付きの各`*List()`は、同じキーで複数行保存されたメタ値を対象にします。単一行にシリアライズされた配列は`Array()`または`Nested()`で取得してください。型付きリストでは変換できない要素を除外し、0からキーを振り直します。
+
+| 取得口 | 戻り値 | 欠損・型違い |
+|---|---|---|
+| `Exists()` | `bool` | 欠損は`false` |
+| `Native()` | `mixed` | 欠損は`null` |
+| `NativeList()` | `list<mixed>` | 欠損は空配列 |
+| `String()` | `string` | 欠損・型違いは空文字 |
+| `Int()`・`Float()`・`Bool()` | nullableな各PHP型 | 欠損・型違いは`null` |
+| `Array()` | `array<array-key, mixed>` | 欠損・型違いは空配列 |
+| `StringList()`・`IntList()`・`FloatList()`・`BoolList()` | 型付きリスト | 不正要素を除外。欠損は空配列 |
+| `BackedEnum()` | `?BackedEnum` | 欠損・変換失敗は`null` |
+| `BackedEnumList()` | `list<BackedEnum>` | 不正要素を除外。欠損は空配列 |
+| `Post()`・`User()`・`Term()`・`Comment()` | 対応するnullableなData | IDをWpTypeSafetyのDataへ変換 |
+| `WpPost()`・`WpUser()`・`WpTerm()`・`WpComment()` | 対応するnullableなWPオブジェクト | IDをWordPressネイティブ型へ変換 |
+| `Nested()`・`NestedPath()` | `MetaGet` | 欠損地点以降の取得は各型の既定値 |
+
+`Nested()`は同じ`MetaGet`を返し、取得済みの配列とオブジェクトが混在する保存値をCoreの`TreeGet`でたどります。`NestedPath()`はメタキー直下のパスまで一度に進みます。選択した値は投稿・ユーザー・ターム・コメントのDataへ変換したり、その対象のメタへ再び入ったりできます。
+
+```php
+<?php
+$relationsGet = $postMetaGet->NestedPath('settings', 'relations');
+$relatedPost = $relationsGet->Post('post_id');
+$relatedWpPost = $relationsGet->WpPost('post_id');
+$relatedPostMetaGet = $relationsGet->PostMeta('post_id');
+$relatedSubtitle = $relatedPostMetaGet->String('subtitle');
+```
+
+`Post()`などの名前は、取得値をどのWordPress IDとして解釈するかを利用側が明示します。値の形から投稿・ユーザー等を推測しません。Data中心の処理には`Post()`等、WordPressやプラグインのAPIへ渡す場合は`WpPost()`等を使用します。ネイティブ型への変換はIDから現在のWPオブジェクトを取得する読み取り処理であり、DataやWordPressの値を書き換えません。`MetaGet::FromTree()`または配列・オブジェクトを渡す`new MetaGet()`から、取得済みのPHP木構造だけを入口にすることもできます。
+
+`WithMode()`・`WithRules()`は、同じ取得元を保持した新しい取得口を返します。元の`MetaGet`の判定基準は変更しません。渡した`ValueRules`は生成時にcloneされ、同じ規則は`Nested()`後と再進入先の`MetaGet`にも継承されます。
+
+Coreの各Getterと同様に、`MetaGet`の最終的な値を返すGetterにも省略可能な`predicate`を指定できます。predicateにはWordPress向けの`ValueRules`で正規化できた値だけが渡され、単数Getterで条件に合わなければ既定値、List系Getterでは条件に合う要素だけを返します。欠損したメタ値ではpredicateを実行しません。
+
+```php
+$positiveCount = $postMetaGet->Int(
+	'view_count',
+	predicate: static fn(int $value): bool => $value > 0,
+);
+
+$publishedStatuses = $postMetaGet->BackedEnumList(
+	'statuses',
+	Status::class,
+	predicate: static fn(Status $value): bool => $value === Status::Published,
+);
+```
+
 ## WordPressのターム
 
 `WpGetTerm`は投稿のタームを`TermData`のリストで返します。`Roots()`・`Deepest()`・`Shallowest()`はターム階層を調べます。取得失敗や該当なしは空配列です。

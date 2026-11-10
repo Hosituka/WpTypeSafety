@@ -85,6 +85,8 @@ Groups, repeaters, Flexible Content, and post, user, or term references use the 
 - Purpose-specific accessors with fixed return types, including `Text(): string`, `Float(): ?float`, `Int(): ?int`, `Img(): ?ImgData`, `IconClass(): ?string`, `IconImg(): ?ImgData`, `IconUrl(): ?string`, `Posts(): list<PostData>`, `Terms(): list<TermData>`, `Users(): list<WpUserData>`, `Repeater(): list<AcfGet>`, and `Flexible(): list<FlexibleNode>`.
 - `Native(): mixed` as an explicit escape hatch that returns the normal ACF value without WpTypeSafety conversion for unsupported or custom field types.
 - `PostData` retains the post status, post type, slug, password-protection state, and WordPress public-viewability result without exposing the password itself.
+- `MetaGet` distinguishes missing metadata from stored empty values for posts, terms, users, and comments. The same accessor continues through stored trees after `Nested()` and explicitly converts selected IDs into WordPress Data objects or another `MetaGet`.
+- `WpPost()`, `WpTerm()`, `WpUser()`, and `WpComment()` provide explicit bridges back to native WordPress objects where interoperability requires them.
 - Incremental adoption alongside existing WordPress and ACF APIs. Data objects can also be constructed directly with `new`.
 - Core type checks and accessors for arrays and public object properties that do not depend on WordPress or ACF.
 - Installation without Composer commands or a `vendor` directory. Optional PSR-4 registration is available for project-specific Data and View classes.
@@ -227,6 +229,7 @@ $status = $resultGet->String('status');                            // string
 | Goal | Main entry point |
 |---|---|
 | Read ACF fields through typed accessors | `AcfGet` |
+| Read WordPress metadata and traverse stored trees | `MetaGet` |
 | Convert WordPress objects into Data objects | `PostFactory`, `CommentFactory`, `UserFactory`, `TermFactory`, `MenuNodeFactory`, and `AttachmentFactory` |
 | Run WordPress queries and convert results into Data objects | `PostQuery`, `TermQuery`, `UserQuery`, and `CommentQuery` |
 | Convert ACF block information into Data objects | `AcfDataFactory` |
@@ -304,7 +307,6 @@ Installing the complete library does not require using every feature area.
 | `Core` | Required | Not required | Not required |
 | `Wp` | Required | Required | Not required |
 | `Acf` | Required | Required | Required |
-| `Support\Esc` | Required | Required | Not required |
 | Optional PSR-4 loading | Required | Not required | Not required |
 
 ## Detailed documentation
@@ -318,7 +320,6 @@ The detailed documentation is currently available in Japanese.
 | Type checks and array/object access | [Core](docs/core.md) | Users |
 | Data, Resolvers, and derived classes | [Data](docs/data.md) | Users |
 | `autoload.php` and optional PSR-4 mappings | [Autoload](docs/autoload.md) | Users |
-| Theme-development helpers | [Support](docs/support.md) | Users |
 | Nested ACF, derived Data, and ACF block examples | [Examples](docs/examples.md) | Users |
 | Internal architecture and verification | [Architecture](docs/architecture.md) | Maintainers |
 | Migration from older APIs | [Migration](docs/migration.md) | Migration |

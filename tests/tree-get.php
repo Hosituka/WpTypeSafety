@@ -104,6 +104,84 @@ $check($treeGet->NestedPath('company', 'missing', 'john')->String('Name') === ''
 $check($treeGet->NestedPath('company', 'users', 'john', 'Name')->String('value') === '', 'TreeGet returns an empty getter after reaching a scalar');
 $check($treeGet->NestedPath('users', 0, 'Profiles', 0)->String('Name') === 'Indexed user', 'TreeGet crosses array indexes and object properties in one path');
 
+$transformGet = new TreeGet([
+	'payload' => '{"Name":"Transformed tree","Count":"12"}',
+	'nullable' => null,
+], ValueMode::NumericStr);
+$transformCalls = 0;
+$transformedGet = $transformGet->Transform(
+	'payload',
+	static function (mixed $value) use (&$transformCalls): mixed {
+		$transformCalls++;
+		return is_string($value) ? json_decode($value, true) : null;
+	},
+);
+$check($transformCalls === 1, 'TreeGet Transform calls the transformer exactly once');
+$check($transformedGet->String('Name') === 'Transformed tree', 'TreeGet Transform uses an array result as the new source');
+$check($transformedGet->Int('Count') === 12, 'TreeGet Transform inherits ValueRules');
+$check($transformGet->String('Name') === '', 'TreeGet Transform does not change the original source');
+$check(
+	$transformGet->Transform('payload', static fn(mixed $value): mixed => is_string($value) ? json_decode($value) : null)->String('Name') === 'Transformed tree',
+	'TreeGet Transform can continue from an object result',
+);
+
+$receivedTransformNull = false;
+$check(
+	$transformGet->Transform(
+		'nullable',
+		static function (mixed $value) use (&$receivedTransformNull): array {
+			$receivedTransformNull = $value === null;
+			return ['Received' => true];
+		},
+	)->Bool('Received') === true,
+	'TreeGet Transform can use the result produced from an explicit null',
+);
+$check($receivedTransformNull, 'TreeGet Transform passes an explicitly stored null to the transformer');
+
+$missingTransformCalls = 0;
+$missingTransformedGet = $transformGet->Transform(
+	'missing',
+	static function (mixed $value) use (&$missingTransformCalls): array {
+		$missingTransformCalls++;
+		return ['Unexpected' => $value];
+	},
+);
+$check($missingTransformCalls === 0, 'TreeGet Transform does not call the transformer for a missing segment');
+$check($missingTransformedGet->String('Unexpected') === '', 'TreeGet Transform returns an empty getter for a missing segment');
+
+$transformException = new RuntimeException('TreeGet Transform failure');
+$caughtTransformException = null;
+try {
+	$transformGet->Transform(
+		'payload',
+		static fn(mixed $value): mixed => throw $transformException,
+	);
+} catch (RuntimeException $exception) {
+	$caughtTransformException = $exception;
+}
+$check($caughtTransformException === $transformException, 'TreeGet Transform propagates the transformer exception unchanged');
+
+$predicateGet = new TreeGet((object) [
+	'Age' => '20',
+	'Enabled' => false,
+	'Prices' => ['100', -50, 'invalid', 200, 0],
+	'Settings' => ['color' => 'blue'],
+	'Status' => 'published',
+], ValueMode::NumericStr);
+$check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value >= 18) === 20, 'TreeGet applies a predicate after ValueRules normalization');
+$check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value > 20) === null, 'TreeGet returns null when an Int predicate rejects the value');
+$check($predicateGet->Bool('Enabled', predicate: static fn(bool $value): bool => ! $value) === false, 'TreeGet passes a valid false to a predicate');
+$check($predicateGet->IntList('Prices', predicate: static fn(int $value): bool => $value > 0) === [100, 200], 'TreeGet filters normalized list values with a predicate');
+$check($predicateGet->Array('Settings', predicate: static fn(array $value): bool => isset($value['color'])) === ['color' => 'blue'], 'TreeGet applies a predicate to an entire array');
+$check($predicateGet->BackedEnum('Status', TreeGetPublishStatus::class, predicate: static fn(TreeGetPublishStatus $value): bool => $value === TreeGetPublishStatus::Published) === TreeGetPublishStatus::Published, 'TreeGet applies a predicate after backed Enum normalization');
+
+$skippedPredicateCalls = 0;
+$predicateGet->Int('Missing', predicate: static function (int $value) use (&$skippedPredicateCalls): bool {
+	$skippedPredicateCalls++;
+	return true;
+});
+$check($skippedPredicateCalls === 0, 'TreeGet does not call a predicate for a missing segment');
+
 $items = $treeGet->NestedList('items');
 $check(count($items) === 2, 'TreeGet NestedList accepts array and object elements');
 $check($items[0]->String('Name') === 'Array item', 'TreeGet NestedList wraps an array element');

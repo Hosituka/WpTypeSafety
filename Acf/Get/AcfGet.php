@@ -122,6 +122,11 @@ class AcfGet
 		return $this->adapter->GetPost($fieldName, $this->source);
 	}
 
+	public function WpPost(string $fieldName): ?\WP_Post
+	{
+		return $this->adapter->GetWpPost($fieldName, $this->source);
+	}
+
 	/** 単一選択の投稿を参照先として、そのACFフィールドを取得する。 */
 	public function PostGet(string $fieldName): static
 	{
@@ -132,6 +137,12 @@ class AcfGet
 	public function Posts(string $fieldName): array
 	{
 		return $this->adapter->GetPosts($fieldName, $this->source);
+	}
+
+	/** @return list<\WP_Post> */
+	public function WpPosts(string $fieldName): array
+	{
+		return $this->adapter->GetWpPosts($fieldName, $this->source);
 	}
 
 	/** @return list<static> */
@@ -145,10 +156,21 @@ class AcfGet
 		return $this->adapter->GetTerm($fieldName, $this->source);
 	}
 
+	public function WpTerm(string $fieldName): ?\WP_Term
+	{
+		return $this->adapter->GetWpTerm($fieldName, $this->source);
+	}
+
 	/** @return list<TermData> */
 	public function Terms(string $fieldName): array
 	{
 		return $this->adapter->GetTerms($fieldName, $this->source);
+	}
+
+	/** @return list<\WP_Term> */
+	public function WpTerms(string $fieldName): array
+	{
+		return $this->adapter->GetWpTerms($fieldName, $this->source);
 	}
 
 	/** 単一選択のタームを参照先として、そのACFフィールドを取得する。 */
@@ -168,10 +190,21 @@ class AcfGet
 		return $this->adapter->GetUser($fieldName, $this->source, $avatarSize);
 	}
 
+	public function WpUser(string $fieldName): ?\WP_User
+	{
+		return $this->adapter->GetWpUser($fieldName, $this->source);
+	}
+
 	/** @return list<WpUserData> */
 	public function Users(string $fieldName, int $avatarSize = 96): array
 	{
 		return $this->adapter->GetUsers($fieldName, $this->source, $avatarSize);
+	}
+
+	/** @return list<\WP_User> */
+	public function WpUsers(string $fieldName): array
+	{
+		return $this->adapter->GetWpUsers($fieldName, $this->source);
 	}
 
 	/** 単一選択のユーザーを参照先として、そのACFフィールドを取得する。 */
