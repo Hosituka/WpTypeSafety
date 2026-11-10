@@ -157,8 +157,8 @@ $mainImg = $postGet->Img('main_img'); // ?ImgData。取得できなければ nul
 	<?php if ($mainImg !== null): ?>
 		<img
 			src="<?= esc_url($mainImg->Url) ?>"
-			width="<?= esc_attr((string) $mainImg->Width) ?>"
-			height="<?= esc_attr((string) $mainImg->Height) ?>"
+			width="<?= esc_attr($mainImg->Width) ?>"
+			height="<?= esc_attr($mainImg->Height) ?>"
 			alt="<?= esc_attr($mainImg->Alt) ?>"
 		>
 	<?php endif; ?>
@@ -220,7 +220,7 @@ $items = $argsGet->NestedList('items');                  // list<ArrayGet>
 $status = $resultGet->String('status');                  // string
 ```
 
-`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet`は配列のキー、`ObjectGet`はpublicインスタンスプロパティを読み、既定では同じ厳密な基準を使います。必要な境界だけ`ValueMode::NumericStr`・`ValueMode::BoolStr`・`ValueMode::BoolInt`・`ValueMode::EmptyStrAsFalse`または`ValueRules`で受け入れ基準を変更でき、複数モードは`ValueRules::FromModes()`で合成できます。欠損時はNormalizerを呼ばず、存在する値としての`null`はカスタムNormalizerへ渡します。その基準はNested系の子取得口にも継承されます。`ObjectGet`はアクセサーを呼ぶたびに同じオブジェクトの現在値を読み、private・protected・static・未初期化・マジックプロパティは対象にしません。詳しくは[Coreの型確認と配列・オブジェクト取得](docs/core.md)と[利用例](docs/examples.md)を参照してください。空文字だけでは「未入力」と「取得失敗」を区別できません。
+`AcfGet::Int()`は整数・整数として表現できるfloat・整数形式の数値文字列を`int`へ正規化します。`TypeCheck`は変換を行わず、入力がもともと指定したPHP型である場合だけ値を返します。`ArrayGet`は配列のキー、`ObjectGet`はpublicインスタンスプロパティを読み、既定では同じ厳密な基準を使います。必要な境界だけ`ValueMode::NumericStr`・`ValueMode::BoolStr`・`ValueMode::BoolInt`・`ValueMode::EmptyStrAsFalse`または`ValueRules`で受け入れ基準を変更でき、複数モードは`ValueRules::FromModes()`で合成できます。`BackedEnum()`・`BackedEnumList()`では文字列・整数のbacking valueをEnumへ正規化できます。欠損時はNormalizerを呼ばず、存在する値としての`null`はカスタムNormalizerへ渡します。その基準はNested系の子取得口にも継承されます。`ObjectGet`はアクセサーを呼ぶたびに同じオブジェクトの現在値を読み、private・protected・static・未初期化・マジックプロパティは対象にしません。詳しくは[Coreの型確認と配列・オブジェクト取得](docs/core.md)と[利用例](docs/examples.md)を参照してください。空文字だけでは「未入力」と「取得失敗」を区別できません。
 
 ## 入口の選び方
 

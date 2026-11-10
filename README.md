@@ -157,8 +157,8 @@ $mainImg = $postGet->Img('main_img'); // ?ImgData; null when unavailable
 	<?php if ($mainImg !== null): ?>
 		<img
 			src="<?= esc_url($mainImg->Url) ?>"
-			width="<?= esc_attr((string) $mainImg->Width) ?>"
-			height="<?= esc_attr((string) $mainImg->Height) ?>"
+			width="<?= esc_attr($mainImg->Width) ?>"
+			height="<?= esc_attr($mainImg->Height) ?>"
 			alt="<?= esc_attr($mainImg->Alt) ?>"
 		>
 	<?php endif; ?>
@@ -220,7 +220,7 @@ $items = $argsGet->NestedList('items');                            // list<Array
 $status = $resultGet->String('status');                            // string
 ```
 
-`AcfGet::Int()` normalizes integers, integer-valued floats, and integer-formatted numeric strings into `int`. `TypeCheck` performs no conversion and returns a value only when the input already has the requested PHP type. `ArrayGet` reads array keys, while `ObjectGet` reads public instance properties; both use the same strict rules by default. A boundary can opt into `ValueMode::NumericStr`, `ValueMode::BoolStr`, `ValueMode::BoolInt`, `ValueMode::EmptyStrAsFalse`, or customized `ValueRules`. Multiple modes can be composed with `ValueRules::FromModes()`. Missing values bypass normalizers, while an explicitly stored `null` is passed to custom normalizers. Nested accessors inherit the selected rules. `ObjectGet` reads the current value from the same object on every accessor call and ignores private, protected, static, uninitialized, and magic-only properties. See [Core type checks and array/object access](docs/core.md) and [Examples](docs/examples.md) for details. An empty string alone cannot distinguish an intentionally empty value from a failed lookup.
+`AcfGet::Int()` normalizes integers, integer-valued floats, and integer-formatted numeric strings into `int`. `TypeCheck` performs no conversion and returns a value only when the input already has the requested PHP type. `ArrayGet` reads array keys, while `ObjectGet` reads public instance properties; both use the same strict rules by default. A boundary can opt into `ValueMode::NumericStr`, `ValueMode::BoolStr`, `ValueMode::BoolInt`, `ValueMode::EmptyStrAsFalse`, or customized `ValueRules`. Multiple modes can be composed with `ValueRules::FromModes()`. `BackedEnum()` and `BackedEnumList()` normalize string or integer backing values into enum cases. Missing values bypass normalizers, while an explicitly stored `null` is passed to custom normalizers. Nested accessors inherit the selected rules. `ObjectGet` reads the current value from the same object on every accessor call and ignores private, protected, static, uninitialized, and magic-only properties. See [Core type checks and array/object access](docs/core.md) and [Examples](docs/examples.md) for details. An empty string alone cannot distinguish an intentionally empty value from a failed lookup.
 
 ## Choosing an entry point
 

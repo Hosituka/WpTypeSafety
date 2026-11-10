@@ -10,6 +10,18 @@ use WpTypeSafety\Core\Check\ValueMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\TimeData;
 
+enum ObjectGetPublishStatus: string
+{
+	case Draft = 'draft';
+	case Published = 'published';
+}
+
+enum ObjectGetPriority: int
+{
+	case Low = 0;
+	case High = 1;
+}
+
 final class ObjectGetTestSource
 {
 	public string $Title = 'Title';
@@ -215,6 +227,21 @@ $emptyObjectGet = new ObjectGet((object) [
 ], ValueMode::EmptyStrAsFalse);
 $check($emptyObjectGet->Bool('Enabled') === false, 'ObjectGet accepts EmptyStrAsFalse');
 $check($emptyObjectGet->Bool('Missing') === null, 'ObjectGet EmptyStrAsFalse keeps a missing property as null');
+
+$enumObjectGet = new ObjectGet((object) [
+	'Status' => 'published',
+	'Priority' => 1,
+	'Statuses' => ['draft', 'invalid', ObjectGetPublishStatus::Published],
+]);
+$check($enumObjectGet->BackedEnum('Status', ObjectGetPublishStatus::class) === ObjectGetPublishStatus::Published, 'ObjectGet BackedEnum normalizes a string backing value');
+$check($enumObjectGet->BackedEnum('Priority', ObjectGetPriority::class) === ObjectGetPriority::High, 'ObjectGet BackedEnum normalizes an integer backing value');
+$check($enumObjectGet->BackedEnumList('Statuses', ObjectGetPublishStatus::class) === [ObjectGetPublishStatus::Draft, ObjectGetPublishStatus::Published], 'ObjectGet BackedEnumList filters unknown values and preserves instances');
+$check($enumObjectGet->BackedEnum('Missing', ObjectGetPublishStatus::class) === null, 'ObjectGet BackedEnum returns null for a missing property');
+
+$numericEnumObjectGet = new ObjectGet((object) [
+	'Priority' => '1',
+], ValueMode::NumericStr);
+$check($numericEnumObjectGet->BackedEnum('Priority', ObjectGetPriority::class) === ObjectGetPriority::High, 'ObjectGet NumericStr applies to an int-backed enum');
 
 if (PHP_VERSION_ID >= 80400) {
 	eval(<<<'PHP'

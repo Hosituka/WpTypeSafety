@@ -146,6 +146,32 @@ final class ArrayGet
 			: null;
 	}
 
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @return T|null
+	 */
+	public function BackedEnum(string $key, string $enumClass): ?\BackedEnum
+	{
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? $this->rules->NormalizeBackedEnum($resolved->Value, $enumClass)
+			: null;
+	}
+
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @return list<T>
+	 */
+	public function BackedEnumList(string $key, string $enumClass): array
+	{
+		$resolved = $this->resolveValue($key);
+		return $resolved->Exists
+			? ($this->rules->NormalizeBackedEnumList($resolved->Value, $enumClass) ?? [])
+			: [];
+	}
+
 	public function Array(string $key): array
 	{
 		return TypeCheck::Array($this->value($key)) ?? [];

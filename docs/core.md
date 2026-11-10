@@ -129,6 +129,29 @@ $enabled = $resultGet->Bool('enabled');
 
 複数のモードが同じNormalizerへ規則を追加する場合も、既存の判定を包んで許可条件を増やすため、指定順によって一方の規則が失われることはありません。
 
+backed Enumは、`BackedEnum()`で文字列・整数のbacking valueから対応するcaseへ正規化できます。値がすでに指定したEnumのインスタンスなら、そのまま返します。欠損、backing型の不一致、定義されていない値では`null`を返します。`BackedEnumList()`は配列内の変換できない要素を除外し、すべて除外された場合や欠損時は空配列を返します。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ArrayGet;
+
+enum PublishStatus: string
+{
+	case Draft = 'draft';
+	case Published = 'published';
+}
+
+$postGet = new ArrayGet([
+	'status' => 'published',
+	'allowed_statuses' => ['draft', 'invalid', 'published'],
+]);
+
+$status = $postGet->BackedEnum('status', PublishStatus::class);
+$allowedStatuses = $postGet->BackedEnumList('allowed_statuses', PublishStatus::class);
+```
+
+int-backed Enumのbacking valueは、既定の`Strict`ではintだけを受け入れます。数値文字列も受け入れる場合は`NumericStr`を指定します。unbacked Enumの既存インスタンスを確認するだけなら、従来どおり`Instance()`・`InstanceList()`を使用します。`ObjectGet`にも同じ`BackedEnum()`・`BackedEnumList()`があります。
+
 一部の基準だけを案件固有に差し替える場合は、`ValueRules::FromMode()`で基準を作り、publicなNormalizerを上書きして渡します。
 
 ```php

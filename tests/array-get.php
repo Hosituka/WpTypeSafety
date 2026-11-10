@@ -9,6 +9,18 @@ use WpTypeSafety\Core\Check\ValueMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\TimeData;
 
+enum ArrayGetPublishStatus: string
+{
+	case Draft = 'draft';
+	case Published = 'published';
+}
+
+enum ArrayGetPriority: int
+{
+	case Low = 0;
+	case High = 1;
+}
+
 $checks = 0;
 $check = static function (bool $condition, string $message) use (&$checks): void {
 	if (!$condition) {
@@ -273,6 +285,32 @@ $duplicateModeGet = new ArrayGet([
 ));
 $check($duplicateModeGet->Bool('enabled') === true, 'Applying the same mode twice is idempotent');
 $check($duplicateModeGet->Int('count') === 50, 'Strict at the end does not reset previously composed modes');
+
+$enumGet = new ArrayGet([
+	'status' => 'published',
+	'instance' => ArrayGetPublishStatus::Draft,
+	'invalid' => 'archived',
+	'priority' => 1,
+	'priority_string' => '1',
+	'statuses' => ['draft', 'invalid', ArrayGetPublishStatus::Published],
+	'priorities' => [0, 1, 2, '1'],
+]);
+$check($enumGet->BackedEnum('status', ArrayGetPublishStatus::class) === ArrayGetPublishStatus::Published, 'BackedEnum normalizes a string backing value');
+$check($enumGet->BackedEnum('instance', ArrayGetPublishStatus::class) === ArrayGetPublishStatus::Draft, 'BackedEnum preserves an existing enum instance');
+$check($enumGet->BackedEnum('invalid', ArrayGetPublishStatus::class) === null, 'BackedEnum returns null for an unknown backing value');
+$check($enumGet->BackedEnum('missing', ArrayGetPublishStatus::class) === null, 'BackedEnum returns null for a missing key');
+$check($enumGet->BackedEnum('priority', ArrayGetPriority::class) === ArrayGetPriority::High, 'BackedEnum normalizes an integer backing value');
+$check($enumGet->BackedEnum('priority_string', ArrayGetPriority::class) === null, 'Strict BackedEnum rejects a numeric string for an int-backed enum');
+$check($enumGet->BackedEnumList('statuses', ArrayGetPublishStatus::class) === [ArrayGetPublishStatus::Draft, ArrayGetPublishStatus::Published], 'BackedEnumList filters unknown backing values and preserves instances');
+$check($enumGet->BackedEnumList('priorities', ArrayGetPriority::class) === [ArrayGetPriority::Low, ArrayGetPriority::High], 'Strict BackedEnumList filters values with the wrong backing type');
+$check($enumGet->BackedEnumList('missing', ArrayGetPublishStatus::class) === [], 'BackedEnumList returns an empty list for a missing key');
+
+$numericEnumGet = new ArrayGet([
+	'priority' => '1',
+	'priorities' => ['0', '1', 'invalid'],
+], ValueMode::NumericStr);
+$check($numericEnumGet->BackedEnum('priority', ArrayGetPriority::class) === ArrayGetPriority::High, 'NumericStr applies to an int-backed enum');
+$check($numericEnumGet->BackedEnumList('priorities', ArrayGetPriority::class) === [ArrayGetPriority::Low, ArrayGetPriority::High], 'NumericStr applies to an int-backed enum list');
 
 $invalidRules = ValueRules::FromMode(ValueMode::Strict);
 $invalidRules->IntNormalizer = static fn(mixed $value): mixed => 'invalid';

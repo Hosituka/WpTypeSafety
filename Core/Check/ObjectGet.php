@@ -164,6 +164,32 @@ final class ObjectGet
 			: null;
 	}
 
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @return T|null
+	 */
+	public function BackedEnum(string $propertyName, string $enumClass): ?\BackedEnum
+	{
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? $this->rules->NormalizeBackedEnum($resolved->Value, $enumClass)
+			: null;
+	}
+
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @return list<T>
+	 */
+	public function BackedEnumList(string $propertyName, string $enumClass): array
+	{
+		$resolved = $this->resolveValue($propertyName);
+		return $resolved->Exists
+			? ($this->rules->NormalizeBackedEnumList($resolved->Value, $enumClass) ?? [])
+			: [];
+	}
+
 	public function Array(string $propertyName): array
 	{
 		return TypeCheck::Array($this->value($propertyName)) ?? [];

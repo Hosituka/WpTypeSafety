@@ -77,6 +77,33 @@ final class ValueRules
 		return ($this->BoolNormalizer)($value);
 	}
 
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @return T|null
+	 */
+	public function NormalizeBackedEnum(mixed $value, string $enumClass): ?\BackedEnum
+	{
+		if (! enum_exists($enumClass) || ! is_subclass_of($enumClass, \BackedEnum::class)) {
+			return null;
+		}
+
+		if ($value instanceof $enumClass) {
+			return $value;
+		}
+
+		$backingType = (new \ReflectionEnum($enumClass))->getBackingType()?->getName();
+		$backingValue = match ($backingType) {
+			'int' => $this->NormalizeInt($value),
+			'string' => $this->NormalizeString($value),
+			default => null,
+		};
+
+		return $backingValue === null
+			? null
+			: $enumClass::tryFrom($backingValue);
+	}
+
 	/** @return list<string>|null */
 	public function NormalizeStringList(mixed $value): ?array
 	{
@@ -110,6 +137,19 @@ final class ValueRules
 		return $this->normalizeList(
 			$value,
 			fn(mixed $item): ?bool => $this->NormalizeBool($item),
+		);
+	}
+
+	/**
+	 * @template T of \BackedEnum
+	 * @param class-string<T> $enumClass
+	 * @return list<T>|null
+	 */
+	public function NormalizeBackedEnumList(mixed $value, string $enumClass): ?array
+	{
+		return $this->normalizeList(
+			$value,
+			fn(mixed $item): ?\BackedEnum => $this->NormalizeBackedEnum($item, $enumClass),
 		);
 	}
 
