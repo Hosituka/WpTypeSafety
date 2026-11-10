@@ -23,6 +23,23 @@ final class ValueResolver
 		return self::missing();
 	}
 
+	public static function ResolvePath(
+		mixed $source,
+		int|string $segment,
+		int|string ...$segments,
+	): ResolvedValue
+	{
+		$resolved = self::Resolve($source, $segment);
+		foreach ($segments as $nestedSegment) {
+			if (! $resolved->Exists)
+			{return self::missing();}
+
+			$resolved = self::Resolve($resolved->Value, $nestedSegment);
+		}
+
+		return $resolved;
+	}
+
 	/** @param array<array-key, mixed> $source */
 	public static function ResolveArray(array $source, int|string $key): ResolvedValue
 	{
@@ -34,6 +51,24 @@ final class ValueResolver
 			Exists: true,
 			Value: $source[$key],
 		);
+	}
+
+	/** @param array<array-key, mixed> $source */
+	public static function ResolveArrayPath(
+		array $source,
+		int|string $key,
+		int|string ...$keys,
+	): ResolvedValue
+	{
+		$resolved = self::ResolveArray($source, $key);
+		foreach ($keys as $nestedKey) {
+			if (! $resolved->Exists || ! is_array($resolved->Value))
+			{return self::missing();}
+
+			$resolved = self::ResolveArray($resolved->Value, $nestedKey);
+		}
+
+		return $resolved;
 	}
 
 	public static function ResolveObject(?object $source, string $propertyName): ResolvedValue
@@ -68,6 +103,23 @@ final class ValueResolver
 			Exists: true,
 			Value: $property->getValue($source),
 		);
+	}
+
+	public static function ResolveObjectPath(
+		?object $source,
+		string $propertyName,
+		string ...$propertyNames,
+	): ResolvedValue
+	{
+		$resolved = self::ResolveObject($source, $propertyName);
+		foreach ($propertyNames as $nestedPropertyName) {
+			if (! $resolved->Exists || ! is_object($resolved->Value))
+			{return self::missing();}
+
+			$resolved = self::ResolveObject($resolved->Value, $nestedPropertyName);
+		}
+
+		return $resolved;
 	}
 
 	private static function missing(): ResolvedValue

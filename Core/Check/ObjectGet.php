@@ -48,6 +48,20 @@ final class ObjectGet
 		return new self($this->source, $rules);
 	}
 
+	public function Exists(string $propertyName): bool
+	{
+		return $this->resolveValue($propertyName)->Exists;
+	}
+
+	public function ExistsPath(string $propertyName, string ...$propertyNames): bool
+	{
+		return ValueResolver::ResolveObjectPath(
+			$this->source,
+			$propertyName,
+			...$propertyNames,
+		)->Exists;
+	}
+
 	/**
 	 * @template T of object
 	 * @param class-string<T> $className

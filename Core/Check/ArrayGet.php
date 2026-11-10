@@ -49,6 +49,20 @@ final class ArrayGet
 		return new self($this->values, $rules);
 	}
 
+	public function Exists(int|string $key): bool
+	{
+		return $this->resolveValue($key)->Exists;
+	}
+
+	public function ExistsPath(int|string $key, int|string ...$keys): bool
+	{
+		return ValueResolver::ResolveArrayPath(
+			$this->values,
+			$key,
+			...$keys,
+		)->Exists;
+	}
+
 	/**
 	 * @template T of object
 	 * @param class-string<T> $className

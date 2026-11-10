@@ -47,6 +47,20 @@ final class TreeGet
 		return new self($this->source, $rules);
 	}
 
+	public function Exists(int|string $segment): bool
+	{
+		return $this->resolveValue($segment)->Exists;
+	}
+
+	public function ExistsPath(int|string $segment, int|string ...$segments): bool
+	{
+		return ValueResolver::ResolvePath(
+			$this->source,
+			$segment,
+			...$segments,
+		)->Exists;
+	}
+
 	public function AsArrayGet(): ?ArrayGet
 	{
 		return is_array($this->source)

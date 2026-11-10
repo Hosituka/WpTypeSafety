@@ -99,6 +99,13 @@ $check($get->Int('Count') === null, 'Int does not convert a numeric string');
 $check($get->String('Count') === '12', 'String reflects a changed property value');
 $check($get->StringList('Labels') === ['first', 'second'], 'StringList filters values and reindexes them');
 $check($get->String('ReadOnly') === 'readonly', 'String reads a readonly property');
+$check($get->Exists('Title'), 'Exists returns true for a public initialized property');
+$check($get->Exists('Nullable'), 'Exists returns true for a public property containing null');
+$check(! $get->Exists('Missing'), 'Exists returns false for a missing property');
+$check(! $get->Exists('Uninitialized'), 'Exists returns false for an uninitialized property');
+$check(! $get->Exists('ProtectedValue'), 'Exists returns false for a protected property');
+$check(! $get->Exists('PrivateValue'), 'Exists returns false for a private property');
+$check(! $get->Exists('StaticValue'), 'Exists returns false for a static property');
 $check($get->String('Nullable') === '', 'String returns an empty string for null');
 $check($get->String('Uninitialized') === '', 'String ignores an uninitialized property');
 $check($get->String('ProtectedValue') === '', 'String ignores a protected property');
@@ -111,10 +118,17 @@ $check($get->NestedArray('Child')->String('Name') === '', 'NestedArray returns a
 
 $pathGet = new ObjectGet((object) [
 	'Middle' => (object) [
-		'Inner' => (object) ['Name' => 'Deep object'],
+		'Inner' => (object) [
+			'Name' => 'Deep object',
+			'Nullable' => null,
+		],
 		'Array' => ['Name' => 'Array in object path'],
 	],
 ]);
+$check($pathGet->ExistsPath('Middle', 'Inner', 'Name'), 'ObjectGet ExistsPath returns true for an existing object path');
+$check($pathGet->ExistsPath('Middle', 'Inner', 'Nullable'), 'ObjectGet ExistsPath returns true for an explicit null at the path endpoint');
+$check(! $pathGet->ExistsPath('Middle', 'Missing', 'Name'), 'ObjectGet ExistsPath returns false for a missing intermediate property');
+$check(! $pathGet->ExistsPath('Middle', 'Array', 'Name'), 'ObjectGet ExistsPath does not cross from an object to an array');
 $check($pathGet->NestedPath('Middle', 'Inner')->String('Name') === 'Deep object', 'ObjectGet NestedPath reads a path containing only objects');
 $check($pathGet->NestedPath('Middle', 'Array')->String('Name') === '', 'ObjectGet NestedPath does not cross from an object to an array');
 $check($pathGet->NestedPath('Middle', 'Missing')->String('Name') === '', 'ObjectGet NestedPath returns an empty getter after a missing segment');
@@ -152,6 +166,7 @@ $check($originalGet->Int('Count') === 30, 'ObjectGet does not follow replacement
 $magicSource = new ObjectGetMagicSource();
 $magicGet = new ObjectGet($magicSource);
 $check($magicGet->String('Virtual') === '', 'String ignores a magic-only property');
+$check(! $magicGet->Exists('Virtual'), 'Exists returns false for a magic-only property');
 $check($magicSource->MagicReadCount === 0, 'ObjectGet does not invoke __get or __isset');
 $check((new ObjectGet(false))->String('Title') === '', 'A non-object source behaves as an empty source');
 

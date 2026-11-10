@@ -84,6 +84,8 @@ $title = $acfGet->NestedPath('middle', 'inner')->String('title');
 
 `ArrayGet`はテンプレートパーツの`$args`や取得済みの配列からキーを取り出します。キーにはPHPの`array-key`と同じ`int|string`を指定でき、負の整数キーも対象です。コンストラクターには`mixed`を渡せます。配列以外は空配列として扱うため、`get_field()`の戻り値やリピーターの各行をそのまま渡せます。既定の`ValueMode::Strict`では型判定を`TypeCheck`と同じ基準で行い、値を変換しません。文字列は空文字、配列は空配列、それ以外はnullを型違い・未指定時に返します。`Instance()`と`InstanceList()`は案件固有データクラスにも使用できます。`*List()`は受け入れられない要素を除外して0からキーを振り直し、すべての要素が除外された場合は空配列を返します。
 
+`Exists()`はキーが存在するかだけを確認し、`ExistsPath()`は`NestedPath()`と同じくarrayだけで構成された経路の終端が存在するかを確認します。値の型やNormalizerの結果には依存せず、終端の値が明示的な`null`でも`true`、キーの欠損や経路途中の型違いがあれば`false`です。
+
 数値がPHPの数値型と数値文字列の間で揺れる境界では、第2引数に`ValueMode::NumericStr`を指定できます。
 
 ```php
@@ -263,6 +265,8 @@ $name = $profileGet->String('name');
 
 対象は、初期化済みのpublicインスタンスプロパティ、`stdClass`のプロパティ、既存の動的プロパティ、public readonlyプロパティです。private・protected・static・未初期化プロパティ、存在しないプロパティ、`__get()`だけで提供される値、getterメソッドは対象外です。PHP 8.4以降のpublicなgetフックは通常のプロパティ読み取りとして実行し、フックが投げた例外はそのまま伝播します。
 
+`Exists()`も同じ対象範囲でプロパティの存在を確認し、`ExistsPath()`は`NestedPath()`と同じくobjectだけで構成された経路を確認します。初期化済みpublicプロパティは終端の値が`null`でも`true`となり、対象外のプロパティや経路途中の型違いは`false`です。
+
 `Nested()`はobjectである単一プロパティを`ObjectGet`で包み、`NestedPath('Outer', 'Middle', 'Inner')`は複数階層のobjectを一度に辿ります。`NestedPath()`はobjectだけを対象とし、途中にarrayが現れても自動的に`ArrayGet`へ切り替えません。型をまたぐ箇所では`NestedArray()`を明示的に使用します。`NestedList()`は配列内のobjectだけを`list<ObjectGet>`として返し、`NestedArray()`はarrayである単一プロパティを`ArrayGet`で包み、`NestedArrayList()`は配列内のarrayだけを`list<ArrayGet>`として返します。これにより、配列とオブジェクトが交互に現れる木構造でも取得口を切り替えながらたどれます。ValueMode・Rulesと、プリミティブ値・型付きリスト・`Instance()`・Core Data用アクセサーの戻り値規則は`ArrayGet`と同じです。HTMLエスケープや値の意味に関するバリデーションは行いません。
 
 ```php
@@ -298,6 +302,8 @@ $age = $profileGet->Int('age');
 ```
 
 `TreeGet`の取得メソッドと`Nested()`・`NestedPath()`には`int|string`のセグメントを指定できます。現在のノードがarrayなら整数・文字列をそのまま配列キーとして使い、objectなら文字列だけをプロパティ名として使います。object上の整数セグメントは欠損扱いです。数値名のobjectプロパティを読む場合は`'0'`のような文字列を指定します。
+
+`Exists()`は現在ノードに直下のキーまたは対象プロパティが存在するかを確認し、`ExistsPath()`は`NestedPath()`と同じくarray・objectが混在する経路を確認します。終端の明示的な`null`は`true`、欠損、経路途中の`null`・スカラー値、対象外プロパティは`false`です。ValueModeやNormalizerによる値の正規化は行いません。
 
 `Nested()`と`NestedPath()`は各階層でarray・objectを自動判定します。途中でキー・プロパティが欠損するか、スカラー値へ到達した場合は、それ以降を空の取得元として扱います。ドット区切り文字列は使用せず、キーにドットが含まれる場合と区別できる可変長引数を使用します。
 

@@ -80,6 +80,13 @@ $source = [
 
 $treeGet = new TreeGet($source, ValueMode::NumericStr);
 $check($treeGet->String(0) === 'Root index', 'TreeGet reads an integer key from an array node');
+$check($treeGet->Exists(0), 'TreeGet Exists accepts an integer key on an array node');
+$check($treeGet->Exists('company'), 'TreeGet Exists returns true for an existing array key');
+$check(! $treeGet->Exists('missing'), 'TreeGet Exists returns false for a missing array key');
+$check($treeGet->ExistsPath('company', 'users', 'john', 'Name'), 'TreeGet ExistsPath crosses mixed array and object nodes');
+$check($treeGet->ExistsPath('users', 0, 'Profiles', 0, 'Name'), 'TreeGet ExistsPath accepts integer segments in array nodes');
+$check(! $treeGet->ExistsPath('company', 'missing', 'Name'), 'TreeGet ExistsPath returns false for a missing intermediate segment');
+$check(! $treeGet->ExistsPath('company', 'users', 'john', 'Name', 'value'), 'TreeGet ExistsPath returns false after reaching a scalar');
 $arrayGet = $treeGet->AsArrayGet();
 $check($arrayGet !== null, 'AsArrayGet returns ArrayGet for an array node');
 $check($arrayGet?->IntList('counts') === [1, 2], 'AsArrayGet inherits TreeGet rules');
@@ -134,6 +141,9 @@ $nullGet = new TreeGet([
 ], $rules);
 $rules->IntNormalizer = static fn(mixed $value): ?int => 200;
 $check($nullGet->Int('NullValue') === 100, 'TreeGet passes an explicit null to its rule snapshot');
+$check($nullGet->Exists('NullValue'), 'TreeGet Exists returns true for an explicitly stored null');
+$check($nullGet->ExistsPath('Child', 'NullValue'), 'TreeGet ExistsPath returns true for an explicit null at the path endpoint');
+$check(! $nullGet->ExistsPath('NullValue', 'Child'), 'TreeGet ExistsPath cannot continue through an explicit null');
 $check($nullGet->Int('Missing') === null, 'TreeGet bypasses normalizers for a missing segment');
 $check($nullGet->Nested('Child')->Int('NullValue') === 100, 'TreeGet Nested inherits the rule snapshot');
 
@@ -145,6 +155,8 @@ $check($liveGet->Int('Count') === 2, 'TreeGet reflects changes to its object sou
 
 $numericPropertySource = (object) [0 => 'Numeric property'];
 $numericPropertyGet = new TreeGet($numericPropertySource);
+$check(! $numericPropertyGet->Exists(0), 'TreeGet Exists rejects an integer segment on an object node');
+$check($numericPropertyGet->Exists('0'), 'TreeGet Exists accepts a numeric string property name');
 $check($numericPropertyGet->String(0) === '', 'TreeGet does not treat an integer segment as an object property name');
 $check($numericPropertyGet->String('0') === 'Numeric property', 'TreeGet reads a numeric object property through its string name');
 

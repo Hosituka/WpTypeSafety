@@ -46,6 +46,7 @@ $get = new ArrayGet([
 		'middle' => [
 			'inner' => [
 				'title' => 'Deep group',
+				'nullable' => null,
 			],
 			'object' => (object) ['title' => 'Object in array path'],
 		],
@@ -80,6 +81,14 @@ $get = new ArrayGet([
 ]);
 
 $check($get->String(0) === 'Zero index', 'String reads an integer array key');
+$check($get->Exists(0), 'Exists accepts an integer array key');
+$check($get->Exists('group'), 'Exists returns true for an existing key');
+$check(! $get->Exists('missing'), 'Exists returns false for a missing key');
+$check($get->ExistsPath('deep_group', 'middle', 'inner', 'title'), 'ExistsPath returns true for an existing array path');
+$check($get->ExistsPath('deep_group', 'middle', 'inner', 'nullable'), 'ExistsPath returns true for an explicit null at the path endpoint');
+$check(! $get->ExistsPath('deep_group', 'missing', 'inner'), 'ExistsPath returns false for a missing intermediate key');
+$check(! $get->ExistsPath('deep_group', 'middle', 'object', 'title'), 'ExistsPath does not cross from an array to an object');
+$check($get->ExistsPath('indexed_path', 0, 'inner', 'title'), 'ExistsPath accepts an integer path segment');
 $check($get->Nested(-1)->String('title') === 'Negative index', 'Nested reads a negative integer array key');
 $check($get->StringList(1) === ['First index item', 'Second index item'], 'StringList reads an integer array key');
 $check($get->BackedEnum(2, ArrayGetPublishStatus::class) === ArrayGetPublishStatus::Published, 'BackedEnum reads an integer array key');
@@ -202,6 +211,7 @@ $nullGet = new ArrayGet([
 	'null_value' => null,
 	'null_items' => [1, null, 2],
 ], $nullRules);
+$check($nullGet->Exists('null_value'), 'Exists returns true for an explicitly stored null');
 $check($nullGet->Int('missing') === null, 'A missing key bypasses the custom normalizer');
 $check($nullGet->Int('null_value') === 100, 'An explicitly stored null is passed to the custom normalizer');
 $check($nullGet->IntList('null_items') === [1, 100, 2], 'An explicit null list element is passed to the custom normalizer');
