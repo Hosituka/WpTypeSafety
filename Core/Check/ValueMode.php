@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Check;
 
-/** ArrayGetとObjectGetがプリミティブ値を受け入れる基準です。 */
+use WpTypeSafety\Internal\TreeTypeReader\Check\ValueMode as InternalValueMode;
+
+/** 型付きReaderがプリミティブ値を受け入れる組み込み基準です。 */
 enum ValueMode
 {
 	/** 元のPHP型が一致する値だけを受け入れます。 */
@@ -20,4 +22,16 @@ enum ValueMode
 
 	/** Boolで、空文字をfalseとして受け入れます。 */
 	case EmptyStrAsFalse;
+
+	/** @internal TreeTypeReader側の組み込みモードへ変換します。 */
+	public function ToInternal(): InternalValueMode
+	{
+		return match ($this) {
+			self::Strict => InternalValueMode::Strict,
+			self::NumericStr => InternalValueMode::NumericStr,
+			self::BoolStr => InternalValueMode::BoolStr,
+			self::BoolInt => InternalValueMode::BoolInt,
+			self::EmptyStrAsFalse => InternalValueMode::EmptyStrAsFalse,
+		};
+	}
 }

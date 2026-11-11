@@ -135,6 +135,7 @@ require_once __DIR__ . '/../autoload.php';
 
 use WpTypeSafety\Core\Check\ValueMode;
 use WpTypeSafety\Core\Check\ValueRules;
+use WpTypeSafety\Core\Check\TreeGet;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
 use WpTypeSafety\Wp\Get\MetaGet;
@@ -154,6 +155,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 };
 
 $postMetaGet = new MetaGet(7);
+$check($postMetaGet instanceof TreeGet, 'MetaGetはTreeGetの探索契約を継承する');
 $check($postMetaGet->Exists('title'), '保存済みメタが存在する');
 $check(! $postMetaGet->Exists('missing'), '欠損メタが存在しない');
 $check($postMetaGet->Exists('nullable'), 'nullの保存値と欠損を区別する');
@@ -225,6 +227,14 @@ $settingsGet = $postMetaGet->Nested('settings');
 $check($settingsGet instanceof MetaGet, 'NestedはMetaGetを返す');
 $check($settingsGet->String('color') === 'blue', 'ネストした文字列を取得する');
 $check($settingsGet->Int('columns') === 3, 'ネスト先へWordPress向け規則を引き継ぐ');
+$check($postMetaGet->AsArrayGet() === null, 'メタルートは取得済み配列として公開しない');
+$check($settingsGet->AsArrayGet() !== null, 'Nested後は通常のTreeGetとして配列へ変換できる');
+$transformedSettingsGet = $postMetaGet->Transform(
+	'settings',
+	static fn(mixed $value): mixed => $value,
+);
+$check($transformedSettingsGet instanceof MetaGet, 'TransformはMetaGetを維持する');
+$check($transformedSettingsGet->String('color') === 'blue', 'Transform後は通常の木構造として探索する');
 $relationsGet = $postMetaGet->NestedPath('settings', 'relations');
 $check($relationsGet->ExistsPath('post_id'), 'NestedPathで配列をたどる');
 $check($relationsGet->Post('post_id')?->PostId === 20, 'PHP値をPostDataへ変換する');

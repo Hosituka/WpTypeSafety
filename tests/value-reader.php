@@ -17,6 +17,10 @@ final class ValueReaderItem
 {
 }
 
+final class DerivedValueReader extends ValueReader
+{
+}
+
 $checks = 0;
 $check = static function (bool $condition, string $message) use (&$checks): void {
 	if (! $condition) {
@@ -145,5 +149,9 @@ try {
 	$caughtPredicateException = $exception;
 }
 $check($caughtPredicateException === $predicateException, 'ValueReader propagates a predicate exception unchanged');
+
+$derivedReader = new DerivedValueReader();
+$check($derivedReader->WithMode(ValueMode::NumericStr) instanceof DerivedValueReader, 'WithMode preserves a ValueReader subclass');
+$check($derivedReader->WithRules(ValueRules::FromMode(ValueMode::Strict)) instanceof DerivedValueReader, 'WithRules preserves a ValueReader subclass');
 
 echo "ValueReader: {$checks} checks passed.\n";

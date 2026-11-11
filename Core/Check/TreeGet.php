@@ -8,313 +8,62 @@ use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
-use WpTypeSafety\Core\Internal\ResolvedValue;
-use WpTypeSafety\Core\Internal\ValuePredicate;
-use WpTypeSafety\Core\Internal\ValueResolver;
+use WpTypeSafety\Internal\TreeTypeReader\Check\TreeGet as InternalTreeGet;
 
 /** 配列とオブジェクトが混在する木構造を、型を自動判定しながら取得します。 */
-final class TreeGet
+class TreeGet extends InternalTreeGet
 {
-	private readonly mixed $source;
-	private readonly ValueRules $rules;
-
 	public function __construct(
 		mixed $source,
 		ValueMode|ValueRules $modeOrRules = ValueMode::Strict,
 	) {
-		$this->source = $source;
-		$this->rules = $modeOrRules instanceof ValueRules
-			? clone $modeOrRules
-			: ValueRules::FromMode($modeOrRules);
+		parent::__construct(
+			$source,
+			$modeOrRules instanceof ValueMode
+				? ValueRules::FromMode($modeOrRules)
+				: $modeOrRules,
+		);
 	}
 
-	private function value(int|string $segment): mixed
+	protected function publicRulesSnapshot(): ValueRules
 	{
-		return $this->resolveValue($segment)->Value;
+		return ValueRules::FromInternal($this->rulesSnapshot());
 	}
 
-	private function resolveValue(int|string $segment): ResolvedValue
+	public function WithMode(ValueMode $mode): static
 	{
-		return ValueResolver::Resolve($this->source, $segment);
+		return $this->copyWithRules(ValueRules::FromMode($mode));
 	}
 
-	public function WithMode(ValueMode $mode): self
+	public function WithRules(ValueRules $rules): static
 	{
-		return new self($this->source, $mode);
-	}
-
-	public function WithRules(ValueRules $rules): self
-	{
-		return new self($this->source, $rules);
-	}
-
-	/**
-	 * 指定セグメントの値を変換し、戻り値を新しい探索対象として使用します。
-	 *
-	 * @param callable(mixed): mixed $transformer
-	 */
-	public function Transform(int|string $segment, callable $transformer): self
-	{
-		$resolved = $this->resolveValue($segment);
-		$transformed = $resolved->Exists
-			? $transformer($resolved->Value)
-			: null;
-
-		return new self($transformed, $this->rules);
-	}
-
-	public function Exists(int|string $segment): bool
-	{
-		return $this->resolveValue($segment)->Exists;
-	}
-
-	public function ExistsPath(int|string $segment, int|string ...$segments): bool
-	{
-		return ValueResolver::ResolvePath(
-			$this->source,
-			$segment,
-			...$segments,
-		)->Exists;
+		return $this->copyWithRules($rules);
 	}
 
 	public function AsArrayGet(): ?ArrayGet
 	{
-		return is_array($this->source)
-			? new ArrayGet($this->source, $this->rules)
+		$source = $this->sourceValue();
+		return is_array($source)
+			? new ArrayGet($source, $this->publicRulesSnapshot())
 			: null;
 	}
 
 	public function AsObjectGet(): ?ObjectGet
 	{
-		return is_object($this->source)
-			? new ObjectGet($this->source, $this->rules)
+		$source = $this->sourceValue();
+		return is_object($source)
+			? new ObjectGet($source, $this->publicRulesSnapshot())
 			: null;
-	}
-
-	/**
-	 * @template T of object
-	 * @param class-string<T> $className
-	 * @param (callable(T): bool)|null $predicate
-	 * @return T|null
-	 */
-	public function Instance(int|string $segment, string $className, ?callable $predicate = null): ?object
-	{
-		$normalized = TypeCheck::Instance($this->value($segment), $className);
-		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
-			? $normalized
-			: null;
-	}
-
-	/**
-	 * @template T of object
-	 * @param class-string<T> $className
-	 * @param (callable(T): bool)|null $predicate
-	 * @return list<T>
-	 */
-	public function InstanceList(int|string $segment, string $className, ?callable $predicate = null): array
-	{
-		$normalized = TypeCheck::InstanceList($this->value($segment), $className);
-		return $normalized !== null
-			? ValuePredicate::Filter($normalized, $predicate)
-			: [];
-	}
-
-	/**
-	 * @param (callable(string): bool)|null $predicate
-	 * @return list<string>
-	 */
-	public function StringList(int|string $segment, ?callable $predicate = null): array
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeStringList($resolved->Value)
-			: null;
-		return $normalized !== null
-			? ValuePredicate::Filter($normalized, $predicate)
-			: [];
-	}
-
-	/**
-	 * @param (callable(int): bool)|null $predicate
-	 * @return list<int>
-	 */
-	public function IntList(int|string $segment, ?callable $predicate = null): array
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeIntList($resolved->Value)
-			: null;
-		return $normalized !== null
-			? ValuePredicate::Filter($normalized, $predicate)
-			: [];
-	}
-
-	/**
-	 * @param (callable(float): bool)|null $predicate
-	 * @return list<float>
-	 */
-	public function FloatList(int|string $segment, ?callable $predicate = null): array
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeFloatList($resolved->Value)
-			: null;
-		return $normalized !== null
-			? ValuePredicate::Filter($normalized, $predicate)
-			: [];
-	}
-
-	/**
-	 * @param (callable(bool): bool)|null $predicate
-	 * @return list<bool>
-	 */
-	public function BoolList(int|string $segment, ?callable $predicate = null): array
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeBoolList($resolved->Value)
-			: null;
-		return $normalized !== null
-			? ValuePredicate::Filter($normalized, $predicate)
-			: [];
-	}
-
-	/** @param (callable(string): bool)|null $predicate */
-	public function String(int|string $segment, ?callable $predicate = null): string
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeString($resolved->Value)
-			: null;
-		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
-			? $normalized
-			: '';
-	}
-
-	/** @param (callable(int): bool)|null $predicate */
-	public function Int(int|string $segment, ?callable $predicate = null): ?int
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeInt($resolved->Value)
-			: null;
-		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
-			? $normalized
-			: null;
-	}
-
-	/** @param (callable(float): bool)|null $predicate */
-	public function Float(int|string $segment, ?callable $predicate = null): ?float
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeFloat($resolved->Value)
-			: null;
-		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
-			? $normalized
-			: null;
-	}
-
-	/** @param (callable(bool): bool)|null $predicate */
-	public function Bool(int|string $segment, ?callable $predicate = null): ?bool
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeBool($resolved->Value)
-			: null;
-		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
-			? $normalized
-			: null;
-	}
-
-	/**
-	 * @template T of \BackedEnum
-	 * @param class-string<T> $enumClass
-	 * @param (callable(T): bool)|null $predicate
-	 * @return T|null
-	 */
-	public function BackedEnum(int|string $segment, string $enumClass, ?callable $predicate = null): ?\BackedEnum
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeBackedEnum($resolved->Value, $enumClass)
-			: null;
-		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
-			? $normalized
-			: null;
-	}
-
-	/**
-	 * @template T of \BackedEnum
-	 * @param class-string<T> $enumClass
-	 * @param (callable(T): bool)|null $predicate
-	 * @return list<T>
-	 */
-	public function BackedEnumList(int|string $segment, string $enumClass, ?callable $predicate = null): array
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? $this->rules->NormalizeBackedEnumList($resolved->Value, $enumClass)
-			: null;
-		return $normalized !== null
-			? ValuePredicate::Filter($normalized, $predicate)
-			: [];
-	}
-
-	/** @param (callable(array<array-key, mixed>): bool)|null $predicate */
-	public function Array(int|string $segment, ?callable $predicate = null): array
-	{
-		$resolved = $this->resolveValue($segment);
-		$normalized = $resolved->Exists
-			? TypeCheck::Array($resolved->Value)
-			: null;
-		return $normalized !== null && ValuePredicate::Passes($normalized, $predicate)
-			? $normalized
-			: [];
-	}
-
-	public function Nested(int|string $segment): self
-	{
-		$resolved = $this->resolveValue($segment);
-		return new self(
-			$resolved->Exists ? $resolved->Value : null,
-			$this->rules,
-		);
-	}
-
-	public function NestedPath(int|string $segment, int|string ...$segments): self
-	{
-		$nestedGet = $this->Nested($segment);
-		foreach ($segments as $nestedSegment) {
-			$nestedGet = $nestedGet->Nested($nestedSegment);
-		}
-
-		return $nestedGet;
 	}
 
 	public function NestedArray(int|string $segment): ArrayGet
 	{
-		return new ArrayGet($this->value($segment), $this->rules);
+		return new ArrayGet($this->value($segment), $this->publicRulesSnapshot());
 	}
 
 	public function NestedObject(int|string $segment): ObjectGet
 	{
-		return new ObjectGet($this->value($segment), $this->rules);
-	}
-
-	/** @return list<self> */
-	public function NestedList(int|string $segment): array
-	{
-		$items = [];
-		foreach ($this->Array($segment) as $value) {
-			if (! is_array($value) && ! is_object($value)) {
-				continue;
-			}
-
-			$items[] = new self($value, $this->rules);
-		}
-
-		return $items;
+		return new ObjectGet($this->value($segment), $this->publicRulesSnapshot());
 	}
 
 	/** @return list<ArrayGet> */
@@ -322,11 +71,10 @@ final class TreeGet
 	{
 		$items = [];
 		foreach ($this->Array($segment) as $value) {
-			if (! is_array($value)) {
-				continue;
-			}
+			if (! is_array($value))
+			{continue;}
 
-			$items[] = new ArrayGet($value, $this->rules);
+			$items[] = new ArrayGet($value, $this->publicRulesSnapshot());
 		}
 
 		return $items;
@@ -337,11 +85,10 @@ final class TreeGet
 	{
 		$items = [];
 		foreach ($this->Array($segment) as $value) {
-			if (! is_object($value)) {
-				continue;
-			}
+			if (! is_object($value))
+			{continue;}
 
-			$items[] = new ObjectGet($value, $this->rules);
+			$items[] = new ObjectGet($value, $this->publicRulesSnapshot());
 		}
 
 		return $items;

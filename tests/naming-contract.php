@@ -21,7 +21,7 @@ use WpTypeSafety\Acf\Internal\AcfAdapter;
 use WpTypeSafety\Acf\Internal\AcfDtoFactory;
 use WpTypeSafety\Acf\Internal\BlockAdapter;
 use WpTypeSafety\Core\Check\ValueReader;
-use WpTypeSafety\Core\Internal\ValuePredicate;
+use WpTypeSafety\Internal\TreeTypeReader\Internal\ValuePredicate;
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Get\MetaGet;
 use WpTypeSafety\Wp\Internal\MetaAdapter;

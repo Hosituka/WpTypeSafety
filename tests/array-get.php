@@ -21,6 +21,14 @@ enum ArrayGetPriority: int
 	case High = 1;
 }
 
+final class DerivedArrayGet extends ArrayGet
+{
+	public function Label(int|string $key): string
+	{
+		return $this->String($key);
+	}
+}
+
 $checks = 0;
 $check = static function (bool $condition, string $message) use (&$checks): void {
 	if (!$condition) {
@@ -502,5 +510,36 @@ try {
 	$normalizerListTypeErrorWasThrown = true;
 }
 $check($normalizerListTypeErrorWasThrown, 'IntList rejects an invalid custom normalizer element at runtime');
+
+$derivedGet = new DerivedArrayGet([
+	'group' => ['label' => 'Nested'],
+	'payload' => '{"label":"Transformed"}',
+	'items' => [
+		['label' => 'First'],
+		['label' => 'Second'],
+	],
+	'count' => '12',
+]);
+$check($derivedGet->Nested('group') instanceof DerivedArrayGet, 'Nested preserves an ArrayGet subclass');
+$check($derivedGet->NestedPath('group')->Label('label') === 'Nested', 'NestedPath preserves subclass accessors');
+$check(
+	$derivedGet->Transform(
+		'payload',
+		static fn(mixed $value): array => is_string($value)
+			? (json_decode($value, true) ?: [])
+			: [],
+	) instanceof DerivedArrayGet,
+	'Transform preserves an ArrayGet subclass',
+);
+$check($derivedGet->WithMode(ValueMode::NumericStr) instanceof DerivedArrayGet, 'WithMode preserves an ArrayGet subclass');
+$check($derivedGet->WithRules(ValueRules::FromMode(ValueMode::NumericStr)) instanceof DerivedArrayGet, 'WithRules preserves an ArrayGet subclass');
+$check(
+	array_reduce(
+		$derivedGet->NestedList('items'),
+		static fn(bool $result, ArrayGet $item): bool => $result && $item instanceof DerivedArrayGet,
+		true,
+	),
+	'NestedList preserves an ArrayGet subclass for every child',
+);
 
 echo "ArrayGet: {$checks} checks passed\n";

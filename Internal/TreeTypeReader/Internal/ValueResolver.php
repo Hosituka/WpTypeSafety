@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Core\Internal;
+namespace WpTypeSafety\Internal\TreeTypeReader\Internal;
+
+use WpTypeSafety\Internal\TreeTypeReader\ResolvedValue;
 
 /** @internal 配列キーとpublicインスタンスプロパティを同じ存在契約で解決します。 */
 final class ValueResolver

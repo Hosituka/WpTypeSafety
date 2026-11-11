@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Core\Internal;
+namespace WpTypeSafety\Internal\TreeTypeReader\Internal;
 
 /** @internal 正規化済みの値へ利用者指定の条件を適用します。 */
 final class ValuePredicate

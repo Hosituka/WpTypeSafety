@@ -3,99 +3,84 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Check;
 
+use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\FileData;
+use WpTypeSafety\Core\Data\ImgData;
+use WpTypeSafety\Core\Data\LinkData;
+use WpTypeSafety\Core\Data\TimeData;
+
+
+use WpTypeSafety\Internal\TreeTypeReader\Check\TypeCheck as InternalTypeCheck;
+
 /** 取得済みの値を変換せず、指定した型だけを通します。型違いはnullです。 */
-final class TypeCheck
+class TypeCheck extends InternalTypeCheck
 {
 	private function __construct()
 	{
 	}
-
-	public static function String(mixed $value): ?string
+	public static function ImgData(int|string $key): ?ImgData
 	{
-		return is_string($value) ? $value : null;
+		return self::Instance($key, ImgData::class);
 	}
 
-	public static function Int(mixed $value): ?int
+	public static function LinkData(int|string $key): ?LinkData
 	{
-		return is_int($value) ? $value : null;
+		return self::Instance($key, LinkData::class);
 	}
 
-	public static function Float(mixed $value): ?float
+	public static function ChoiceData(int|string $key): ?ChoiceData
 	{
-		return is_float($value) ? $value : null;
+		return self::Instance($key, ChoiceData::class);
 	}
 
-	public static function Bool(mixed $value): ?bool
+	public static function FileData(int|string $key): ?FileData
 	{
-		return is_bool($value) ? $value : null;
+		return self::Instance($key, FileData::class);
 	}
 
-	public static function Array(mixed $value): ?array
+	public static function TimeData(int|string $key): ?TimeData
 	{
-		return is_array($value) ? $value : null;
-	}
-
-	/**
-	 * @template T of object
-	 * @param class-string<T> $className
-	 * @return T|null
-	 */
-	public static function Instance(mixed $value, string $className): ?object
-	{
-		return $value instanceof $className ? $value : null;
+		return self::Instance($key, TimeData::class);
 	}
 
 	/**
-	 * 配列でない場合はnull、配列なら型違いの要素を除いたリストを返します。
-	 * @template T of object
-	 * @param class-string<T> $className
-	 * @return list<T>|null
+	 * @return list<ImgData>
 	 */
-	public static function InstanceList(mixed $value, string $className): ?array
+	public static function ImgDataList(int|string $key): array
 	{
-		if (! is_array($value)) {
-			return null;
-		}
-
-		$items = [];
-		foreach ($value as $item) {
-			if ($item instanceof $className) {
-				$items[] = $item;
-			}
-		}
-
-		return $items;
+		return self::InstanceList($key, ImgData::class);
 	}
 
-	/** @return list<string>|null */
-	public static function StringList(mixed $value): ?array
+	/**
+	 * @return list<LinkData>
+	 */
+	public static function LinkDataList(int|string $key): array
 	{
-		return is_array($value)
-			? array_values(array_filter($value, 'is_string'))
-			: null;
+		return self::InstanceList($key, LinkData::class);
 	}
 
-	/** @return list<int>|null */
-	public static function IntList(mixed $value): ?array
+	/**
+	 * @return list<ChoiceData>
+	 */
+	public static function ChoiceDataList(int|string $key): array
 	{
-		return is_array($value)
-			? array_values(array_filter($value, 'is_int'))
-			: null;
+		return self::InstanceList($key, ChoiceData::class);
 	}
 
-	/** @return list<float>|null */
-	public static function FloatList(mixed $value): ?array
+	/**
+	 * @return list<FileData>
+	 */
+	public static function FileDataList(int|string $key): array
 	{
-		return is_array($value)
-			? array_values(array_filter($value, 'is_float'))
-			: null;
+		return self::InstanceList($key, FileData::class);
 	}
 
-	/** @return list<bool>|null */
-	public static function BoolList(mixed $value): ?array
+	/**
+	 * @return list<TimeData>
+	 */
+	public static function TimeDataList(int|string $key): array
 	{
-		return is_array($value)
-			? array_values(array_filter($value, 'is_bool'))
-			: null;
+		return self::InstanceList($key, TimeData::class);
 	}
+
 }

@@ -417,3 +417,30 @@ if ($payloadGet !== null) {
 objectの対象範囲も`ObjectGet`と同じです。初期化済みのpublicインスタンスプロパティと既存の動的プロパティを読み、private・protected・static・未初期化・マジックプロパティは対象にしません。同じobjectのプロパティ変更は後続の取得へ反映されます。
 
 構造上arrayまたはobjectであること自体を確認したい場合は、`ArrayGet`または`ObjectGet`を優先します。`TreeGet`は型の切り替わりを許容するため、想定外のコンテナ型への変化も受け入れます。
+
+## 取得口の継承
+
+`ValueReader`・`ArrayGet`・`ObjectGet`・`TreeGet`は継承でき、案件固有Data用のGetterを追加できます。同じ取得口を返す`Nested()`・`NestedPath()`・`Transform()`・`WithMode()`・`WithRules()`と、同型要素を返す`NestedList()`は実行時の派生型を維持します。
+
+```php
+<?php
+use WpTypeSafety\Core\Check\ArrayGet;
+use WpTypeSafety\Wp\Data\PostData;
+
+final class SiteArrayGet extends ArrayGet
+{
+	public function Post(int|string $key): ?PostData
+	{
+		return $this->Instance($key, PostData::class);
+	}
+}
+
+$settingsGet = new SiteArrayGet($settings);
+$featuredPost = $settingsGet
+	->Nested('featured')
+	->Post('post');
+```
+
+`ArrayGet`から`ObjectGet`へ切り替える`NestedObject()`など、取得口の種類自体を変更するメソッドは、対応する標準の公開取得口を返します。切り替え後にも案件固有Getterが必要な場合は、派生クラス側でそのメソッドを上書きして対応する派生取得口を生成します。
+
+組み込みの`ValueMode`は閉じたEnumとして維持します。案件固有の正規化プリセットは`ValueRules`を構築するFactoryとして定義し、取得口の第2引数または`WithRules()`へ渡してください。

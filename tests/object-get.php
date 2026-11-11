@@ -22,6 +22,14 @@ enum ObjectGetPriority: int
 	case High = 1;
 }
 
+final class DerivedObjectGet extends ObjectGet
+{
+	public function Label(string $propertyName): string
+	{
+		return $this->String($propertyName);
+	}
+}
+
 final class ObjectGetTestSource
 {
 	public string $Title = 'Title';
@@ -257,6 +265,58 @@ $check((new ObjectGet(false))->String('Title') === '', 'A non-object source beha
 $numericPropertyGet = new ObjectGet((object) [0 => 'Numeric property']);
 $check($numericPropertyGet->String('0') === 'Numeric property', 'ObjectGet reads a numeric property name as a string');
 
+$integerPropertyRejected = false;
+try {
+	$numericPropertyGet->String(0);
+} catch (TypeError) {
+	$integerPropertyRejected = true;
+}
+$check($integerPropertyRejected, 'ObjectGet rejects an integer property name at the PHP signature boundary');
+
+$propertyMethods = [
+	'Transform',
+	'Exists',
+	'ExistsPath',
+	'Instance',
+	'InstanceList',
+	'String',
+	'Int',
+	'Float',
+	'Bool',
+	'BackedEnum',
+	'StringList',
+	'IntList',
+	'FloatList',
+	'BoolList',
+	'BackedEnumList',
+	'Array',
+	'Nested',
+	'NestedPath',
+	'NestedArray',
+	'NestedList',
+	'NestedArrayList',
+	'ImgData',
+	'LinkData',
+	'ChoiceData',
+	'FileData',
+	'TimeData',
+	'ImgDataList',
+	'LinkDataList',
+	'ChoiceDataList',
+	'FileDataList',
+	'TimeDataList',
+];
+foreach ($propertyMethods as $methodName) {
+	$parameterType = (new ReflectionMethod(ObjectGet::class, $methodName))
+		->getParameters()[0]
+		->getType();
+	$check(
+		$parameterType instanceof ReflectionNamedType
+			&& $parameterType->getName() === 'string',
+		"ObjectGet::{$methodName} accepts only a string property name",
+	);
+}
+
 $numericSource = (object) [
 	'Int' => '12',
 	'Float' => '12.5',
@@ -406,5 +466,33 @@ if (PHP_VERSION_ID >= 80400) {
 	}
 	$check($hookExceptionWasThrown, 'ObjectGet propagates exceptions from a get hook');
 }
+
+$derivedObjectGet = new DerivedObjectGet((object) [
+	'Child' => (object) ['Label' => 'Nested'],
+	'Payload' => (object) ['Label' => 'Transformed'],
+	'Items' => [
+		(object) ['Label' => 'First'],
+		(object) ['Label' => 'Second'],
+	],
+]);
+$check($derivedObjectGet->Nested('Child') instanceof DerivedObjectGet, 'Nested preserves an ObjectGet subclass');
+$check($derivedObjectGet->NestedPath('Child')->Label('Label') === 'Nested', 'NestedPath preserves ObjectGet subclass accessors');
+$check(
+	$derivedObjectGet->Transform(
+		'Payload',
+		static fn(mixed $value): mixed => $value,
+	) instanceof DerivedObjectGet,
+	'Transform preserves an ObjectGet subclass',
+);
+$check($derivedObjectGet->WithMode(ValueMode::Strict) instanceof DerivedObjectGet, 'WithMode preserves an ObjectGet subclass');
+$check($derivedObjectGet->WithRules(ValueRules::FromMode(ValueMode::Strict)) instanceof DerivedObjectGet, 'WithRules preserves an ObjectGet subclass');
+$check(
+	array_reduce(
+		$derivedObjectGet->NestedList('Items'),
+		static fn(bool $result, ObjectGet $item): bool => $result && $item instanceof DerivedObjectGet,
+		true,
+	),
+	'NestedList preserves an ObjectGet subclass for every child',
+);
 
 echo "ObjectGet: {$checks} checks passed\n";

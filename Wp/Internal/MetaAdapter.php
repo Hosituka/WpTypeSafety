@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Internal;
 
-use WpTypeSafety\Core\Internal\ResolvedValue;
+use WpTypeSafety\Internal\TreeTypeReader\ResolvedValue;
 
 /** @internal WordPressメタデータの欠損と保存済みの値を区別して取得します。 */
 final class MetaAdapter

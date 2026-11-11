@@ -14,6 +14,14 @@ enum TreeGetPublishStatus: string
 	case Published = 'published';
 }
 
+final class DerivedTreeGet extends TreeGet
+{
+	public function Label(int|string $segment): string
+	{
+		return $this->String($segment);
+	}
+}
+
 final class TreeGetRestrictedSource
 {
 	public object $PublicNode;
@@ -253,5 +261,33 @@ $check($scalarGet->String('Name') === '', 'TreeGet treats a scalar source as emp
 $check($scalarGet->Nested('Child')->Int('Count') === null, 'TreeGet cannot traverse a scalar source');
 $check($scalarGet->AsArrayGet() === null, 'AsArrayGet returns null for a scalar node');
 $check($scalarGet->AsObjectGet() === null, 'AsObjectGet returns null for a scalar node');
+
+$derivedTreeGet = new DerivedTreeGet([
+	'Child' => (object) ['Label' => 'Nested'],
+	'Payload' => ['Label' => 'Transformed'],
+	'Items' => [
+		['Label' => 'Array'],
+		(object) ['Label' => 'Object'],
+	],
+]);
+$check($derivedTreeGet->Nested('Child') instanceof DerivedTreeGet, 'Nested preserves a TreeGet subclass');
+$check($derivedTreeGet->NestedPath('Child')->Label('Label') === 'Nested', 'NestedPath preserves TreeGet subclass accessors');
+$check(
+	$derivedTreeGet->Transform(
+		'Payload',
+		static fn(mixed $value): mixed => $value,
+	) instanceof DerivedTreeGet,
+	'Transform preserves a TreeGet subclass',
+);
+$check($derivedTreeGet->WithMode(ValueMode::Strict) instanceof DerivedTreeGet, 'WithMode preserves a TreeGet subclass');
+$check($derivedTreeGet->WithRules(ValueRules::FromMode(ValueMode::Strict)) instanceof DerivedTreeGet, 'WithRules preserves a TreeGet subclass');
+$check(
+	array_reduce(
+		$derivedTreeGet->NestedList('Items'),
+		static fn(bool $result, TreeGet $item): bool => $result && $item instanceof DerivedTreeGet,
+		true,
+	),
+	'NestedList preserves a TreeGet subclass for every child',
+);
 
 echo "TreeGet: {$checks} checks passed\n";
