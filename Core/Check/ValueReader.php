@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Check;
 
-use WpTypeSafety\Internal\TreeTypeReader\Check\ValueReader as InternalValueReader;
+use WpTypeSafety\Internal\TreeTypeReader\ValueReader as InternalValueReader;
 
 /** 単独の値を、設定した基準に従って型付きの値へ正規化します。 */
 class ValueReader extends InternalValueReader

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Internal\TreeTypeReader\Check;
+namespace WpTypeSafety\Internal\TreeTypeReader;
 
 use WpTypeSafety\Internal\TreeTypeReader\Internal\ValuePredicate;
 

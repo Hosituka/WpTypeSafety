@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Internal\TreeTypeReader\Check;
+namespace WpTypeSafety\Internal\TreeTypeReader;
 
-use WpTypeSafety\Internal\TreeTypeReader\ResolvedValue;
+use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 use WpTypeSafety\Internal\TreeTypeReader\Internal\ValueResolver;
 
 /** @internal 配列とオブジェクトが混在する木構造を読む汎用実装です。 */

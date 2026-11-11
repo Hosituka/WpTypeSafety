@@ -6,7 +6,7 @@ namespace WpTypeSafety\Wp\Get;
 use WpTypeSafety\Core\Check\TreeGet;
 use WpTypeSafety\Core\Check\ValueMode;
 use WpTypeSafety\Core\Check\ValueRules;
-use WpTypeSafety\Internal\TreeTypeReader\ResolvedValue;
+use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 use WpTypeSafety\Wp\Data\CommentData;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Internal\TreeTypeReader\Check;
+namespace WpTypeSafety\Internal\TreeTypeReader;
 
 /** ArrayGetとObjectGetがプリミティブ値を受け入れる基準を保持します。 */
 class ValueRules

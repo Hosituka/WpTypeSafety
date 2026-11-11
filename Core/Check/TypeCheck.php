@@ -10,7 +10,7 @@ use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
 
 
-use WpTypeSafety\Internal\TreeTypeReader\Check\TypeCheck as InternalTypeCheck;
+use WpTypeSafety\Internal\TreeTypeReader\TypeCheck as InternalTypeCheck;
 
 /** 取得済みの値を変換せず、指定した型だけを通します。型違いはnullです。 */
 class TypeCheck extends InternalTypeCheck

@@ -8,7 +8,7 @@ use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
-use WpTypeSafety\Internal\TreeTypeReader\Check\TreeGet as InternalTreeGet;
+use WpTypeSafety\Internal\TreeTypeReader\TreeGet as InternalTreeGet;
 
 /** 配列とオブジェクトが混在する木構造を、型を自動判定しながら取得します。 */
 class TreeGet extends InternalTreeGet

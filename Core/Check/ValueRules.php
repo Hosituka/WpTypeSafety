@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Check;
 
-use WpTypeSafety\Internal\TreeTypeReader\Check\ValueMode as InternalValueMode;
-use WpTypeSafety\Internal\TreeTypeReader\Check\ValueRules as InternalValueRules;
+use WpTypeSafety\Internal\TreeTypeReader\ValueMode as InternalValueMode;
+use WpTypeSafety\Internal\TreeTypeReader\ValueRules as InternalValueRules;
 
 /** 型付きReaderがプリミティブ値を受け入れる基準を保持します。 */
 class ValueRules extends InternalValueRules

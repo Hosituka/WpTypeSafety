@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Internal\TreeTypeReader\Internal;
 
-use WpTypeSafety\Internal\TreeTypeReader\ResolvedValue;
+use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 
 /** @internal 配列キーとpublicインスタンスプロパティを同じ存在契約で解決します。 */
 final class ValueResolver

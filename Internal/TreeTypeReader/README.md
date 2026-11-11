@@ -204,6 +204,28 @@ final class SiteArrayGet extends ArrayGet
 
 ここからはWpTypeSafety本体または将来の独立パッケージ化に向けた内部契約です。通常のテーマコードでは使用しません。
 
+TreeTypeReader固有の取得口・型確認・正規化クラスは、役割を横断する`Check`階層を設けず、モジュール直下へ配置します。
+
+```text
+Internal/TreeTypeReader/
+├─ ArrayGet.php
+├─ ObjectGet.php
+├─ TreeGet.php
+├─ TreeTypeReader.php
+├─ TypeCheck.php
+├─ DictCheck.php
+├─ ValueReader.php
+├─ ValueRules.php
+├─ ValueMode.php
+├─ Data/
+│  └─ ResolvedValue.php
+└─ Internal/
+   ├─ ValueResolver.php
+   └─ ValuePredicate.php
+```
+
+`Data`には探索状態や取得結果を表す不変データを置きます。現在の`ResolvedValue`に加え、将来、厳密な取得結果・失敗理由・失敗したパスを表すDataを追加できる領域です。`Internal`には値解決やpredicate適用など、外部へ公開しないアルゴリズムだけを置きます。
+
 `TreeTypeReader`は型付きGetterの処理本体をprotectedメソッドとして共有します。`ArrayGet`・`ObjectGet`・`TreeGet`は、取得元に合ったキー型を持つ薄い公開Getterからその共通処理を呼び出します。これにより処理の重複を抑えつつ、`ObjectGet`の公開シグネチャを`string`に限定しています。
 
 派生取得口は、少なくとも次の2つを実装します。
@@ -218,7 +240,7 @@ abstract protected function createChild(
 ): static;
 ```
 
-`ResolvedValue`は、欠損と明示的な`null`を区別します。
+`WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue`は、欠損と明示的な`null`を区別します。
 
 ```php
 new ResolvedValue(

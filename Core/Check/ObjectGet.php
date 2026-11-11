@@ -8,7 +8,7 @@ use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
-use WpTypeSafety\Internal\TreeTypeReader\Check\ObjectGet as InternalObjectGet;
+use WpTypeSafety\Internal\TreeTypeReader\ObjectGet as InternalObjectGet;
 
 /** publicインスタンスプロパティを動的に読み、設定した基準で値を取得します。 */
 class ObjectGet extends InternalObjectGet

@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Internal\TreeTypeReader\Check;
+namespace WpTypeSafety\Internal\TreeTypeReader;
 
-use WpTypeSafety\Internal\TreeTypeReader\ResolvedValue;
+use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 
 /** @internal 木構造の探索口に共通する型付きGetterを実装します。 */
 abstract class TreeTypeReader

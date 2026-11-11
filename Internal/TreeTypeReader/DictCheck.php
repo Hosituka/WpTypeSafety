@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Internal\TreeTypeReader\Check;
+namespace WpTypeSafety\Internal\TreeTypeReader;
 
 /** 文字列キーを保ったまま、辞書全体の値の型を確認します。 */
 class DictCheck

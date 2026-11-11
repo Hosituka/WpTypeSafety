@@ -8,7 +8,7 @@ use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
-use WpTypeSafety\Internal\TreeTypeReader\Check\ArrayGet as InternalArrayGet;
+use WpTypeSafety\Internal\TreeTypeReader\ArrayGet as InternalArrayGet;
 
 /** 連想配列からキーを指定し、設定した基準で値を取得します。 */
 class ArrayGet extends InternalArrayGet

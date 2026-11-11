@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Check;
 
-use WpTypeSafety\Internal\TreeTypeReader\Check\ValueMode as InternalValueMode;
+use WpTypeSafety\Internal\TreeTypeReader\ValueMode as InternalValueMode;
 
 /** 型付きReaderがプリミティブ値を受け入れる組み込み基準です。 */
 enum ValueMode

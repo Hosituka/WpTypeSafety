@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace WpTypeSafety\Internal\TreeTypeReader\Check;
+namespace WpTypeSafety\Internal\TreeTypeReader;
 
 /** 取得済みの値を変換せず、指定した型だけを通します。型違いはnullです。 */
 class TypeCheck
