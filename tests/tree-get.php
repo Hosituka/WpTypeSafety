@@ -5,7 +5,8 @@ require_once dirname(__DIR__) . '/autoload.php';
 
 use WpTypeSafety\Core\Check\TreeGet;
 use WpTypeSafety\Core\Check\TypeCheck;
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 
 enum TreeGetPublishStatus: string
@@ -86,7 +87,7 @@ $source = [
 	'counts' => ['1', 2, 'invalid'],
 ];
 
-$treeGet = new TreeGet($source, ValueMode::NumericStr);
+$treeGet = new TreeGet($source, NumericMode::Str);
 $check($treeGet->String(0) === 'Root index', 'TreeGet reads an integer key from an array node');
 $check($treeGet->Exists(0), 'TreeGet Exists accepts an integer key on an array node');
 $check($treeGet->Exists('company'), 'TreeGet Exists returns true for an existing array key');
@@ -105,7 +106,7 @@ $johnObjectGet = $johnGet->AsObjectGet();
 $check($johnObjectGet !== null, 'AsObjectGet returns ObjectGet for an object node');
 $check($johnObjectGet?->Int('Age') === 30, 'AsObjectGet inherits TreeGet rules');
 $check($johnGet->AsArrayGet() === null, 'AsArrayGet returns null for an object node');
-$check($johnGet->Int('Age') === 30, 'TreeGet inherits ValueMode through a mixed path');
+$check($johnGet->Int('Age') === 30, 'TreeGet inherits NumericMode through a mixed path');
 $check($johnGet->BackedEnum('Status', TreeGetPublishStatus::class) === TreeGetPublishStatus::Published, 'TreeGet delegates BackedEnum normalization');
 $check($treeGet->IntList('counts') === [1, 2], 'TreeGet delegates primitive list normalization');
 $check($treeGet->NestedPath('company', 'missing', 'john')->String('Name') === '', 'TreeGet returns an empty getter after a missing segment');
@@ -115,7 +116,7 @@ $check($treeGet->NestedPath('users', 0, 'Profiles', 0)->String('Name') === 'Inde
 $transformGet = new TreeGet([
 	'payload' => '{"Name":"Transformed tree","Count":"12"}',
 	'nullable' => null,
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $transformCalls = 0;
 $transformedGet = $transformGet->Transform(
 	'payload',
@@ -175,7 +176,7 @@ $predicateGet = new TreeGet((object) [
 	'Prices' => ['100', -50, 'invalid', 200, 0],
 	'Settings' => ['color' => 'blue'],
 	'Status' => 'published',
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value >= 18) === 20, 'TreeGet applies a predicate after ValueRules normalization');
 $check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value > 20) === null, 'TreeGet returns null when an Int predicate rejects the value');
 $check($predicateGet->Bool('Enabled', predicate: static fn(bool $value): bool => ! $value) === false, 'TreeGet passes a valid false to a predicate');
@@ -214,10 +215,10 @@ $check($treeGet->NestedObject('users')->String('missing') === '', 'TreeGet Neste
 
 $strictGet = new TreeGet(['Count' => '10']);
 $check($strictGet->Int('Count') === null, 'TreeGet is strict by default');
-$check($strictGet->WithMode(ValueMode::NumericStr)->Int('Count') === 10, 'TreeGet WithMode returns a getter with new rules');
-$check($strictGet->Int('Count') === null, 'TreeGet WithMode does not mutate the original getter');
+$check($strictGet->WithModes(NumericMode::Str)->Int('Count') === 10, 'TreeGet WithModes returns a getter with new rules');
+$check($strictGet->Int('Count') === null, 'TreeGet WithModes does not mutate the original getter');
 
-$rules = ValueRules::FromMode(ValueMode::Strict);
+$rules = ValueRules::Strict();
 $rules->IntNormalizer = static fn(mixed $value): ?int => $value === null
 	? 100
 	: TypeCheck::Int($value);
@@ -234,7 +235,7 @@ $check($nullGet->Int('Missing') === null, 'TreeGet bypasses normalizers for a mi
 $check($nullGet->Nested('Child')->Int('NullValue') === 100, 'TreeGet Nested inherits the rule snapshot');
 
 $liveSource = (object) ['Count' => '1'];
-$liveGet = new TreeGet($liveSource, ValueMode::NumericStr);
+$liveGet = new TreeGet($liveSource, NumericMode::Str);
 $check($liveGet->Int('Count') === 1, 'TreeGet reads an object property');
 $liveSource->Count = '2';
 $check($liveGet->Int('Count') === 2, 'TreeGet reflects changes to its object source');
@@ -279,8 +280,8 @@ $check(
 	) instanceof DerivedTreeGet,
 	'Transform preserves a TreeGet subclass',
 );
-$check($derivedTreeGet->WithMode(ValueMode::Strict) instanceof DerivedTreeGet, 'WithMode preserves a TreeGet subclass');
-$check($derivedTreeGet->WithRules(ValueRules::FromMode(ValueMode::Strict)) instanceof DerivedTreeGet, 'WithRules preserves a TreeGet subclass');
+$check($derivedTreeGet->WithModes() instanceof DerivedTreeGet, 'WithModes preserves a TreeGet subclass');
+$check($derivedTreeGet->WithRules(ValueRules::Strict()) instanceof DerivedTreeGet, 'WithRules preserves a TreeGet subclass');
 $check(
 	array_reduce(
 		$derivedTreeGet->NestedList('Items'),

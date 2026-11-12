@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Internal\TreeTypeReader;
 
+use WpTypeSafety\Internal\TreeTypeReader\Data\BoolMode;
+use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode;
+
 /** ArrayGetとObjectGetがプリミティブ値を受け入れる基準を保持します。 */
 class ValueRules
 {
@@ -36,21 +39,50 @@ class ValueRules
 		$this->BoolNormalizer = $BoolNormalizer;
 	}
 
-	public static function FromInternalMode(ValueMode $mode): static
+	public static function Strict(): static
 	{
-		return static::FromInternalModes($mode);
+		return new static(
+			StringNormalizer: static fn(mixed $value): ?string => TypeCheck::String($value),
+			IntNormalizer: static fn(mixed $value): ?int => TypeCheck::Int($value),
+			FloatNormalizer: static fn(mixed $value): ?float => TypeCheck::Float($value),
+			BoolNormalizer: static fn(mixed $value): ?bool => TypeCheck::Bool($value),
+		);
 	}
 
-	public static function FromInternalModes(ValueMode ...$modes): static
+	public static function FromInternalModes(NumericMode|BoolMode ...$modes): static
 	{
-		$rules = self::strict();
+		$rules = static::Strict();
 		foreach ($modes as $mode) {
 			match ($mode) {
-				ValueMode::Strict => null,
-				ValueMode::NumericStr => $rules->applyNumericStr(),
-				ValueMode::BoolStr => $rules->applyBoolStr(),
-				ValueMode::BoolInt => $rules->applyBoolInt(),
-				ValueMode::EmptyStrAsFalse => $rules->applyEmptyStrAsFalse(),
+				NumericMode::Str => $rules->applyNumericStr(),
+				BoolMode::Str => $rules->applyBoolStringValues([
+					'true' => true,
+					'false' => false,
+					'1' => true,
+					'0' => false,
+					'on' => true,
+					'off' => false,
+					'yes' => true,
+					'no' => false,
+				]),
+				BoolMode::TrueFalseStr => $rules->applyBoolStringValues([
+					'true' => true,
+					'false' => false,
+				]),
+				BoolMode::OneZeroStr => $rules->applyBoolStringValues([
+					'1' => true,
+					'0' => false,
+				]),
+				BoolMode::OnOffStr => $rules->applyBoolStringValues([
+					'on' => true,
+					'off' => false,
+				]),
+				BoolMode::YesNoStr => $rules->applyBoolStringValues([
+					'yes' => true,
+					'no' => false,
+				]),
+				BoolMode::OneZeroInt => $rules->applyBoolInt(),
+				BoolMode::EmptyStrAsFalse => $rules->applyEmptyStrAsFalse(),
 			};
 		}
 
@@ -176,16 +208,6 @@ class ValueRules
 		return $items;
 	}
 
-	private static function strict(): static
-	{
-		return new static(
-			StringNormalizer: static fn(mixed $value): ?string => TypeCheck::String($value),
-			IntNormalizer: static fn(mixed $value): ?int => TypeCheck::Int($value),
-			FloatNormalizer: static fn(mixed $value): ?float => TypeCheck::Float($value),
-			BoolNormalizer: static fn(mixed $value): ?bool => TypeCheck::Bool($value),
-		);
-	}
-
 	private function applyNumericStr(): void
 	{
 		$this->IntNormalizer = self::normalizeNumericInt(...);
@@ -194,13 +216,19 @@ class ValueRules
 			: null;
 	}
 
-	private function applyBoolStr(): void
+	/** @param array<string, bool> $values */
+	private function applyBoolStringValues(array $values): void
 	{
 		$previous = $this->BoolNormalizer;
-		$this->BoolNormalizer = static fn(mixed $value): ?bool => match ($value) {
-			'true', '1' => true,
-			'false', '0' => false,
-			default => $previous($value),
+		$this->BoolNormalizer = static function (mixed $value) use ($previous, $values): ?bool {
+			if (! is_string($value)) {
+				return $previous($value);
+			}
+
+			$normalizedValue = strtolower($value);
+			return array_key_exists($normalizedValue, $values)
+				? $values[$normalizedValue]
+				: $previous($value);
 		};
 	}
 

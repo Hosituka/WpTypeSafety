@@ -3,21 +3,33 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Check;
 
-use WpTypeSafety\Internal\TreeTypeReader\ValueMode as InternalValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
+use WpTypeSafety\Internal\TreeTypeReader\Data\BoolMode as InternalBoolMode;
+use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode as InternalNumericMode;
 use WpTypeSafety\Internal\TreeTypeReader\ValueRules as InternalValueRules;
 
 /** 型付きReaderがプリミティブ値を受け入れる基準を保持します。 */
 class ValueRules extends InternalValueRules
 {
-	public static function FromMode(ValueMode $mode): static
+	public static function Strict(): static
 	{
-		return static::FromModes($mode);
+		return parent::Strict();
 	}
 
-	public static function FromModes(ValueMode ...$modes): static
+	public static function FromModes(NumericMode|BoolMode ...$modes): static
 	{
 		$internalModes = array_map(
-			static fn(ValueMode $mode): InternalValueMode => $mode->ToInternal(),
+			static fn(NumericMode|BoolMode $mode): InternalNumericMode|InternalBoolMode => match ($mode) {
+				NumericMode::Str => InternalNumericMode::Str,
+				BoolMode::Str => InternalBoolMode::Str,
+				BoolMode::TrueFalseStr => InternalBoolMode::TrueFalseStr,
+				BoolMode::OneZeroStr => InternalBoolMode::OneZeroStr,
+				BoolMode::OnOffStr => InternalBoolMode::OnOffStr,
+				BoolMode::YesNoStr => InternalBoolMode::YesNoStr,
+				BoolMode::OneZeroInt => InternalBoolMode::OneZeroInt,
+				BoolMode::EmptyStrAsFalse => InternalBoolMode::EmptyStrAsFalse,
+			},
 			$modes,
 		);
 
@@ -31,7 +43,7 @@ class ValueRules extends InternalValueRules
 			return clone $rules;
 		}
 
-		$publicRules = static::FromMode(ValueMode::Strict);
+		$publicRules = static::Strict();
 		$publicRules->StringNormalizer = $rules->StringNormalizer;
 		$publicRules->IntNormalizer = $rules->IntNormalizer;
 		$publicRules->FloatNormalizer = $rules->FloatNormalizer;

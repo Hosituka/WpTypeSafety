@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Acf\Internal;
 
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\ChoiceData;
 use WpTypeSafety\Core\Data\FileData;
@@ -621,15 +622,15 @@ class AcfAdapter
 	private static function numericRules(): ValueRules
 	{
 		static $rules;
-		return $rules ??= ValueRules::FromMode(ValueMode::NumericStr);
+		return $rules ??= ValueRules::FromModes(NumericMode::Str);
 	}
 
 	private static function boolRules(): ValueRules
 	{
 		static $rules;
 		return $rules ??= ValueRules::FromModes(
-			ValueMode::BoolStr,
-			ValueMode::BoolInt,
+			BoolMode::OneZeroStr,
+			BoolMode::OneZeroInt,
 		);
 	}
 

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Internal;
 
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 
 /** @internal WordPressクエリのページ番号と件数を正規化します。 */
@@ -34,6 +34,6 @@ final class QueryPagination
 	private static function numericRules(): ValueRules
 	{
 		static $rules;
-		return $rules ??= ValueRules::FromMode(ValueMode::NumericStr);
+		return $rules ??= ValueRules::FromModes(NumericMode::Str);
 	}
 }

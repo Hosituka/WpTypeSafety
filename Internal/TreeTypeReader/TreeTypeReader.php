@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Internal\TreeTypeReader;
 
+use WpTypeSafety\Internal\TreeTypeReader\Data\BoolMode;
+use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode;
 use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 
 /** @internal 木構造の探索口に共通する型付きGetterを実装します。 */
@@ -11,11 +13,13 @@ abstract class TreeTypeReader
 	private ValueRules $rules;
 	private ValueReader $reader;
 
-	protected function initialize(ValueMode|ValueRules $modeOrRules): void
+	protected function initialize(NumericMode|BoolMode|ValueRules|null $modeOrRules): void
 	{
 		$this->rules = $modeOrRules instanceof ValueRules
 			? clone $modeOrRules
-			: ValueRules::FromInternalMode($modeOrRules);
+			: ($modeOrRules === null
+				? ValueRules::Strict()
+				: ValueRules::FromInternalModes($modeOrRules));
 		$this->reader = new ValueReader($this->rules);
 	}
 
@@ -40,13 +44,6 @@ abstract class TreeTypeReader
 	protected function rulesSnapshot(): ValueRules
 	{
 		return clone $this->rules;
-	}
-
-	protected function copyWithMode(ValueMode $mode): static
-	{
-		$reader = clone $this;
-		$reader->initialize($mode);
-		return $reader;
 	}
 
 	protected function copyWithRules(ValueRules $rules): static

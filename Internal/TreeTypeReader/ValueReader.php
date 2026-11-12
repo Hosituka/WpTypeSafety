@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Internal\TreeTypeReader;
 
+use WpTypeSafety\Internal\TreeTypeReader\Data\BoolMode;
+use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode;
 use WpTypeSafety\Internal\TreeTypeReader\Internal\ValuePredicate;
 
 /** 単独の値を、設定した基準に従って型付きの値へ正規化します。 */
@@ -11,18 +13,13 @@ class ValueReader
 	private ValueRules $rules;
 
 	public function __construct(
-		ValueMode|ValueRules $modeOrRules = ValueMode::Strict,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	) {
 		$this->rules = $modeOrRules instanceof ValueRules
 			? clone $modeOrRules
-			: ValueRules::FromInternalMode($modeOrRules);
-	}
-
-	protected function copyWithMode(ValueMode $mode): static
-	{
-		$reader = clone $this;
-		$reader->rules = ValueRules::FromInternalMode($mode);
-		return $reader;
+			: ($modeOrRules === null
+				? ValueRules::Strict()
+				: ValueRules::FromInternalModes($modeOrRules));
 	}
 
 	protected function copyWithRules(ValueRules $rules): static

@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/autoload.php';
 
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueReader;
 use WpTypeSafety\Core\Check\ValueRules;
 
@@ -40,16 +41,16 @@ $check($strictReader->Bool(false) === false, 'ValueReader preserves false in the
 $check($strictReader->IntList([1, '2', 3]) === [1, 3], 'ValueReader Strict lists filter values of the wrong type');
 $check($strictReader->IntList('invalid') === null, 'ValueReader lists return null for a non-array input');
 
-$numericReader = new ValueReader(ValueMode::NumericStr);
+$numericReader = new ValueReader(NumericMode::Str);
 $check($numericReader->Int('12') === 12, 'ValueReader NumericStr normalizes an integer string');
 $check($numericReader->Float('1.5') === 1.5, 'ValueReader NumericStr normalizes a float string');
 $check($numericReader->IntList(['1', 'invalid', 2]) === [1, 2], 'ValueReader NumericStr normalizes list elements');
 $check($strictReader->Int('12') === null, 'Creating a configured ValueReader does not affect another reader');
 
 $booleanReader = new ValueReader(ValueRules::FromModes(
-	ValueMode::BoolStr,
-	ValueMode::BoolInt,
-	ValueMode::EmptyStrAsFalse,
+	BoolMode::Str,
+	BoolMode::OneZeroInt,
+	BoolMode::EmptyStrAsFalse,
 ));
 $check($booleanReader->Bool('true') === true, 'ValueReader composes BoolStr');
 $check($booleanReader->Bool(0) === false, 'ValueReader composes BoolInt');
@@ -71,11 +72,11 @@ $check($strictReader->Array('invalid') === null, 'ValueReader rejects a non-arra
 $check($strictReader->Instance($item, ValueReaderItem::class) === $item, 'ValueReader reads an instance');
 $check($strictReader->InstanceList([$item, 'invalid'], ValueReaderItem::class) === [$item], 'ValueReader filters invalid instance list elements');
 
-$switchedReader = $strictReader->WithMode(ValueMode::NumericStr);
-$check($switchedReader->Int('20') === 20, 'ValueReader WithMode returns a reader with new rules');
-$check($strictReader->Int('20') === null, 'ValueReader WithMode does not change the original reader');
+$switchedReader = $strictReader->WithModes(NumericMode::Str);
+$check($switchedReader->Int('20') === 20, 'ValueReader WithModes returns a reader with new rules');
+$check($strictReader->Int('20') === null, 'ValueReader WithModes does not change the original reader');
 
-$rules = ValueRules::FromMode(ValueMode::Strict);
+$rules = ValueRules::Strict();
 $rules->IntNormalizer = static fn(mixed $value): ?int => $value === null ? 100 : null;
 $customReader = new ValueReader($rules);
 $rules->IntNormalizer = static fn(mixed $value): ?int => 200;
@@ -150,8 +151,50 @@ try {
 }
 $check($caughtPredicateException === $predicateException, 'ValueReader propagates a predicate exception unchanged');
 
+$strictFromModes = $numericReader->WithModes();
+$check($strictFromModes->Int('12') === null, 'WithModes without arguments returns to Strict');
+$check(ValueRules::FromModes()->NormalizeInt('12') === null, 'FromModes without arguments creates Strict rules');
+$check(ValueRules::Strict()->NormalizeInt('12') === null, 'Strict creates explicit Strict rules');
+
+$boolStringReader = new ValueReader(BoolMode::Str);
+$check($boolStringReader->Bool('TRUE') === true, 'Bool Str accepts uppercase true');
+$check($boolStringReader->Bool('Off') === false, 'Bool Str accepts mixed-case off');
+$check($boolStringReader->Bool('YES') === true, 'Bool Str accepts uppercase yes');
+$check($boolStringReader->Bool('no') === false, 'Bool Str accepts lowercase no');
+$check($boolStringReader->Bool('1') === true, 'Bool Str accepts string one');
+$check($boolStringReader->Bool('0') === false, 'Bool Str accepts string zero');
+$check($boolStringReader->Bool(1) === null, 'Bool Str does not accept integer one');
+$check($boolStringReader->Bool('') === null, 'Bool Str does not accept an empty string');
+$check($boolStringReader->Bool(' true ') === null, 'Bool Str does not trim surrounding whitespace');
+
+$trueFalseReader = new ValueReader(BoolMode::TrueFalseStr);
+$oneZeroReader = new ValueReader(BoolMode::OneZeroStr);
+$onOffReader = new ValueReader(BoolMode::OnOffStr);
+$yesNoOnlyReader = new ValueReader(BoolMode::YesNoStr);
+$boolIntReader = new ValueReader(BoolMode::OneZeroInt);
+$emptyStringReader = new ValueReader(BoolMode::EmptyStrAsFalse);
+$check($trueFalseReader->Bool('FALSE') === false, 'TrueFalse accepts true and false strings');
+$check($trueFalseReader->Bool('yes') === null, 'TrueFalse rejects other bool strings');
+$check($oneZeroReader->Bool('1') === true, 'OneZero accepts string one and zero');
+$check($oneZeroReader->Bool('true') === null, 'OneZero rejects other bool strings');
+$check($onOffReader->Bool('ON') === true, 'OnOff accepts on and off case-insensitively');
+$check($onOffReader->Bool('yes') === null, 'OnOff rejects other bool strings');
+$check($yesNoOnlyReader->Bool('No') === false, 'YesNo accepts yes and no case-insensitively');
+$check($yesNoOnlyReader->Bool('on') === null, 'YesNo rejects other bool strings');
+$check($boolIntReader->Bool(0) === false, 'Int accepts integer zero and one');
+$check($boolIntReader->Bool('0') === null, 'Int rejects string zero and one');
+$check($emptyStringReader->Bool('') === false, 'EmptyStrAsFalse accepts an empty string in addition to bool');
+$check($emptyStringReader->Bool('false') === null, 'EmptyStrAsFalse rejects bool strings');
+
+$yesNoReader = $strictReader->WithModes(BoolMode::YesNoStr);
+$numericReplacementReader = $yesNoReader->WithModes(NumericMode::Str);
+$check($yesNoReader->Bool('yes') === true, 'WithModes enables the selected bool rule');
+$check($numericReplacementReader->Bool('yes') === null, 'WithModes replaces previously selected modes');
+$check($numericReplacementReader->Int('12') === 12, 'WithModes replacement enables the newly selected mode');
+$check($yesNoReader->Int('12') === null, 'WithModes replacement does not mutate its source reader');
+
 $derivedReader = new DerivedValueReader();
-$check($derivedReader->WithMode(ValueMode::NumericStr) instanceof DerivedValueReader, 'WithMode preserves a ValueReader subclass');
-$check($derivedReader->WithRules(ValueRules::FromMode(ValueMode::Strict)) instanceof DerivedValueReader, 'WithRules preserves a ValueReader subclass');
+$check($derivedReader->WithModes(NumericMode::Str) instanceof DerivedValueReader, 'WithModes preserves a ValueReader subclass');
+$check($derivedReader->WithRules(ValueRules::Strict()) instanceof DerivedValueReader, 'WithRules preserves a ValueReader subclass');
 
 echo "ValueReader: {$checks} checks passed.\n";

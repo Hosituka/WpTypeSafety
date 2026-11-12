@@ -125,7 +125,7 @@ $viewCount = $metaGet->Int('view_count');
 
 `DictCheck`、`AcfDataFactory`、Members、派生Dataなどの詳細は、下部の用途別ドキュメントにあります。
 
-## WpTypeSafetyの内外を選べます
+## WpTypeSafety DataとWordPressネイティブ型を選ぶ
 
 ACFやmetaの参照値は、用途に応じてWpTypeSafetyのDataまたはWordPressネイティブ型として取得できます。
 
@@ -150,7 +150,7 @@ $positiveCount = $metaGet->Int(
 );
 ```
 
-Coreは厳密な型確認を既定値とします。`ValueMode`・`ValueRules`・`Transform()`・オブジェクトや混在ツリーの探索・取得口の継承は、[Core](docs/core.md)と[TreeTypeReaderの詳細](Internal/TreeTypeReader/README.md)にまとめています。
+Coreは厳密な型確認を既定値とします。`NumericMode`・`BoolMode`・`ValueRules`・`Transform()`・オブジェクトや混在ツリーの探索・取得口の継承は、[Core](docs/core.md)と[TreeTypeReaderの詳細](Internal/TreeTypeReader/README.md)にまとめています。
 
 ## 代表的な戻り値規則
 

@@ -1,5 +1,23 @@
 # 旧APIからの移行
 
+## ValueModeから用途別Modeへの移行
+
+`ValueMode`は廃止し、数値用の`NumericMode`と真偽値用の`BoolMode`へ分割しました。どのモードも指定しない状態がStrictです。
+
+| 変更前 | 変更後 |
+|---|---|
+| `ValueMode::Strict` | 既定状態、`WithModes()`、または`ValueRules::Strict()` |
+| `ValueMode::NumericStr` | `NumericMode::Str` |
+| `ValueMode::BoolStr` | `BoolMode::Str` |
+| `ValueMode::BoolInt` | `BoolMode::OneZeroInt` |
+| `ValueMode::EmptyStrAsFalse` | `BoolMode::EmptyStrAsFalse` |
+| `WithMode($mode)` | `WithModes($mode)` |
+| `ValueRules::FromMode($mode)` | `ValueRules::FromModes($mode)` |
+
+新しいEnumは`WpTypeSafety\Core\Check\Data`名前空間にあります。`WithModes()`は既存規則への追加ではなく置き換えであり、引数なしでStrictへ戻ります。
+
+`BoolMode::Str`は文字列の`true`・`false`・`1`・`0`に加え、`on`・`off`・`yes`・`no`も受け入れます。英字は大文字小文字を区別しません。受け入れる組を限定する場合は`TrueFalse`・`OneZero`・`OnOff`・`YesNo`を個別に指定してください。
+
 ## entry.phpからautoload.phpへの移行
 
 ルートおよびCore・Wp・Acfごとの`entry.php`は廃止しました。起動時の読み込みを`autoload.php`へ変更してください。

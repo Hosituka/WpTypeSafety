@@ -23,7 +23,8 @@
 			"WpTypeSafety\\": "./"
 		},
 		"exclude-from-classmap": [
-			"/tests/"
+			"/tests/",
+			"/Autoload/Internal/Composer/"
 		]
 	}
 }

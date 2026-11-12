@@ -18,69 +18,69 @@ class TypeCheck extends InternalTypeCheck
 	private function __construct()
 	{
 	}
-	public static function ImgData(int|string $key): ?ImgData
+	public static function ImgData(mixed $value): ?ImgData
 	{
-		return self::Instance($key, ImgData::class);
+		return self::Instance($value, ImgData::class);
 	}
 
-	public static function LinkData(int|string $key): ?LinkData
+	public static function LinkData(mixed $value): ?LinkData
 	{
-		return self::Instance($key, LinkData::class);
+		return self::Instance($value, LinkData::class);
 	}
 
-	public static function ChoiceData(int|string $key): ?ChoiceData
+	public static function ChoiceData(mixed $value): ?ChoiceData
 	{
-		return self::Instance($key, ChoiceData::class);
+		return self::Instance($value, ChoiceData::class);
 	}
 
-	public static function FileData(int|string $key): ?FileData
+	public static function FileData(mixed $value): ?FileData
 	{
-		return self::Instance($key, FileData::class);
+		return self::Instance($value, FileData::class);
 	}
 
-	public static function TimeData(int|string $key): ?TimeData
+	public static function TimeData(mixed $value): ?TimeData
 	{
-		return self::Instance($key, TimeData::class);
-	}
-
-	/**
-	 * @return list<ImgData>
-	 */
-	public static function ImgDataList(int|string $key): array
-	{
-		return self::InstanceList($key, ImgData::class);
+		return self::Instance($value, TimeData::class);
 	}
 
 	/**
-	 * @return list<LinkData>
+	 * @return list<ImgData>|null
 	 */
-	public static function LinkDataList(int|string $key): array
+	public static function ImgDataList(mixed $value): ?array
 	{
-		return self::InstanceList($key, LinkData::class);
+		return self::InstanceList($value, ImgData::class);
 	}
 
 	/**
-	 * @return list<ChoiceData>
+	 * @return list<LinkData>|null
 	 */
-	public static function ChoiceDataList(int|string $key): array
+	public static function LinkDataList(mixed $value): ?array
 	{
-		return self::InstanceList($key, ChoiceData::class);
+		return self::InstanceList($value, LinkData::class);
 	}
 
 	/**
-	 * @return list<FileData>
+	 * @return list<ChoiceData>|null
 	 */
-	public static function FileDataList(int|string $key): array
+	public static function ChoiceDataList(mixed $value): ?array
 	{
-		return self::InstanceList($key, FileData::class);
+		return self::InstanceList($value, ChoiceData::class);
 	}
 
 	/**
-	 * @return list<TimeData>
+	 * @return list<FileData>|null
 	 */
-	public static function TimeDataList(int|string $key): array
+	public static function FileDataList(mixed $value): ?array
 	{
-		return self::InstanceList($key, TimeData::class);
+		return self::InstanceList($value, FileData::class);
+	}
+
+	/**
+	 * @return list<TimeData>|null
+	 */
+	public static function TimeDataList(mixed $value): ?array
+	{
+		return self::InstanceList($value, TimeData::class);
 	}
 
 }

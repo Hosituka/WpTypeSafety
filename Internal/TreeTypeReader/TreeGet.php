@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Internal\TreeTypeReader;
 
+use WpTypeSafety\Internal\TreeTypeReader\Data\BoolMode;
+use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode;
 use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 use WpTypeSafety\Internal\TreeTypeReader\Internal\ValueResolver;
 
@@ -13,7 +15,7 @@ class TreeGet extends TreeTypeReader
 
 	public function __construct(
 		mixed $source,
-		ValueMode|ValueRules $modeOrRules = ValueMode::Strict,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	) {
 		$this->source = $source;
 		$this->initialize($modeOrRules);

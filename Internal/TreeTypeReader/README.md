@@ -13,7 +13,8 @@ use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Core\Check\ObjectGet;
 use WpTypeSafety\Core\Check\TreeGet;
 use WpTypeSafety\Core\Check\TypeCheck;
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueReader;
 use WpTypeSafety\Core\Check\ValueRules;
 ```
@@ -100,15 +101,16 @@ $valuesGet->Exists('missing');  // false
 
 ## 値の正規化
 
-既定値は`ValueMode::Strict`です。数値文字列やWordPress由来の真偽値表現を許可する場合だけ、必要なモードを明示します。
+既定状態はStrictです。数値文字列やWordPress由来の真偽値表現を許可する場合だけ、必要なモードを明示します。明示的なStrict規則は`ValueRules::Strict()`、複数モードの合成は`ValueRules::FromModes()`で生成します。`WithModes()`は規則を置き換え、引数なしならStrictへ戻します。
 
 ```php
 use WpTypeSafety\Core\Check\ArrayGet;
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 
 $valuesGet = new ArrayGet(
 	['count' => '12'],
-	ValueMode::NumericStr,
+	NumericMode::Str,
 );
 
 $count = $valuesGet->Int('count'); // 12
@@ -142,7 +144,7 @@ List Getterは配列全体を失敗扱いにせず、期待型へ正規化でき
 ```php
 $valuesGet = new ArrayGet(
 	['numbers' => ['1', 'invalid', 2]],
-	ValueMode::NumericStr,
+	NumericMode::Str,
 );
 
 $numbers = $valuesGet->IntList('numbers'); // [1, 2]
@@ -198,7 +200,7 @@ final class SiteArrayGet extends ArrayGet
 }
 ```
 
-`Nested()`・`NestedPath()`・`Transform()`・`WithMode()`・`WithRules()`と、同型要素を返す`NestedList()`は派生型を維持します。`NestedObject()`など別の取得口へ切り替えるメソッドは標準の公開Facadeを返します。
+`Nested()`・`NestedPath()`・`Transform()`・`WithModes()`・`WithRules()`と、同型要素を返す`NestedList()`は派生型を維持します。`NestedObject()`など別の取得口へ切り替えるメソッドは標準の公開Facadeを返します。
 
 ## 内部拡張契約
 
@@ -216,8 +218,9 @@ Internal/TreeTypeReader/
 ├─ DictCheck.php
 ├─ ValueReader.php
 ├─ ValueRules.php
-├─ ValueMode.php
 ├─ Data/
+│  ├─ NumericMode.php
+│  ├─ BoolMode.php
 │  └─ ResolvedValue.php
 └─ Internal/
    ├─ ValueResolver.php

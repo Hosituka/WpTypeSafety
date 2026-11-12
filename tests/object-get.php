@@ -6,7 +6,8 @@ require_once dirname(__DIR__) . '/autoload.php';
 use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Core\Check\ObjectGet;
 use WpTypeSafety\Core\Check\TypeCheck;
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\TimeData;
 
@@ -144,7 +145,7 @@ $check($pathGet->NestedPath('Middle', 'Missing')->String('Name') === '', 'Object
 $transformGet = new ObjectGet((object) [
 	'Payload' => '{"Name":"Transformed object","Count":"12"}',
 	'Nullable' => null,
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $transformCalls = 0;
 $transformedGet = $transformGet->Transform(
 	'Payload',
@@ -208,7 +209,7 @@ $predicateGet = new ObjectGet((object) [
 	'Item' => $predicateOpeningTime,
 	'Items' => [$predicateOpeningTime, 'invalid', $predicateClosingTime],
 	'Status' => 'published',
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value >= 18) === 20, 'ObjectGet applies a predicate after ValueRules normalization');
 $check($predicateGet->Int('Age', predicate: static fn(int $value): bool => $value > 20) === null, 'ObjectGet returns null when an Int predicate rejects the value');
 $check($predicateGet->Bool('Enabled', predicate: static fn(bool $value): bool => ! $value) === false, 'ObjectGet passes a valid false to a predicate');
@@ -327,7 +328,7 @@ $numericSource = (object) [
 	'Children' => [(object) ['Count' => '5']],
 	'Groups' => [['Count' => '6']],
 ];
-$numericObjectGet = new ObjectGet($numericSource, ValueMode::NumericStr);
+$numericObjectGet = new ObjectGet($numericSource, NumericMode::Str);
 $check($numericObjectGet->Int('Int') === 12, 'ObjectGet NumericStr normalizes an integer string');
 $check($numericObjectGet->Float('Float') === 12.5, 'ObjectGet NumericStr normalizes a float string');
 $check($numericObjectGet->IntList('Ints') === [1, 2], 'ObjectGet NumericStr normalizes list elements');
@@ -339,7 +340,7 @@ $check($numericObjectGet->NestedArray('Group')->Int('Count') === 4, 'ObjectGet N
 $check($numericObjectGet->NestedList('Children')[0]->Int('Count') === 5, 'ObjectGet NestedList inherits NumericStr rules');
 $check($numericObjectGet->NestedArrayList('Groups')[0]->Int('Count') === 6, 'ObjectGet NestedArrayList inherits NumericStr rules');
 
-$objectRules = ValueRules::FromMode(ValueMode::Strict);
+$objectRules = ValueRules::Strict();
 $objectRules->StringNormalizer = static fn(mixed $value): ?string => is_int($value)
 	? "number-{$value}"
 	: null;
@@ -352,7 +353,7 @@ $objectRules->StringNormalizer = static fn(mixed $value): ?string => 'changed';
 $check($customObjectGet->String('Value') === 'number-8', 'ObjectGet accepts a partial ValueRules override');
 $check($customObjectGet->Nested('Child')->String('Value') === 'number-9', 'ObjectGet Nested inherits a custom rule snapshot');
 
-$nullObjectRules = ValueRules::FromMode(ValueMode::Strict);
+$nullObjectRules = ValueRules::Strict();
 $nullObjectRules->IntNormalizer = static fn(mixed $value): ?int => $value === null
 	? 100
 	: TypeCheck::Int($value);
@@ -369,20 +370,20 @@ $switchObjectSource = (object) [
 	'Child' => (object) ['Count' => '21'],
 ];
 $switchObjectGet = new ObjectGet($switchObjectSource);
-$numericSwitchObjectGet = $switchObjectGet->WithMode(ValueMode::NumericStr);
-$check($switchObjectGet->Int('Count') === null, 'ObjectGet WithMode does not mutate the original getter');
-$check($numericSwitchObjectGet->Int('Count') === 20, 'ObjectGet WithMode changes the mode without ending the chain');
-$check($numericSwitchObjectGet->Nested('Child')->Int('Count') === 21, 'ObjectGet WithMode is inherited by Nested');
-$check($numericSwitchObjectGet->WithMode(ValueMode::Strict)->Int('Count') === null, 'ObjectGet WithMode can return a chain to Strict');
+$numericSwitchObjectGet = $switchObjectGet->WithModes(NumericMode::Str);
+$check($switchObjectGet->Int('Count') === null, 'ObjectGet WithModes does not mutate the original getter');
+$check($numericSwitchObjectGet->Int('Count') === 20, 'ObjectGet WithModes changes the mode without ending the chain');
+$check($numericSwitchObjectGet->Nested('Child')->Int('Count') === 21, 'ObjectGet WithModes is inherited by Nested');
+$check($numericSwitchObjectGet->WithModes()->Int('Count') === null, 'ObjectGet WithModes can return a chain to Strict');
 $check($switchObjectGet->WithRules($objectRules)->String('Count') === 'changed', 'ObjectGet WithRules replaces its current rules');
 
 $combinedObjectGet = new ObjectGet((object) [
 	'Count' => '40',
 	'Enabled' => 'false',
 ], ValueRules::FromModes(
-	ValueMode::BoolStr,
-	ValueMode::BoolInt,
-	ValueMode::NumericStr,
+	BoolMode::Str,
+	BoolMode::OneZeroInt,
+	NumericMode::Str,
 ));
 $check($combinedObjectGet->Int('Count') === 40, 'ObjectGet accepts composed numeric rules');
 $check($combinedObjectGet->Bool('Enabled') === false, 'ObjectGet accepts composed boolean rules');
@@ -391,14 +392,14 @@ $booleanIntObjectGet = new ObjectGet((object) [
 	'Enabled' => 1,
 	'Disabled' => 0,
 	'Invalid' => 2,
-], ValueMode::BoolInt);
+], BoolMode::OneZeroInt);
 $check($booleanIntObjectGet->Bool('Enabled') === true, 'ObjectGet BoolInt normalizes integer one');
 $check($booleanIntObjectGet->Bool('Disabled') === false, 'ObjectGet BoolInt normalizes integer zero');
 $check($booleanIntObjectGet->Bool('Invalid') === null, 'ObjectGet BoolInt rejects other integers');
 
 $emptyObjectGet = new ObjectGet((object) [
 	'Enabled' => '',
-], ValueMode::EmptyStrAsFalse);
+], BoolMode::EmptyStrAsFalse);
 $check($emptyObjectGet->Bool('Enabled') === false, 'ObjectGet accepts EmptyStrAsFalse');
 $check($emptyObjectGet->Bool('Missing') === null, 'ObjectGet EmptyStrAsFalse keeps a missing property as null');
 
@@ -414,7 +415,7 @@ $check($enumObjectGet->BackedEnum('Missing', ObjectGetPublishStatus::class) === 
 
 $numericEnumObjectGet = new ObjectGet((object) [
 	'Priority' => '1',
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $check($numericEnumObjectGet->BackedEnum('Priority', ObjectGetPriority::class) === ObjectGetPriority::High, 'ObjectGet NumericStr applies to an int-backed enum');
 
 if (PHP_VERSION_ID >= 80400) {
@@ -484,8 +485,8 @@ $check(
 	) instanceof DerivedObjectGet,
 	'Transform preserves an ObjectGet subclass',
 );
-$check($derivedObjectGet->WithMode(ValueMode::Strict) instanceof DerivedObjectGet, 'WithMode preserves an ObjectGet subclass');
-$check($derivedObjectGet->WithRules(ValueRules::FromMode(ValueMode::Strict)) instanceof DerivedObjectGet, 'WithRules preserves an ObjectGet subclass');
+$check($derivedObjectGet->WithModes() instanceof DerivedObjectGet, 'WithModes preserves an ObjectGet subclass');
+$check($derivedObjectGet->WithRules(ValueRules::Strict()) instanceof DerivedObjectGet, 'WithRules preserves an ObjectGet subclass');
 $check(
 	array_reduce(
 		$derivedObjectGet->NestedList('Items'),

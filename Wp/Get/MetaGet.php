@@ -3,8 +3,9 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Get;
 
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\TreeGet;
-use WpTypeSafety\Core\Check\ValueMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 use WpTypeSafety\Wp\Data\CommentData;
@@ -30,7 +31,7 @@ final class MetaGet extends TreeGet
 	 */
 	public function __construct(
 		mixed $source,
-		ValueMode|ValueRules|null $modeOrRules = null,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	) {
 		parent::__construct(null, WpValueRules::From($modeOrRules));
 
@@ -73,7 +74,7 @@ final class MetaGet extends TreeGet
 
 	public static function FromPost(
 		\WP_Post|PostData|int $post,
-		ValueMode|ValueRules|null $modeOrRules = null,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	): self {
 		$postId = $post instanceof \WP_Post
 			? (int) $post->ID
@@ -83,7 +84,7 @@ final class MetaGet extends TreeGet
 
 	public static function FromTerm(
 		\WP_Term|TermData|int $term,
-		ValueMode|ValueRules|null $modeOrRules = null,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	): self {
 		$termId = $term instanceof \WP_Term
 			? (int) $term->term_id
@@ -93,7 +94,7 @@ final class MetaGet extends TreeGet
 
 	public static function FromUser(
 		\WP_User|WpUserData|int $user,
-		ValueMode|ValueRules|null $modeOrRules = null,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	): self {
 		$userId = $user instanceof \WP_User
 			? (int) $user->ID
@@ -103,7 +104,7 @@ final class MetaGet extends TreeGet
 
 	public static function FromComment(
 		\WP_Comment|CommentData|int $comment,
-		ValueMode|ValueRules|null $modeOrRules = null,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	): self {
 		$commentId = $comment instanceof \WP_Comment
 			? (int) $comment->comment_ID
@@ -114,7 +115,7 @@ final class MetaGet extends TreeGet
 	/** 取得済みの配列・オブジェクトをWordPress向けの規則で読み取ります。 */
 	public static function FromTree(
 		mixed $source,
-		ValueMode|ValueRules|null $modeOrRules = null,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	): self {
 		$instance = new self([], $modeOrRules);
 		$instance->useTreeSource($source);
@@ -218,7 +219,7 @@ final class MetaGet extends TreeGet
 	private static function fromMeta(
 		string $metaType,
 		int $objectId,
-		ValueMode|ValueRules|null $modeOrRules,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules,
 	): self {
 		$instance = new self([], $modeOrRules);
 		$instance->useMetaSource($metaType, $objectId);

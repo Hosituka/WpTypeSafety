@@ -5,7 +5,8 @@ require_once dirname(__DIR__) . '/autoload.php';
 
 use WpTypeSafety\Core\Check\ArrayGet;
 use WpTypeSafety\Core\Check\TypeCheck;
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\TimeData;
 
@@ -116,7 +117,7 @@ $transformGet = new ArrayGet([
 		'payload' => '{"child":{"title":"Nested transform"}}',
 	],
 	0 => ['title' => 'Integer key'],
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $transformCalls = 0;
 $transformedGet = $transformGet->Transform(
 	'payload',
@@ -191,7 +192,7 @@ $predicateGet = new ArrayGet([
 	'item_list' => [$openingTime, 'invalid', $closingTime],
 	'status' => 'published',
 	'statuses' => ['draft', 'invalid', 'published'],
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $receivedAge = null;
 $check(
 	$predicateGet->Int(
@@ -286,7 +287,7 @@ $numericGet = new ArrayGet([
 	'nested_object_list' => [
 		(object) ['count' => '7'],
 	],
-], ValueMode::NumericStr);
+], NumericMode::Str);
 
 $check($numericGet->Int('int') === 12, 'NumericStr Int normalizes an integer string');
 $check($numericGet->Int('negative_int') === -12, 'NumericStr Int normalizes a negative integer string');
@@ -329,7 +330,7 @@ $strictGet = new ArrayGet(['int' => '12', 'float' => 12]);
 $check($strictGet->Int('int') === null, 'Strict remains the default mode');
 $check($strictGet->Float('float') === null, 'Strict Float does not normalize an integer');
 
-$rules = ValueRules::FromMode(ValueMode::Strict);
+$rules = ValueRules::Strict();
 $rules->IntNormalizer = static fn(mixed $value): ?int => $value === 'custom' ? 42 : null;
 $customGet = new ArrayGet([
 	'value' => 'custom',
@@ -341,7 +342,7 @@ $check($customGet->Int('value') === 42, 'ValueRules can partially override Int n
 $check($customGet->Nested('nested')->Int('value') === 42, 'Nested inherits a custom rule snapshot');
 $check($customGet->Int('missing') === null, 'A missing key keeps the accessor fallback');
 
-$nullRules = ValueRules::FromMode(ValueMode::Strict);
+$nullRules = ValueRules::Strict();
 $nullRules->IntNormalizer = static fn(mixed $value): ?int => $value === null
 	? 100
 	: TypeCheck::Int($value);
@@ -358,11 +359,11 @@ $switchGet = new ArrayGet([
 	'count' => '10',
 	'nested' => ['count' => '11'],
 ]);
-$numericSwitchGet = $switchGet->WithMode(ValueMode::NumericStr);
-$check($switchGet->Int('count') === null, 'WithMode does not mutate the original ArrayGet');
-$check($numericSwitchGet->Int('count') === 10, 'WithMode changes the value mode without ending the chain');
-$check($numericSwitchGet->Nested('nested')->Int('count') === 11, 'A mode selected with WithMode is inherited by Nested');
-$check($numericSwitchGet->WithMode(ValueMode::Strict)->Int('count') === null, 'WithMode can return a chain to Strict');
+$numericSwitchGet = $switchGet->WithModes(NumericMode::Str);
+$check($switchGet->Int('count') === null, 'WithModes does not mutate the original ArrayGet');
+$check($numericSwitchGet->Int('count') === 10, 'WithModes changes the value mode without ending the chain');
+$check($numericSwitchGet->Nested('nested')->Int('count') === 11, 'A mode selected with WithModes is inherited by Nested');
+$check($numericSwitchGet->WithModes()->Int('count') === null, 'WithModes can return a chain to Strict');
 $check($switchGet->WithRules($rules)->Int('count') === 99, 'WithRules replaces the current rules without mutating the source getter');
 
 $booleanGet = new ArrayGet([
@@ -377,15 +378,15 @@ $booleanGet = new ArrayGet([
 	'spaced_false' => ' false ',
 	'native_true' => true,
 	'native_false' => false,
-], ValueMode::BoolStr);
+], BoolMode::Str);
 $check($booleanGet->Bool('true') === true, 'BoolStr normalizes the true string');
 $check($booleanGet->Bool('false') === false, 'BoolStr normalizes the false string');
 $check($booleanGet->Bool('one') === true, 'BoolStr normalizes the one string');
 $check($booleanGet->Bool('zero') === false, 'BoolStr normalizes the zero string');
 $check($booleanGet->Bool('int_one') === null, 'BoolStr does not normalize an integer');
 $check($booleanGet->Bool('int_zero') === null, 'BoolStr does not normalize integer zero');
-$check($booleanGet->Bool('yes') === null, 'BoolStr rejects an unspecified truthy string');
-$check($booleanGet->Bool('uppercase_true') === null, 'BoolStr rejects uppercase text');
+$check($booleanGet->Bool('yes') === true, 'BoolStr accepts the yes string');
+$check($booleanGet->Bool('uppercase_true') === true, 'BoolStr compares ASCII text case-insensitively');
 $check($booleanGet->Bool('spaced_false') === null, 'BoolStr rejects surrounding whitespace');
 $check($booleanGet->Bool('native_true') === true, 'BoolStr preserves native true');
 $check($booleanGet->Bool('native_false') === false, 'BoolStr preserves native false');
@@ -398,7 +399,7 @@ $booleanIntGet = new ArrayGet([
 	'two' => 2,
 	'native_true' => true,
 	'native_false' => false,
-], ValueMode::BoolInt);
+], BoolMode::OneZeroInt);
 $check($booleanIntGet->Bool('one') === true, 'BoolInt normalizes integer one');
 $check($booleanIntGet->Bool('zero') === false, 'BoolInt normalizes integer zero');
 $check($booleanIntGet->Bool('true_string') === null, 'BoolInt does not normalize a boolean string');
@@ -408,10 +409,9 @@ $check($booleanIntGet->Bool('native_true') === true, 'BoolInt preserves native t
 $check($booleanIntGet->Bool('native_false') === false, 'BoolInt preserves native false');
 
 $combinedRules = ValueRules::FromModes(
-	ValueMode::NumericStr,
-	ValueMode::Strict,
-	ValueMode::BoolStr,
-	ValueMode::BoolInt,
+	NumericMode::Str,
+	BoolMode::Str,
+	BoolMode::OneZeroInt,
 );
 $combinedGet = new ArrayGet([
 	'count' => '30',
@@ -431,7 +431,7 @@ $check($combinedGet->Nested('nested')->Bool('visible') === false, 'Nested inheri
 $emptyStringGet = new ArrayGet([
 	'empty' => '',
 	'false_string' => 'false',
-], ValueMode::EmptyStrAsFalse);
+], BoolMode::EmptyStrAsFalse);
 $check($emptyStringGet->Bool('empty') === false, 'EmptyStrAsFalse normalizes an empty string');
 $check($emptyStringGet->Bool('false_string') === null, 'EmptyStrAsFalse does not include BoolStr rules');
 $check($emptyStringGet->Bool('missing') === null, 'EmptyStrAsFalse keeps a missing value as null');
@@ -440,15 +440,15 @@ $booleanThenEmptyGet = new ArrayGet([
 	'empty' => '',
 	'true' => 'true',
 ], ValueRules::FromModes(
-	ValueMode::BoolStr,
-	ValueMode::EmptyStrAsFalse,
+	BoolMode::Str,
+	BoolMode::EmptyStrAsFalse,
 ));
 $emptyThenBooleanGet = new ArrayGet([
 	'empty' => '',
 	'true' => 'true',
 ], ValueRules::FromModes(
-	ValueMode::EmptyStrAsFalse,
-	ValueMode::BoolStr,
+	BoolMode::EmptyStrAsFalse,
+	BoolMode::Str,
 ));
 $check($booleanThenEmptyGet->Bool('empty') === false, 'BoolStr then EmptyStrAsFalse accepts an empty string');
 $check($booleanThenEmptyGet->Bool('true') === true, 'BoolStr then EmptyStrAsFalse accepts a boolean string');
@@ -459,13 +459,12 @@ $duplicateModeGet = new ArrayGet([
 	'enabled' => 'true',
 	'count' => '50',
 ], ValueRules::FromModes(
-	ValueMode::BoolStr,
-	ValueMode::BoolStr,
-	ValueMode::NumericStr,
-	ValueMode::Strict,
+	BoolMode::Str,
+	BoolMode::Str,
+	NumericMode::Str,
 ));
 $check($duplicateModeGet->Bool('enabled') === true, 'Applying the same mode twice is idempotent');
-$check($duplicateModeGet->Int('count') === 50, 'Strict at the end does not reset previously composed modes');
+$check($duplicateModeGet->Int('count') === 50, 'Duplicate modes do not reset previously composed modes');
 
 $enumGet = new ArrayGet([
 	'status' => 'published',
@@ -489,11 +488,11 @@ $check($enumGet->BackedEnumList('missing', ArrayGetPublishStatus::class) === [],
 $numericEnumGet = new ArrayGet([
 	'priority' => '1',
 	'priorities' => ['0', '1', 'invalid'],
-], ValueMode::NumericStr);
+], NumericMode::Str);
 $check($numericEnumGet->BackedEnum('priority', ArrayGetPriority::class) === ArrayGetPriority::High, 'NumericStr applies to an int-backed enum');
 $check($numericEnumGet->BackedEnumList('priorities', ArrayGetPriority::class) === [ArrayGetPriority::Low, ArrayGetPriority::High], 'NumericStr applies to an int-backed enum list');
 
-$invalidRules = ValueRules::FromMode(ValueMode::Strict);
+$invalidRules = ValueRules::Strict();
 $invalidRules->IntNormalizer = static fn(mixed $value): mixed => 'invalid';
 $normalizerTypeErrorWasThrown = false;
 try {
@@ -531,8 +530,8 @@ $check(
 	) instanceof DerivedArrayGet,
 	'Transform preserves an ArrayGet subclass',
 );
-$check($derivedGet->WithMode(ValueMode::NumericStr) instanceof DerivedArrayGet, 'WithMode preserves an ArrayGet subclass');
-$check($derivedGet->WithRules(ValueRules::FromMode(ValueMode::NumericStr)) instanceof DerivedArrayGet, 'WithRules preserves an ArrayGet subclass');
+$check($derivedGet->WithModes(NumericMode::Str) instanceof DerivedArrayGet, 'WithModes preserves an ArrayGet subclass');
+$check($derivedGet->WithRules(ValueRules::FromModes(NumericMode::Str)) instanceof DerivedArrayGet, 'WithRules preserves an ArrayGet subclass');
 $check(
 	array_reduce(
 		$derivedGet->NestedList('items'),

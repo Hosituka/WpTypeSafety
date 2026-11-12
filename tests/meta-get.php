@@ -71,6 +71,8 @@ $GLOBALS['metaValues'] = [
 			'ratio' => ['1.5'],
 			'enabled' => ['1'],
 			'disabled' => [''],
+			'yes' => ['yes'],
+			'on' => ['on'],
 			'settings' => [[
 				'color' => 'blue',
 				'columns' => '3',
@@ -133,7 +135,8 @@ function wp_timezone(): DateTimeZone { return new DateTimeZone('Asia/Tokyo'); }
 
 require_once __DIR__ . '/../autoload.php';
 
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Check\TreeGet;
 use WpTypeSafety\Wp\Data\PostData;
@@ -168,6 +171,8 @@ $check($postMetaGet->Int('count') === 12, '既定でWordPressの数値文字列�
 $check($postMetaGet->Float('ratio') === 1.5, '既定で小数文字列を変換する');
 $check($postMetaGet->Bool('enabled') === true, '既定で真の文字列表現を変換する');
 $check($postMetaGet->Bool('disabled') === false, '既定で空文字をfalseへ変換する');
+$check($postMetaGet->Bool('yes') === null, '既定ではyes文字列を真偽値へ変換しない');
+$check($postMetaGet->Bool('on') === null, '既定ではon文字列を真偽値へ変換しない');
 $check($postMetaGet->Array('settings')['color'] === 'blue', '配列を取得する');
 $check($postMetaGet->StringList('aliases') === ['first', 'second'], '複数値から文字列だけを取得する');
 $check($postMetaGet->IntList('numbers') === [1, 2], '複数値の不正な整数を除外する');
@@ -208,16 +213,16 @@ $instanceGet = MetaGet::FromTree(['item' => $instance, 'items' => [$instance, 'i
 $check($instanceGet->Instance('item', stdClass::class, predicate: static fn(stdClass $value): bool => $value === $instance) === $instance, 'Instanceへpredicateを適用する');
 $check($instanceGet->InstanceList('items', stdClass::class, predicate: static fn(stdClass $value): bool => $value === $instance) === [$instance], 'InstanceListへpredicateを適用する');
 
-$strictGet = $postMetaGet->WithMode(ValueMode::Strict);
+$strictGet = $postMetaGet->WithModes();
 $check($strictGet->Int('count') === null, 'Strictでは数値文字列を変換しない');
 $check($postMetaGet->Int('count') === 12, 'WithModeは元の取得口を変更しない');
 
-$snapshotRules = ValueRules::FromMode(ValueMode::Strict);
+$snapshotRules = ValueRules::Strict();
 $snapshotGet = MetaGet::FromPost(7, $snapshotRules);
 $snapshotRules->IntNormalizer = static fn(mixed $value): ?int => 100;
 $check($snapshotGet->Int('count') === null, '生成時のValueRulesを保持する');
 
-$nullRules = ValueRules::FromMode(ValueMode::Strict);
+$nullRules = ValueRules::Strict();
 $nullRules->StringNormalizer = static fn(mixed $value): ?string => $value === null ? 'null-value' : null;
 $nullGet = MetaGet::FromPost(7, $nullRules);
 $check($nullGet->String('nullable') === 'null-value', '保存済みnullをNormalizerへ渡す');

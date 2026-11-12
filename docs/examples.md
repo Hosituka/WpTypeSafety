@@ -1,171 +1,88 @@
 # 利用例
 
-この文書では、案件固有の名前やフィールドを避けた最小構成の例を紹介します。`autoload.php`は`functions.php`などで読み込み済みであることを前提とします。
+この文書は複数領域を組み合わせる代表例だけを扱います。メソッドごとの契約は[ACF](acf.md)、[WordPress](wordpress.md)、[Data](data.md)、[Core](core.md)を正本とします。
 
-次の三つは併用可能な導入パターンであり、優劣、成熟度、移行順序を表すものではありません。同じテーマ内で併用でき、複雑になった箇所だけDataやViewクラスへ移せます。データ境界の保証範囲と、テンプレートまたはViewクラスの選択は独立しています。
+## 通常のテンプレートで使う
 
-## パターン：WordPress標準の構成を保つ
-
-ACFネイティブAPIの結果を`TypeCheck`で確認し、`get_template_part()`へ渡した`$args`を`ArrayGet`で読み取ります。テンプレートパーツの配置や呼び出し方は変更しません。
+テーマ構成や`get_template_part()`を変更する必要はありません。
 
 ```php
-<?php
-use WpTypeSafety\Core\Check\TypeCheck;
+use WpTypeSafety\Acf\Get\AcfGet;
 
-$title = TypeCheck::String(get_field('title', $post->ID)) ?? '';
-
-get_template_part(
-	'template-parts/post-card',
-	null,
-	['title' => $title],
-);
-```
-
-呼び出された`template-parts/post-card.php`では、配列の値をそのまま信用せず、用途に対応する型で取得します。
-
-```php
-<?php
-use WpTypeSafety\Core\Check\ArrayGet;
-
-$argsGet = new ArrayGet($args);
-$title = $argsGet->String('title');
+$get = new AcfGet($post);
+$title = $get->Text('title');
+$image = $get->Img('main_image');
 ?>
 <article>
 	<h2><?= esc_html($title) ?></h2>
+	<?php if ($image !== null): ?>
+		<img
+			src="<?= esc_url($image->Url) ?>"
+			alt="<?= esc_attr($image->Alt) ?>"
+		>
+	<?php endif; ?>
 </article>
 ```
 
-### ACF標準APIの結果をチェーンして型確認する
+WpTypeSafetyは取得値をHTML向けに自動エスケープしません。
 
-WordPress標準の構成を保ったまま複数のACFフィールドを扱う場合は、`get_fields()`の結果を`ArrayGet`へ渡せます。ACFのGroupは`Nested()`、Repeaterなど配列行のリストは`NestedList()`でたどります。`get_fields()`がフィールド未登録時に返す`false`も、空の取得元として扱われます。
-
-```php
-<?php
-use WpTypeSafety\Core\Check\ArrayGet;
-
-$fieldsGet = new ArrayGet(get_fields($post->ID));
-$heroGet = $fieldsGet->Nested('hero');
-$heading = $heroGet->String('heading');
-?>
-<section>
-	<h2><?= esc_html($heading) ?></h2>
-	<dl>
-		<?php foreach ($fieldsGet->NestedList('faq') as $faqGet): ?>
-			<dt><?= esc_html($faqGet->String('question')) ?></dt>
-			<dd><?= esc_html($faqGet->String('answer')) ?></dd>
-		<?php endforeach; ?>
-	</dl>
-</section>
-```
-
-この例は既定の`ValueMode::Strict`を使い、ACFが整形した値を追加変換せずPHP型として確認する軽量な使い方です。数値型と数値文字列の揺れだけを吸収する場合は`ArrayGet`の第2引数に`ValueMode::NumericStr`を指定できます。画像・日付・投稿参照などをWpTypeSafetyのDataへ変換したい場合や、ACFのフィールド定義を引き継いで入れ子を処理したい場合は`AcfGet`を使用します。フィールド名自体は文字列なので、フィールド名まで型安全になるわけではありません。
-
-## パターン：取得と変換をDataへ分離する
-
-取得処理が複雑になった箇所では、対象別Factoryと`AcfGet`を使ってテーマ固有Dataを生成します。次の`ArticleData`は、この文書の[PostDataの案件用派生クラス](#postdataの案件用派生クラス)で定義します。
+## テンプレート引数を読む
 
 ```php
-<?php
-$article = ArticleData::FromWpPost($post);
-
+// 呼び出し側
 get_template_part(
-	'template-parts/article-card',
+	'template-parts/card',
 	null,
-	['article' => $article],
+	['title' => $title, 'post' => $postData],
 );
 ```
 
-テンプレートパーツでは`ArrayGet::Instance()`を使い、期待するDataだけを受け取れます。
-
 ```php
-<?php
+// template-parts/card.php
 use WpTypeSafety\Core\Check\ArrayGet;
+use WpTypeSafety\Wp\Data\PostData;
 
-$argsGet = new ArrayGet($args);
-$article = $argsGet->Instance('article', ArticleData::class);
-if ($article === null)
-	{return;}
-?>
-<article>
-	<h2><?= esc_html($article->Title) ?></h2>
-	<p><?= esc_html($article->Subtitle) ?></p>
-</article>
-```
+$argsGet = new ArrayGet($args ?? []);
+$title = $argsGet->String('title');
+$post = $argsGet->Instance('post', PostData::class);
 
-## パターン：Viewの参照もクラスで管理する
-
-テンプレートファイルの文字列パスも管理対象にしたい場合は、任意PSR-4読み込みでViewクラスを読み込み、クラスとメソッドを参照します。
-
-```php
-<?php
-use Theme\Parts\ArticleCardView;
-
-$article = ArticleData::FromWpPost($post);
-ArticleCardView::Render($article);
-```
-
-View側では入力型をメソッド引数として宣言できます。
-
-```php
-<?php
-namespace Theme\Parts;
-
-final class ArticleCardView
-{
-	private function __construct() {}
-
-	public static function Render(\ArticleData $article): void
-	{
-		?>
-		<article>
-			<h2><?= esc_html($article->Title) ?></h2>
-			<p><?= esc_html($article->Subtitle) ?></p>
-		</article>
-		<?php
-	}
+if ($post === null) {
+	return;
 }
 ```
 
-PSR-4の登録方法と保証範囲は[読み込みと任意PSR-4](autoload.md)を参照してください。Viewクラス化は必須ではなく、通常のPHPテンプレートや`get_template_part()`と併用できます。
+`ArrayGet`の詳しい契約は[Core](core.md)を参照してください。
 
-## 応用例
-
-### Nestedと入れ子のRepeater
-
-グループは`Nested()`、リピーターは`Repeater()`でたどります。リピーターの各行はすでに`AcfGet`なので、`new AcfGet($row)`で包み直す必要はありません。
+## GroupとRepeaterを読む
 
 ```php
-<?php
 use WpTypeSafety\Acf\Get\AcfGet;
 
-$postGet = new AcfGet($post);
-$contentGet = $postGet->Nested('content');
+$get = new AcfGet($post);
+$content = $get->Nested('content');
 ?>
 <section>
-	<h2><?= esc_html($contentGet->Text('title')) ?></h2>
+	<h2><?= esc_html($content->Text('title')) ?></h2>
 
-	<?php foreach ($contentGet->Repeater('sections') as $sectionGet): ?>
+	<?php foreach ($content->Repeater('sections') as $section): ?>
 		<section>
-			<h3><?= esc_html($sectionGet->Text('heading')) ?></h3>
+			<h3><?= esc_html($section->Text('heading')) ?></h3>
 
-			<ul>
-				<?php foreach ($sectionGet->Repeater('items') as $itemGet): ?>
-					<li><?= esc_html($itemGet->Text('label')) ?></li>
-				<?php endforeach; ?>
-			</ul>
+			<?php foreach ($section->Repeater('items') as $item): ?>
+				<p><?= esc_html($item->Text('label')) ?></p>
+			<?php endforeach; ?>
 		</section>
 	<?php endforeach; ?>
 </section>
 ```
 
-グループやリピーターが未入力・型違いの場合も、`Nested()`は空の取得元、`Repeater()`は空配列を返します。フィールドごとの詳しい契約は[ACFの取得API](acf.md)を参照してください。
+各行は取得元とACFフィールド定義を引き継いだ`AcfGet`です。包み直す必要はありません。詳しくは[ACFのGroup・Repeater](acf.md#リピーター行の取得)を参照してください。
 
-### PostDataの案件用派生クラス
+## 案件固有Dataを作る
 
-共通の投稿情報は`PostFactory::Members()`で作り、案件固有の値と一緒に派生クラスへ渡せます。派生クラスのコンストラクターではWordPressやACFへ問い合わせず、正規化済みの値を受け取ります。
+共通の投稿情報は`PostFactory::Members()`から受け取り、案件固有値だけを追加できます。完全な継承契約は[Dataと派生クラス](data.md)を参照してください。
 
 ```php
-<?php
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
@@ -182,43 +99,29 @@ final readonly class ArticleData extends PostData
 
 	public static function FromWpPost(\WP_Post $post): self
 	{
-		$members = PostFactory::Members($post);
 		$postGet = new AcfGet($post);
 
 		return new self(
-			members: $members,
+			members: PostFactory::Members($post),
 			Subtitle: $postGet->Text('subtitle'),
 		);
 	}
 }
-
-$article = ArticleData::FromWpPost($post);
 ```
 
-`PostMembers`には投稿者、抜粋、サムネイル、子投稿などのResolverも含まれるため、派生クラス側で個別に転送する必要はありません。詳しい継承例は[Dataと派生クラス](data.md)を参照してください。
-
-### ACFブロックの描画
-
-ACFブロックの描画テンプレートへ渡される`$block`と`$is_preview`は、`AcfDataFactory`で`AcfBlockData`へ変換できます。
+## ACFブロックを描画する
 
 ```php
-<?php
 use WpTypeSafety\Acf\Get\AcfDataFactory;
 use WpTypeSafety\Acf\Get\AcfGet;
 
-$blockData = AcfDataFactory::BlockFromAcf(
-	block: $block,
-	isPreview: $is_preview,
-);
-$blockGet = new AcfGet();
-$title = $blockGet->Text('title');
-$wrapperAttributes = $blockData->GetWrapperAttributes('c-notice');
+$blockData = AcfDataFactory::BlockFromAcf($block, $is_preview);
+$acfGet = new AcfGet();
+$title = $acfGet->Text('title');
 ?>
-<section <?= $wrapperAttributes ?>>
-	<?php if ($title !== ''): ?>
-		<h2><?= esc_html($title) ?></h2>
-	<?php endif; ?>
+<section <?= $blockData->GetWrapperAttributes('c-notice') ?>>
+	<h2><?= esc_html($title) ?></h2>
 </section>
 ```
 
-`GetWrapperAttributes()`は、Factoryが注入した処理からエスケープ済みの属性文字列を返すため、そのまま属性位置へ出力します。`AcfBlockData`を直接`new`してResolverを渡していない場合、このメソッドは`LogicException`を投げます。プレビュー時の扱いなどは[ACFブロックの描画情報](acf.md#acfブロックの描画情報)を参照してください。
+`GetWrapperAttributes()`の出力契約とプレビュー時の扱いは[ACFブロックの描画情報](acf.md#acfブロックの描画情報)を参照してください。

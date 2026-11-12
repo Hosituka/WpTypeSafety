@@ -125,7 +125,7 @@ These entry points are choices that can coexist in one project, not adoption lev
 
 `DictCheck`, `AcfDataFactory`, Members, and derived Data are covered by the detailed guides linked below.
 
-## Move into and out of WpTypeSafety
+## Choose between WpTypeSafety Data and native WordPress types
 
 ACF and metadata references can be returned as WpTypeSafety Data or as native WordPress objects.
 
@@ -150,7 +150,7 @@ $positiveCount = $metaGet->Int(
 );
 ```
 
-Core uses strict type checks by default. Advanced features such as `ValueMode`, `ValueRules`, `Transform()`, object and mixed-tree traversal, and accessor inheritance are documented in [Core](docs/core.md) and the [TreeTypeReader engine details](Internal/TreeTypeReader/README.md). The detailed documentation is currently written in Japanese.
+Core uses strict type checks by default. Advanced features such as `NumericMode`, `BoolMode`, `ValueRules`, `Transform()`, object and mixed-tree traversal, and accessor inheritance are documented in [Core](docs/core.md) and the [TreeTypeReader engine details](Internal/TreeTypeReader/README.md). The detailed documentation is currently written in Japanese.
 
 ## Representative return-value rules
 

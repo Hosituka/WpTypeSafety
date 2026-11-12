@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Core\Check;
 
+use WpTypeSafety\Core\Check\Data\BoolMode;
+use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Data\ChoiceData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
@@ -15,13 +17,15 @@ class ObjectGet extends InternalObjectGet
 {
 	public function __construct(
 		mixed $source,
-		ValueMode|ValueRules $modeOrRules = ValueMode::Strict,
+		NumericMode|BoolMode|ValueRules|null $modeOrRules = null,
 	) {
 		parent::__construct(
 			$source,
-			$modeOrRules instanceof ValueMode
-				? ValueRules::FromMode($modeOrRules)
-				: $modeOrRules,
+			$modeOrRules instanceof ValueRules
+				? $modeOrRules
+				: ($modeOrRules === null
+					? ValueRules::Strict()
+					: ValueRules::FromModes($modeOrRules)),
 		);
 	}
 
@@ -30,9 +34,9 @@ class ObjectGet extends InternalObjectGet
 		return ValueRules::FromInternal($this->rulesSnapshot());
 	}
 
-	public function WithMode(ValueMode $mode): static
+	public function WithModes(NumericMode|BoolMode ...$modes): static
 	{
-		return $this->copyWithRules(ValueRules::FromMode($mode));
+		return $this->copyWithRules(ValueRules::FromModes(...$modes));
 	}
 
 	public function WithRules(ValueRules $rules): static

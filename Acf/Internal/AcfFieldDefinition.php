@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace WpTypeSafety\Acf\Internal;
 
 use WpTypeSafety\Core\Check\ArrayGet;
-use WpTypeSafety\Core\Check\ValueMode;
+use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\ValueRules;
 
 /** @internal ACFのフィールド定義配列を読み取ります。 */
@@ -87,6 +87,9 @@ final class AcfFieldDefinition
 	private static function fieldRules(): ValueRules
 	{
 		static $rules;
-		return $rules ??= ValueRules::FromModes(ValueMode::BoolStr, ValueMode::BoolInt);
+		return $rules ??= ValueRules::FromModes(
+			BoolMode::OneZeroStr,
+			BoolMode::OneZeroInt,
+		);
 	}
 }
