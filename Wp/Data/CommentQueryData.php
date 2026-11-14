@@ -3,11 +3,15 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** コメントクエリの変換結果とページ情報を保持します。 */
+/**
+ * コメントクエリの変換結果とページ情報を保持します。
+ *
+ * @template-covariant TComment of CommentData
+ */
 final readonly class CommentQueryData
 {
 	/**
-	 * @param list<CommentData> $Comments
+	 * @param list<TComment> $Comments
 	 */
 	public function __construct(
 		public array $Comments,

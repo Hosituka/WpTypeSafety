@@ -40,6 +40,23 @@ function get_term_link(WP_Term $term): mixed
 	return $GLOBALS['termLinks'][$term->term_id] ?? '/area/' . $term->slug . '/';
 }
 function is_wp_error(mixed $value): bool { return $value instanceof WP_Error; }
+function is_taxonomy_hierarchical(string $taxonomy): bool { return $taxonomy === 'area'; }
+function get_terms(array $args): mixed { return $GLOBALS['termChildren'] ?? []; }
+
+readonly class ProjectTermData extends TermData
+{
+	public function __construct(TermMembers $members, public string $Label)
+	{
+		parent::__construct($members);
+	}
+
+	public static function FromWpTerm(WP_Term $term): ?self
+	{
+		$relatedTermFactory = static fn (WP_Term $related): ?self => self::FromWpTerm($related);
+		$members = TermFactory::Members($term, $relatedTermFactory);
+		return $members !== null ? new self($members, '派生ターム' . $term->term_id) : null;
+	}
+}
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -110,5 +127,18 @@ $before = count($GLOBALS['termCalls']);
 $check($rootData->GetParent() === null && count($GLOBALS['termCalls']) === $before, 'Factoryで作ったルートも親を問い合わせない');
 $GLOBALS['termLinks'][2] = new WP_Error();
 $check(TermFactory::From($wpChild) === null, '元のターム変換失敗の契約を維持する');
+unset($GLOBALS['termLinks'][2]);
+$GLOBALS['termValues'][1] = new WP_Term(1, '神奈川県', 'kanagawa');
+$GLOBALS['termValues'][2] = $wpChild;
+$GLOBALS['termChildren'] = [new WP_Term(3, '綾瀬市', 'ayase', parent: 2)];
+$derivedTerm = ProjectTermData::FromWpTerm($wpChild);
+$check($derivedTerm?->GetParent() instanceof ProjectTermData, '関連Factoryで親タームの派生型を維持する');
+$check($derivedTerm?->GetChildren()[0] instanceof ProjectTermData, '関連Factoryで子タームの派生型を維持する');
+$baseRelations = new ProjectTermData(TermFactory::Members($wpChild), '基底関連');
+$check(
+	$baseRelations->GetParent() instanceof TermData
+	&& ! $baseRelations->GetParent() instanceof ProjectTermData,
+	'関連Factory省略時は純粋なTermDataを返す',
+);
 
 echo "term-parent: {$checks} checks passed\n";

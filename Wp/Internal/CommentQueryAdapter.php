@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Internal;
 
+use WpTypeSafety\Wp\Data\CommentData;
 use WpTypeSafety\Wp\Data\CommentQueryData;
 
 /** @internal WP_Comment_QueryをCommentQueryDataへ変換します。 */
@@ -10,16 +11,34 @@ final class CommentQueryAdapter
 {
 	private function __construct() {}
 
-	/** @param array<string, mixed> $args */
-	public static function Get(array $args, int $avatarSize): CommentQueryData
+	/**
+	 * @template TComment of CommentData
+	 * @param array<string, mixed> $args
+	 * @param null|\Closure(\WP_Comment, int): TComment $commentFactory
+	 * @return ($commentFactory is null ? CommentQueryData<CommentData> : CommentQueryData<TComment>)
+	 */
+	public static function Get(
+		array $args,
+		int $avatarSize,
+		?\Closure $commentFactory = null,
+	): CommentQueryData
 	{
 		$query = new \WP_Comment_Query();
 		$query->query($args);
 
-		return self::From($query, $avatarSize);
+		return self::From($query, $avatarSize, $commentFactory);
 	}
 
-	public static function From(\WP_Comment_Query $query, int $avatarSize): CommentQueryData
+	/**
+	 * @template TComment of CommentData
+	 * @param null|\Closure(\WP_Comment, int): TComment $commentFactory
+	 * @return ($commentFactory is null ? CommentQueryData<CommentData> : CommentQueryData<TComment>)
+	 */
+	public static function From(
+		\WP_Comment_Query $query,
+		int $avatarSize,
+		?\Closure $commentFactory = null,
+	): CommentQueryData
 	{
 		$queryVars = is_array($query->query_vars) ? $query->query_vars : [];
 		$fields = $queryVars['fields'] ?? '';
@@ -34,7 +53,13 @@ final class CommentQueryAdapter
 			if (! $comment instanceof \WP_Comment) {
 				throw new \UnexpectedValueException('WP_Comment_Queryの結果にWP_Comment以外の値が含まれています。');
 			}
-			$comments[] = DtoFactory::CommentFromWpComment($comment, $avatarSize);
+			$data = $commentFactory !== null
+				? $commentFactory($comment, $avatarSize)
+				: DtoFactory::CommentFromWpComment($comment, $avatarSize);
+			if (! $data instanceof CommentData) {
+				throw new \UnexpectedValueException('CommentQueryのcommentFactoryはCommentDataを返す必要があります。');
+			}
+			$comments[] = $data;
 		}
 
 		$number = $queryVars['number'] ?? null;

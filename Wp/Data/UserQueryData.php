@@ -3,11 +3,15 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** ユーザークエリの変換結果とページ情報を保持します。 */
+/**
+ * ユーザークエリの変換結果とページ情報を保持します。
+ *
+ * @template-covariant TUser of WpUserData
+ */
 final readonly class UserQueryData
 {
 	/**
-	 * @param list<WpUserData> $Users
+	 * @param list<TUser> $Users
 	 */
 	public function __construct(
 		public array $Users,

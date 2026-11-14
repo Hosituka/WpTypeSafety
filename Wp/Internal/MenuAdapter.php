@@ -15,23 +15,36 @@ final class MenuAdapter
 
 	private function __construct() {}
 
-	/** @return list<MenuNodeData> */
-	public static function TreeFromLocation(string $location): array
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param null|\Closure(\WP_Post, list<TNode>): ?TNode $nodeFactory
+	 * @return ($nodeFactory is null ? list<MenuNodeData> : list<TNode>)
+	 */
+	public static function TreeFromLocation(string $location, ?\Closure $nodeFactory = null): array
 	{
-		if (array_key_exists($location, self::$treeCache)) {
+		if ($nodeFactory === null && array_key_exists($location, self::$treeCache)) {
 			return self::$treeCache[$location];
 		}
 		$locations = \get_nav_menu_locations();
 		$menuId = is_array($locations) ? (int) ($locations[$location] ?? 0) : 0;
 		if ($menuId <= 0) {
-			return self::$treeCache[$location] = [];
+			if ($nodeFactory === null) {
+				self::$treeCache[$location] = [];
+			}
+			return [];
 		}
 		$items = \wp_get_nav_menu_items($menuId);
-		return self::$treeCache[$location] = is_array($items) ? self::buildTree($items) : [];
+		$tree = is_array($items) ? self::buildTree($items, $nodeFactory) : [];
+		if ($nodeFactory === null) {
+			self::$treeCache[$location] = $tree;
+		}
+		return $tree;
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
 	 */
 	public static function FindByPageId(array $nodes, int $pageId): ?MenuNodeData
 	{
@@ -41,14 +54,22 @@ final class MenuAdapter
 		return self::FindByObject($nodes, MenuItemType::PostType, 'page', $pageId);
 	}
 
-	/** @param list<MenuNodeData> $nodes */
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
+	 */
 	public static function FindById(array $nodes, int $menuItemId): ?MenuNodeData
 	{
 		$path = self::PathToId($nodes, $menuItemId);
 		return $path !== [] ? $path[array_key_last($path)] : null;
 	}
 
-	/** @param list<MenuNodeData> $nodes */
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
+	 */
 	public static function FindByObject(
 		array $nodes,
 		MenuItemType $type,
@@ -59,7 +80,11 @@ final class MenuAdapter
 		return $path !== [] ? $path[array_key_last($path)] : null;
 	}
 
-	/** @param list<MenuNodeData> $nodes */
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
+	 */
 	public static function FindByUrl(array $nodes, string $url): ?MenuNodeData
 	{
 		$path = self::PathToUrl($nodes, $url);
@@ -67,8 +92,9 @@ final class MenuAdapter
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
-	 * @return list<MenuNodeData>
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return list<TNode>
 	 */
 	public static function PathToId(array $nodes, int $menuItemId): array
 	{
@@ -82,8 +108,9 @@ final class MenuAdapter
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
-	 * @return list<MenuNodeData>
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return list<TNode>
 	 */
 	public static function PathToObject(
 		array $nodes,
@@ -101,8 +128,9 @@ final class MenuAdapter
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
-	 * @return list<MenuNodeData>
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return list<TNode>
 	 */
 	public static function PathToUrl(array $nodes, string $url): array
 	{
@@ -116,9 +144,10 @@ final class MenuAdapter
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
-	 * @param \Closure(MenuNodeData): bool $matches
-	 * @return list<MenuNodeData>
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @param \Closure(TNode): bool $matches
+	 * @return list<TNode>
 	 */
 	private static function pathTo(array $nodes, \Closure $matches): array
 	{
@@ -172,10 +201,12 @@ final class MenuAdapter
 	}
 
 	/**
+	 * @template TNode of MenuNodeData
 	 * @param array<mixed> $items
-	 * @return list<MenuNodeData>
+	 * @param null|\Closure(\WP_Post, list<TNode>): ?TNode $nodeFactory
+	 * @return ($nodeFactory is null ? list<MenuNodeData> : list<TNode>)
 	 */
-	private static function buildTree(array $items): array
+	private static function buildTree(array $items, ?\Closure $nodeFactory): array
 	{
 		$byId = [];
 		$childrenByParent = [];
@@ -192,7 +223,12 @@ final class MenuAdapter
 			$childrenByParent[$parentId][] = $id;
 		}
 
-		$build = static function (int $id, array $seen) use (&$build, $byId, $childrenByParent): ?MenuNodeData {
+		$build = static function (int $id, array $seen) use (
+			&$build,
+			$byId,
+			$childrenByParent,
+			$nodeFactory,
+		): ?MenuNodeData {
 			if (isset($seen[$id]) || ! isset($byId[$id])) {
 				return null;
 			}
@@ -205,7 +241,7 @@ final class MenuAdapter
 					$children[] = $child;
 				}
 			}
-			return self::FromWpPost($item, $children);
+			return self::createNode($item, $children, $nodeFactory);
 		};
 
 		$roots = [];
@@ -220,5 +256,25 @@ final class MenuAdapter
 			}
 		}
 		return $roots;
+	}
+
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $children
+	 * @param null|\Closure(\WP_Post, list<TNode>): ?TNode $nodeFactory
+	 * @return ($nodeFactory is null ? MenuNodeData|null : TNode|null)
+	 */
+	private static function createNode(
+		\WP_Post $item,
+		array $children,
+		?\Closure $nodeFactory,
+	): ?MenuNodeData {
+		$data = $nodeFactory !== null
+			? $nodeFactory($item, $children)
+			: self::FromWpPost($item, $children);
+		if ($data !== null && ! $data instanceof MenuNodeData) {
+			throw new \UnexpectedValueException('Menu node factory must return MenuNodeData or null.');
+		}
+		return $data;
 	}
 }

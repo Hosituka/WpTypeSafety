@@ -18,7 +18,7 @@ final class ReferenceAdapter
 		if ($value instanceof \WP_Post)
 		{return $value;}
 
-		$postId = $value instanceof PostData ? $value->PostId : self::positiveId($value);
+		$postId = $value instanceof PostData ? $value->Id : self::positiveId($value);
 		if ($postId === null)
 		{return null;}
 

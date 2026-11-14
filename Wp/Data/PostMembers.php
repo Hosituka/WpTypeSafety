@@ -19,7 +19,7 @@ final class PostMembers
 	 * @param null|\Closure(): string $TemplateSlugResolver
 	 */
 	public function __construct(
-		public int $PostId,
+		public int $Id,
 		public string $Url,
 		public string $Title,
 		public string $Content,

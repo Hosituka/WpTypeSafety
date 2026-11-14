@@ -12,13 +12,21 @@ final class TermAdapter
 {
 	private function __construct() {}
 
-	/** @return list<TermData> */
-	public static function FromPost(\WP_Post|PostData|int $post, string $taxonomy): array
+	/**
+	 * @template TTerm of TermData
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 */
+	public static function FromPost(
+		\WP_Post|PostData|int $post,
+		string $taxonomy,
+		?\Closure $termFactory = null,
+	): array
 	{
 		if ($post instanceof \WP_Post) {
 			$postId = $post->ID;
 		} elseif ($post instanceof PostData) {
-			$postId = $post->PostId;
+			$postId = $post->Id;
 		} else {
 			$postId = $post;
 		}
@@ -32,7 +40,7 @@ final class TermAdapter
 			if (! $term instanceof \WP_Term) {
 				continue;
 			}
-			$data = self::FromWpTerm($term);
+			$data = self::termData($term, $termFactory);
 			if ($data !== null) {
 				$result[] = $data;
 			}
@@ -41,10 +49,12 @@ final class TermAdapter
 	}
 
 	/**
-	 * @param list<TermData> $terms
-	 * @return list<TermData>
+	 * @template TTerm of TermData
+	 * @param list<TTerm> $terms
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
 	 */
-	public static function Roots(array $terms): array
+	public static function Roots(array $terms, ?\Closure $termFactory = null): array
 	{
 		$roots = [];
 		foreach ($terms as $term) {
@@ -58,7 +68,7 @@ final class TermAdapter
 				if ($ancestors !== []) {
 					$root = \get_term((int) end($ancestors), $term->Taxonomy);
 					if ($root instanceof \WP_Term) {
-						$rootData = self::FromWpTerm($root) ?? $term;
+						$rootData = self::termData($root, $termFactory) ?? $term;
 					}
 				}
 			}
@@ -70,8 +80,9 @@ final class TermAdapter
 	}
 
 	/**
-	 * @param list<TermData> $terms
-	 * @return list<TermData>
+	 * @template TTerm of TermData
+	 * @param list<TTerm> $terms
+	 * @return list<TTerm>
 	 */
 	public static function Deepest(array $terms): array
 	{
@@ -93,8 +104,9 @@ final class TermAdapter
 	}
 
 	/**
-	 * @param list<TermData> $terms
-	 * @return list<TermData>
+	 * @template TTerm of TermData
+	 * @param list<TTerm> $terms
+	 * @return list<TTerm>
 	 */
 	public static function Shallowest(array $terms): array
 	{
@@ -115,13 +127,34 @@ final class TermAdapter
 		return $selected;
 	}
 
-	public static function FromWpTerm(\WP_Term $term): ?TermData
+	/**
+	 * @template TTerm of TermData
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? TermData|null : TTerm)
+	 */
+	private static function termData(\WP_Term $term, ?\Closure $termFactory): ?TermData
 	{
-		$members = self::MembersFromWpTerm($term);
+		if ($termFactory === null) {
+			return self::FromWpTerm($term);
+		}
+
+		$data = $termFactory($term);
+		if (! $data instanceof TermData) {
+			throw new \UnexpectedValueException('WpGetTermのtermFactoryはTermDataを返す必要があります。');
+		}
+
+		return $data;
+	}
+
+	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	public static function FromWpTerm(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermData
+	{
+		$members = self::MembersFromWpTerm($term, $relatedTermFactory);
 		return $members !== null ? new TermData($members) : null;
 	}
 
-	public static function MembersFromWpTerm(\WP_Term $term): ?TermMembers
+	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	public static function MembersFromWpTerm(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermMembers
 	{
 		$url = \get_term_link($term);
 		if (\is_wp_error($url) || ! is_string($url)) {
@@ -140,24 +173,37 @@ final class TermAdapter
 			ParentId: $term->parent,
 			Description: $term->description,
 			ChildrenResolver: static fn (bool $hideEmpty, string $orderby, string $order): array =>
-				self::childrenOf($term->term_id, $term->taxonomy, $hideEmpty, $orderby, $order),
-			ParentResolver: static function () use ($parentId, $taxonomy): ?TermData {
+				self::childrenOf(
+					$term->term_id,
+					$term->taxonomy,
+					$hideEmpty,
+					$orderby,
+					$order,
+					$relatedTermFactory,
+				),
+			ParentResolver: static function () use ($parentId, $taxonomy, $relatedTermFactory): ?TermData {
 				if ($parentId <= 0 || $taxonomy === '') {
 					return null;
 				}
 				$parent = \get_term($parentId, $taxonomy);
-				return $parent instanceof \WP_Term ? self::FromWpTerm($parent) : null;
+				return $parent instanceof \WP_Term
+					? self::relatedTerm($parent, $relatedTermFactory)
+					: null;
 			},
 		);
 	}
 
-	/** @return list<TermData> */
+	/**
+	 * @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory
+	 * @return list<TermData>
+	 */
 	private static function childrenOf(
 		int $parentId,
 		string $taxonomy,
 		bool $hideEmpty,
 		string $orderby,
 		string $order,
+		?\Closure $relatedTermFactory,
 	): array {
 		if ($parentId <= 0 || $taxonomy === '' || ! \is_taxonomy_hierarchical($taxonomy)) {
 			return [];
@@ -182,11 +228,21 @@ final class TermAdapter
 			if (! $term instanceof \WP_Term) {
 				continue;
 			}
-			$data = self::FromWpTerm($term);
+			$data = self::relatedTerm($term, $relatedTermFactory);
 			if ($data !== null) {
 				$children[] = $data;
 			}
 		}
 		return $children;
+	}
+
+	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	private static function relatedTerm(\WP_Term $term, ?\Closure $relatedTermFactory): ?TermData
+	{
+		$data = $relatedTermFactory !== null ? $relatedTermFactory($term) : self::FromWpTerm($term);
+		if ($data !== null && ! $data instanceof TermData) {
+			throw new \UnexpectedValueException('Related term factory must return TermData or null.');
+		}
+		return $data;
 	}
 }

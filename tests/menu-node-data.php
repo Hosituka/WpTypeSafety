@@ -42,6 +42,9 @@ class WP_Post
 	) {}
 }
 
+function get_nav_menu_locations(): array { return ['primary' => 10]; }
+function wp_get_nav_menu_items(int $menuId): mixed { return $GLOBALS['menuItems'] ?? []; }
+
 readonly class ProjectMenuNodeData extends MenuNodeData
 {
 	public function __construct(
@@ -177,6 +180,33 @@ $check(WpGetMenuNode::PathToId([$data], 0) === [], '0以下のメニュー項目
 $check(
 	WpGetMenuNode::PathToObject([$data], MenuItemType::Custom, 'custom', 0) === [$data, $child],
 	'リンク先オブジェクトまでのパスを返す',
+);
+
+$GLOBALS['menuItems'] = [
+	new WP_Post(ID: 100, title: '親', url: '/parent/', object: 'custom'),
+	new WP_Post(ID: 101, menu_item_parent: 100, title: '子', url: '/child/', object: 'custom'),
+];
+$nodeFactory = static fn (WP_Post $menuItem, array $children): ProjectMenuNodeData =>
+	new ProjectMenuNodeData(MenuNodeFactory::Members($menuItem, $children), '派生メニュー' . $menuItem->ID);
+$derivedTree = WpGetMenuNode::TreeFromLocation('primary', $nodeFactory);
+$check($derivedTree[0] instanceof ProjectMenuNodeData, '指定Factoryでルートの派生型を生成する');
+$check($derivedTree[0]->Children[0] instanceof ProjectMenuNodeData, '指定Factoryを子ノードへ引き継ぐ');
+$check(
+	WpGetMenuNode::FindById($derivedTree, 101) instanceof ProjectMenuNodeData,
+	'派生ツリーの検索結果も派生型を維持する',
+);
+$derivedPath = WpGetMenuNode::PathToId($derivedTree, 101);
+$check(
+	count($derivedPath) === 2
+	&& $derivedPath[0] instanceof ProjectMenuNodeData
+	&& $derivedPath[1] instanceof ProjectMenuNodeData,
+	'派生ツリーのパスも全階層で派生型を維持する',
+);
+$baseTree = WpGetMenuNode::TreeFromLocation('primary');
+$check(
+	$baseTree[0] instanceof MenuNodeData
+	&& ! $baseTree[0] instanceof ProjectMenuNodeData,
+	'Factory省略時は純粋なMenuNodeDataを返す',
 );
 
 echo "Menu node data: {$checks} checks passed.\n";

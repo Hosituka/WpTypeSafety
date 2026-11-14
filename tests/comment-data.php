@@ -89,8 +89,44 @@ require_once __DIR__ . '/../Wp/Get/CommentFactory.php';
 
 use WpTypeSafety\Wp\Data\CommentData;
 use WpTypeSafety\Wp\Data\CommentMembers;
+use WpTypeSafety\Wp\Data\PostData;
+use WpTypeSafety\Wp\Data\PostMembers;
 use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Get\CommentFactory;
+
+readonly class ProjectCommentData extends CommentData
+{
+	public function __construct(CommentMembers $members, public string $Label)
+	{
+		parent::__construct($members);
+	}
+
+	public static function FromWpComment(WP_Comment $comment): self
+	{
+		$relatedCommentFactory = static fn (WP_Comment $related): self => self::FromWpComment($related);
+		return new self(
+			CommentFactory::Members($comment, relatedCommentFactory: $relatedCommentFactory),
+			'派生コメント' . $comment->comment_ID,
+		);
+	}
+}
+
+readonly class ProjectCommentUserData extends WpUserData
+{
+	public function __construct(UserMembers $members, public string $Label)
+	{
+		parent::__construct($members);
+	}
+}
+
+readonly class ProjectCommentPostData extends PostData
+{
+	public function __construct(PostMembers $members, public string $Label)
+	{
+		parent::__construct($members);
+	}
+}
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -177,7 +213,7 @@ $check($data->AuthorUrl === 'https://example.com/profile/', 'HTTPの投稿者URL
 $check($data->Type === 'comment' && $data->Status === 'approved', '旧コメント種別と承認状態を正規化する');
 $check($data->CreatedAt?->format('Y-m-d H:i:s P') === '2026-11-08 12:34:56 +09:00', 'サイトのタイムゾーンで日時を生成する');
 $check($data->GetUser()?->Id === 7, '登録ユーザーを遅延取得する');
-$check($data->GetPost()?->PostId === 12, '関連投稿を遅延取得する');
+$check($data->GetPost()?->Id === 12, '関連投稿を遅延取得する');
 $check($GLOBALS['commentCalls'] === [], '親コメントは構築時に取得しない');
 $check($data->GetParent()?->Id === 4 && $GLOBALS['commentCalls'] === [4], '親コメントを遅延取得する');
 
@@ -236,5 +272,46 @@ try {
 } catch (UnexpectedValueException) {
 	$check(true, '子コメントの要素型を検証する');
 }
+
+$GLOBALS['children'] = [new WP_Comment(9, 12, '返信者', comment_parent: 8)];
+$derivedComment = ProjectCommentData::FromWpComment($comment);
+$check($derivedComment->GetParent() instanceof ProjectCommentData, '関連Factoryで親コメントの派生型を維持する');
+$check($derivedComment->GetChildren()[0] instanceof ProjectCommentData, '関連Factoryで子コメントの派生型を維持する');
+$baseRelations = new ProjectCommentData(CommentFactory::Members($comment), '基底関連');
+$check(
+	$baseRelations->GetParent() instanceof CommentData
+	&& ! $baseRelations->GetParent() instanceof ProjectCommentData,
+	'関連Factory省略時は純粋なCommentDataを返す',
+);
+
+$GLOBALS['comments'][4] = new WP_Comment(4, 12, '親投稿者', user_id: 7);
+$userFactory = static fn (WP_User $user): ProjectCommentUserData => new ProjectCommentUserData(
+	new UserMembers($user->ID, $user->display_name),
+	'派生ユーザー',
+);
+$postFactory = static fn (WP_Post $post): ProjectCommentPostData => new ProjectCommentPostData(
+	new PostMembers($post->ID, '/post/' . $post->ID . '/', '投稿' . $post->ID, ''),
+	'派生投稿',
+);
+$crossData = CommentFactory::From(
+	$comment,
+	userFactory: $userFactory,
+	postFactory: $postFactory,
+);
+$check($crossData->GetUser() instanceof ProjectCommentUserData, 'User Factoryでコメント投稿者の派生型を返す');
+$check($crossData->GetPost() instanceof ProjectCommentPostData, 'Post Factoryで関連投稿の派生型を返す');
+$crossParent = $crossData->GetParent();
+$check(
+	$crossParent?->GetUser() instanceof ProjectCommentUserData
+	&& $crossParent->GetPost() instanceof ProjectCommentPostData,
+	'異種Data Factoryを基底型の親コメントへ引き継ぐ',
+);
+$check(
+	$data->GetUser() instanceof WpUserData
+	&& ! $data->GetUser() instanceof ProjectCommentUserData
+	&& $data->GetPost() instanceof PostData
+	&& ! $data->GetPost() instanceof ProjectCommentPostData,
+	'異種Data Factory省略時は純粋な基底Dataを返す',
+);
 
 echo "Comment data: {$checks} checks passed.\n";

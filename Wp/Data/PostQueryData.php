@@ -3,11 +3,15 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** 投稿クエリの変換結果とページ情報を保持します。 */
+/**
+ * 投稿クエリの変換結果とページ情報を保持します。
+ *
+ * @template-covariant TPost of PostData
+ */
 final readonly class PostQueryData
 {
 	/**
-	 * @param list<PostData> $Posts
+	 * @param list<TPost> $Posts
 	 */
 	public function __construct(
 		public array $Posts,

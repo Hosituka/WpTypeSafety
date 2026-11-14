@@ -8,7 +8,7 @@ use WpTypeSafety\Core\Data\LinkData;
 
 readonly class PostData
 {
-	public int $PostId;
+	public int $Id;
 	public string $Url;
 	public string $Title;
 	public string $Content;
@@ -30,7 +30,7 @@ readonly class PostData
 
 	public function __construct(PostMembers $members)
 	{
-		$this->PostId = $members->PostId;
+		$this->Id = $members->Id;
 		$this->Url = $members->Url;
 		$this->Title = $members->Title;
 		$this->Content = $members->Content;

@@ -12,25 +12,41 @@ final class WpGetMenuNode
 {
 	private function __construct() {}
 
-	/** @return list<MenuNodeData> */
-	public static function TreeFromLocation(string $location): array
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param null|\Closure(\WP_Post, list<TNode>): ?TNode $nodeFactory
+	 * @return ($nodeFactory is null ? list<MenuNodeData> : list<TNode>)
+	 */
+	public static function TreeFromLocation(string $location, ?\Closure $nodeFactory = null): array
 	{
-		return MenuAdapter::TreeFromLocation($location);
+		return MenuAdapter::TreeFromLocation($location, $nodeFactory);
 	}
 
-	/** @param list<MenuNodeData> $nodes */
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
+	 */
 	public static function FindByPageId(array $nodes, int $pageId): ?MenuNodeData
 	{
 		return MenuAdapter::FindByPageId($nodes, $pageId);
 	}
 
-	/** @param list<MenuNodeData> $nodes */
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
+	 */
 	public static function FindById(array $nodes, int $menuItemId): ?MenuNodeData
 	{
 		return MenuAdapter::FindById($nodes, $menuItemId);
 	}
 
-	/** @param list<MenuNodeData> $nodes */
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
+	 */
 	public static function FindByObject(
 		array $nodes,
 		MenuItemType $type,
@@ -40,15 +56,20 @@ final class WpGetMenuNode
 		return MenuAdapter::FindByObject($nodes, $type, $object, $objectId);
 	}
 
-	/** @param list<MenuNodeData> $nodes */
+	/**
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return TNode|null
+	 */
 	public static function FindByUrl(array $nodes, string $url): ?MenuNodeData
 	{
 		return MenuAdapter::FindByUrl($nodes, $url);
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
-	 * @return list<MenuNodeData>
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return list<TNode>
 	 */
 	public static function PathToId(array $nodes, int $menuItemId): array
 	{
@@ -56,8 +77,9 @@ final class WpGetMenuNode
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
-	 * @return list<MenuNodeData>
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return list<TNode>
 	 */
 	public static function PathToObject(
 		array $nodes,
@@ -69,8 +91,9 @@ final class WpGetMenuNode
 	}
 
 	/**
-	 * @param list<MenuNodeData> $nodes
-	 * @return list<MenuNodeData>
+	 * @template TNode of MenuNodeData
+	 * @param list<TNode> $nodes
+	 * @return list<TNode>
 	 */
 	public static function PathToUrl(array $nodes, string $url): array
 	{

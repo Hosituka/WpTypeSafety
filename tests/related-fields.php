@@ -38,7 +38,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	public function GetRaw(string $fieldName, \WP_Post|PostData|int|string|array|null $source): mixed
 	{
 		if ($source instanceof PostData)
-		{$source = $source->PostId;}
+		{$source = $source->Id;}
 
 		$fields = is_array($source) ? $source : ($this->values[(string) $source] ?? []);
 		return $fields[$fieldName] ?? null;
@@ -71,7 +71,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	{
 		$id = $this->GetRaw($fieldName, $source);
 		return is_int($id) && $id > 0
-			? new PostData(new PostMembers(PostId: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: ''))
+			? new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: ''))
 			: null;
 	}
 
@@ -81,7 +81,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new PostData(new PostMembers(PostId: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: ''));
+				$result[] = new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: ''));
 			}
 		}
 		return $result;
@@ -205,7 +205,7 @@ $check($post->PostGet('missing')->Text('label') === '', 'missing post has empty 
 $check($post->UserGet('multiple_users')->Text('label') === '', 'multiple users are not treated as one');
 $check((new AcfGet([], $adapter))->UserGet('missing')->Text('label') === '', 'array source missing user');
 $check((new AcfGet([], $adapter))->TermGet('missing')->Text('label') === '', 'array source missing term');
-$check(array_map(static fn (PostData $item): int => $item->PostId, $post->Posts('multiple_posts')) === [3, 4], 'multiple posts');
+$check(array_map(static fn (PostData $item): int => $item->Id, $post->Posts('multiple_posts')) === [3, 4], 'multiple posts');
 $check(array_map(static fn (TermData $item): int => $item->Id, $post->Terms('multiple_terms')) === [5, 6], 'multiple terms');
 $check(array_map(static fn (WpUserData $item): int => $item->Id, $post->Users('multiple_users', 160)) === [7, 8], 'multiple users');
 $check($avatarSizes[array_key_last($avatarSizes)] === 160, 'multiple user avatar size');

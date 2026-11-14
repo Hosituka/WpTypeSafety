@@ -40,7 +40,7 @@ final class MetaGet extends TreeGet
 				'post',
 				$source instanceof \WP_Post
 					? (int) $source->ID
-					: ($source instanceof PostData ? $source->PostId : $source),
+					: ($source instanceof PostData ? $source->Id : $source),
 			);
 			return;
 		}
@@ -78,7 +78,7 @@ final class MetaGet extends TreeGet
 	): self {
 		$postId = $post instanceof \WP_Post
 			? (int) $post->ID
-			: ($post instanceof PostData ? $post->PostId : $post);
+			: ($post instanceof PostData ? $post->Id : $post);
 		return self::fromMeta('post', $postId, $modeOrRules);
 	}
 

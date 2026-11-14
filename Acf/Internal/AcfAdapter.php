@@ -600,7 +600,7 @@ class AcfAdapter
 			return $postId->ID;
 		}
 
-		return $postId instanceof PostData ? $postId->PostId : $postId;
+		return $postId instanceof PostData ? $postId->Id : $postId;
 	}
 
 	private static function valueFrom(string $key, mixed $parent): mixed

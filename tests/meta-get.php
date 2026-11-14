@@ -242,7 +242,7 @@ $check($transformedSettingsGet instanceof MetaGet, 'TransformはMetaGetを維持
 $check($transformedSettingsGet->String('color') === 'blue', 'Transform後は通常の木構造として探索する');
 $relationsGet = $postMetaGet->NestedPath('settings', 'relations');
 $check($relationsGet->ExistsPath('post_id'), 'NestedPathで配列をたどる');
-$check($relationsGet->Post('post_id')?->PostId === 20, 'PHP値をPostDataへ変換する');
+$check($relationsGet->Post('post_id')?->Id === 20, 'PHP値をPostDataへ変換する');
 $check($relationsGet->User('user_id')?->Id === 30, 'PHP値をWpUserDataへ変換する');
 $check($relationsGet->Term('term_id')?->Id === 40, 'PHP値をTermDataへ変換する');
 $check($relationsGet->Comment('comment_id')?->Id === 50, 'PHP値をCommentDataへ変換する');
@@ -254,19 +254,19 @@ $check($relationsGet->PostMeta('post_id')->String('subtitle') === '参照先投�
 $check($relationsGet->UserMeta('user_id')->String('nickname') === 'tester', 'ユーザーIDからユーザーメタへ再進入する');
 $check($relationsGet->TermMeta('term_id')->String('color') === 'green', 'タームIDからタームメタへ再進入する');
 $check($relationsGet->CommentMeta('comment_id')->Int('rating') === 5, 'コメントIDからコメントメタへ再進入する');
-$check($postMetaGet->Post('related_post_id')?->PostId === 20, 'メタ直下の投稿IDをPostDataへ変換する');
+$check($postMetaGet->Post('related_post_id')?->Id === 20, 'メタ直下の投稿IDをPostDataへ変換する');
 $check($postMetaGet->PostMeta('related_post_id')->String('subtitle') === '参照先投稿', 'メタ直下から別投稿メタへ進む');
 
 $wpPostGet = new MetaGet(new WP_Post(7));
 $check($wpPostGet->String('title') === '見出し', 'WP_Postから投稿IDを取得する');
 
-$postData = new PostData(new PostMembers(PostId: 9, Url: '', Title: '', Content: ''));
+$postData = new PostData(new PostMembers(Id: 9, Url: '', Title: '', Content: ''));
 $check((new MetaGet($postData))->String('title') === 'PostDataの投稿', 'PostDataから投稿IDを取得する');
 $check((new MetaGet(new WP_Term(40)))->String('color') === 'green', 'WP_Termからタームメタを取得する');
 $check((new MetaGet(new WP_User(30)))->String('nickname') === 'tester', 'WP_Userからユーザーメタを取得する');
 $check((new MetaGet(new WP_Comment(50)))->Int('rating') === 5, 'WP_Commentからコメントメタを取得する');
 $check(MetaGet::FromTerm(40)->String('color') === 'green', '整数のタームIDを明示して取得する');
-$check((new MetaGet(['post_id' => '20']))->Post('post_id')?->PostId === 20, '取得済み配列からWordPress Dataへ進む');
+$check((new MetaGet(['post_id' => '20']))->Post('post_id')?->Id === 20, '取得済み配列からWordPress Dataへ進む');
 
 $GLOBALS['metaCalls'] = [];
 $invalidGet = MetaGet::FromPost(0);

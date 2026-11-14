@@ -26,6 +26,28 @@ $maxPageCount = $result->MaxPageCount;
 $currentPageNumber = $result->CurrentPageNumber;
 ```
 
+案件固有の派生Dataを一覧へ保持する場合は、各Queryへ生成処理を指定できます。`PostQueryData`等の要素型も、指定した派生Dataとして静的解析できます。
+
+```php
+<?php
+use WpTypeSafety\Wp\Get\PostQuery;
+
+$result = PostQuery::Get(
+	[
+		'post_type' => 'cases',
+		'posts_per_page' => 12,
+	],
+	postFactory: static fn (WP_Post $post): CaseData =>
+		CaseData::FromWpPost($post),
+);
+
+foreach ($result->Posts as $caseData) {
+	// $caseDataはCaseDataとして推論されます。
+}
+```
+
+同様に、`TermQuery`は`termFactory`、`UserQuery`は`userFactory`、`CommentQuery`は`commentFactory`を受け取ります。`Get()`と`From()`のどちらでも指定できます。ユーザーとコメントのFactoryには、第2引数として指定済みの`avatarSize`も渡します。生成処理はクエリ結果の各オブジェクトに対して対応するDataを必ず返し、`null`は返せません。Queryの絞り込みは生成処理ではなく、WordPressのクエリ引数で行ってください。未指定時は従来どおりWpTypeSafetyの共通Dataへ変換します。
+
 投稿・ユーザー・コメントは、取得結果とページ情報をそれぞれ`PostQueryData`・`UserQueryData`・`CommentQueryData`で返します。ページングするQueryで`no_found_rows: true`または`count_total: false`によりWordPress側の総件数計算を無効にした場合、`TotalCount`と`MaxPageCount`は不明を表す`null`です。0件を表す`0`とは区別されます。
 
 `CommentQuery`は`number`を指定しない場合、WordPressと同じく件数制限のない取得として扱います。この場合は返された`Comments`の件数を`TotalCount`とし、結果があれば`MaxPageCount`を1、空なら0とします。`number`を指定した場合は、`no_found_rows: false`のときだけWordPressが計算した総件数と最大ページ数を保持します。
@@ -157,6 +179,25 @@ $children = $roots !== [] ? $roots[0]->GetChildren() : [];
 
 `WpGetTerm::FromPost()`は`WP_Post | PostData | int`を受け取ります。`ArticlePostData`などの派生DTOも渡せます。オブジェクトから投稿IDを取り出して取得し、DTOの内容を更新したり作り直したりはしません。
 
+案件固有の派生`TermData`を使用する場合は、`termFactory`を指定します。`Deepest()`と`Shallowest()`は入力されたDataと同じインスタンスを選別するため派生型を維持します。`Roots()`はWordPressから最上位祖先を新たに取得するため、派生型を維持する場合は同じFactoryを渡します。
+
+```php
+<?php
+$termFactory = AreaData::FromWpTerm(...);
+$areas = WpGetTerm::FromPost(
+	$post,
+	'area',
+	termFactory: $termFactory,
+);
+$roots = WpGetTerm::Roots(
+	$areas,
+	termFactory: $termFactory,
+);
+$deepest = WpGetTerm::Deepest($areas);
+```
+
+Factoryが呼ばれた場合は`TermData`の派生型を必ず返す必要があり、`null`による要素除外はできません。Factory未指定時は共通`TermData`を返します。
+
 ## WordPressメニュー
 
 ```php
@@ -165,6 +206,21 @@ use WpTypeSafety\Wp\Get\WpGetMenuNode;
 
 $menu = WpGetMenuNode::TreeFromLocation('primary');
 ```
+
+案件固有の`MenuNodeData`をツリー全体で使用する場合は、第2引数へNode Factoryを渡します。Factoryは現在のメニュー項目と、すでに構築済みの子ノードを受け取ります。未指定時は純粋な`MenuNodeData`を返します。独自Factoryを指定したツリーは、Factoryごとの型が混ざらないよう内部キャッシュの対象外です。
+
+```php
+<?php
+$menu = WpGetMenuNode::TreeFromLocation(
+	'primary',
+	static fn (\WP_Post $item, array $children): ProjectMenuNodeData =>
+		new ProjectMenuNodeData(
+			MenuNodeFactory::Members($item, $children),
+		),
+);
+```
+
+`nodeFactory`を指定した場合、戻り値はFactoryが返す派生型のリストとして推論されます。Factoryはすべての階層へ再帰的に適用され、`FindBy*()`と`PathTo*()`も渡されたツリーの派生型を維持します。
 
 `FindById()`はメニュー項目自身のID、`FindByObject()`はリンク先の種別・オブジェクト名・オブジェクトIDを全て比較し、最初に一致したノードを深さ優先で返します。
 
@@ -181,7 +237,7 @@ $postNode = WpGetMenuNode::FindByObject(
 );
 ```
 
-`FindByPageId()`は、`TreeFromLocation()`で得たツリーを子階層まで検索し、指定した固定ページIDに対応する最初の`MenuNodeData`を返します。該当なし・0以下のIDは`null`です。
+`FindByPageId()`は、`TreeFromLocation()`で得たツリーを子階層まで検索し、指定した固定ページIDに対応する最初のノードを返します。派生型のツリーを渡した場合はその派生型として推論され、該当なし・0以下のIDは`null`です。
 
 ```php
 <?php
@@ -209,13 +265,13 @@ $path = WpGetMenuNode::PathToUrl($menu, '/company/access/');
 | 取得口 | 戻り値 | 契約 |
 |---|---|---|
 | `WpGet::CurrentPageNumber()` | `int` | メインクエリの`paged`を取得し、未設定・0以下は1 |
-| `WpGetMenuNode::FindById()` | `?MenuNodeData` | メニュー項目IDに対応するノードをツリーから再帰検索 |
-| `WpGetMenuNode::FindByObject()` | `?MenuNodeData` | Type・Object・ObjectIdが一致するノードを再帰検索 |
-| `WpGetMenuNode::FindByPageId()` | `?MenuNodeData` | 固定ページIDに対応するノードをツリーから再帰検索 |
-| `WpGetMenuNode::FindByUrl()` | `?MenuNodeData` | URLが完全一致する最初のノードをツリーから再帰検索 |
-| `WpGetMenuNode::PathToId()` | `list<MenuNodeData>` | メニュー項目IDが一致するノードまでのパスを取得 |
-| `WpGetMenuNode::PathToObject()` | `list<MenuNodeData>` | Type・Object・ObjectIdが一致するノードまでのパスを取得 |
-| `WpGetMenuNode::PathToUrl()` | `list<MenuNodeData>` | URLが完全一致するノードまでのパスをルートから順に取得 |
+| `WpGetMenuNode::FindById()` | `TNode|null` | メニュー項目IDに対応するノードをツリーから再帰検索 |
+| `WpGetMenuNode::FindByObject()` | `TNode|null` | Type・Object・ObjectIdが一致するノードを再帰検索 |
+| `WpGetMenuNode::FindByPageId()` | `TNode|null` | 固定ページIDに対応するノードをツリーから再帰検索 |
+| `WpGetMenuNode::FindByUrl()` | `TNode|null` | URLが完全一致する最初のノードをツリーから再帰検索 |
+| `WpGetMenuNode::PathToId()` | `list<TNode>` | メニュー項目IDが一致するノードまでのパスを取得 |
+| `WpGetMenuNode::PathToObject()` | `list<TNode>` | Type・Object・ObjectIdが一致するノードまでのパスを取得 |
+| `WpGetMenuNode::PathToUrl()` | `list<TNode>` | URLが完全一致するノードまでのパスをルートから順に取得 |
 | `WpGetTerm::Deepest()` | `list<TermData>` | 最も深い階層のタームをすべて返す |
 | `WpGetTerm::Shallowest()` | `list<TermData>` | 最も浅い階層のタームをすべて返す |
 
@@ -246,6 +302,8 @@ $file = AttachmentFactory::FileFromId($attachmentId);
 
 `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`の`Members()`は、対応する`PostMembers`・`CommentMembers`・`UserMembers`・`TermMembers`・`MenuNodeMembers`を返します。Membersは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。`MenuNodeFactory`は`wp_get_nav_menu_items()`等でセットアップ済みのメニュー項目`WP_Post`を対象とし、必要なら構築済みの子ノードを第2引数で受け取ります。
 
+`PostFactory`・`CommentFactory`・`TermFactory`では、任意の`relatedPostFactory`・`relatedCommentFactory`・`relatedTermFactory`を指定すると自己参照する関連Dataにも案件固有の派生型を使用できます。未指定時は共通Dataを返すため、派生型を必要としない取得へ明示的に戻せます。
+
 ```php
 <?php
 $members = PostFactory::Members($post);
@@ -274,5 +332,20 @@ $avatar = $commentData->GetAvatar(64);
 ```
 
 `GetPost()`・`GetParent()`・`GetChildren()`は関連する投稿・親コメント・直下の子コメントを呼び出し時に取得します。`GetChildren()`の第1引数はWordPressのコメントクエリへ渡す状態（既定値`approve`）、第2引数は並び順（既定値`ASC`）です。
+
+案件固有Dataを関連先にも使用する場合は、Factoryへ生成処理を指定します。`relatedCommentFactory`は親・子コメント、`userFactory`は`GetUser()`、`postFactory`は`GetPost()`へ適用されます。未指定時は共通Dataを返します。
+
+```php
+<?php
+$commentMembers = CommentFactory::Members(
+	$comment,
+	relatedCommentFactory: static fn (\WP_Comment $related): ?ProjectCommentData =>
+		ProjectCommentData::FromWpComment($related),
+	userFactory: static fn (\WP_User $user): ?AuthorProfileData =>
+		AuthorProfileData::FromWpUser($user),
+	postFactory: static fn (\WP_Post $post): ?ArticlePostData =>
+		ArticlePostData::FromWpPost($post),
+);
+```
 
 `Status`はWordPressの`comment_approved`を正規化し、`1`は`approved`、`0`は`unapproved`になります。`spam`・`trash`など、それ以外の値は維持します。`Type`は旧データの空文字を`comment`へ正規化します。`CreatedAt`は`comment_date`をサイトのタイムゾーンで解釈した`?DateTimeImmutable`です。欠損・不正な日時は`null`になります。

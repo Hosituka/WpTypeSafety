@@ -55,7 +55,7 @@ use WpTypeSafety\Core\Data\ImgData;
 
 $data = new PostData(
 	new PostMembers(
-		PostId: $post->ID,
+		Id: $post->ID,
 		Url: (string) get_permalink($post),
 		Title: get_the_title($post),
 		Content: $post->post_content,
@@ -116,7 +116,8 @@ final readonly class ArticlePostData extends PostData
 
 	public static function FromWpPost(\WP_Post $post): self
 	{
-		$members = PostFactory::Members($post);
+		$relatedPostFactory = static fn (\WP_Post $related): self => self::FromWpPost($related);
+		$members = PostFactory::Members($post, $relatedPostFactory);
 		$postGet = new AcfGet($post->ID);
 
 		return new self(
@@ -129,10 +130,14 @@ final readonly class ArticlePostData extends PostData
 
 `PostFactory::Members()`が返す`PostMembers`には、共通値とResolverがすべて含まれます。案件側で親の値を変更する場合は、Dataへ渡す前にMembersの型付きプロパティを変更します。元のMembersを再利用したい場合は、変更前に`clone`してください。
 
+上の`relatedPostFactory`は、`GetChildren()`・`GetPreviousPost()`・`GetNextPost()`が返す関連投稿にも同じ派生Dataを使用するための任意指定です。コールバックは関連する`WP_Post`を受け取り、`PostData`の派生型または`null`を返します。各派生Dataの生成処理でも同じ指定を行うことで、後続の関連取得にも派生型が維持されます。
+
+`relatedPostFactory`を省略した場合、関連取得は従来どおり純粋な`PostData`を返します。派生Dataの追加フィールドが不要で、共通のタイトルやURLだけを軽量に扱いたい場合はこちらを使用します。
+
 ```php
 <?php
 $members = new PostMembers(
-	PostId: 123,
+	Id: 123,
 	Url: '/sample/',
 	Title: '任意のタイトル',
 	Content: '任意の本文',
@@ -145,15 +150,18 @@ $data = new ArticlePostData(
 );
 ```
 
-派生した投稿者Dataを返す場合は、Data生成前に`PostMembers::$AuthorResolver`を差し替えます。
+`GetAuthor()`から派生した投稿者Dataを返す場合は、`PostFactory::Members()`の`authorFactory`へ生成処理を指定します。省略時は純粋な`WpUserData`を返します。
 
 ```php
 <?php
-$members->AuthorResolver = static function () use ($post): ?AuthorProfileData {
-	$user = get_userdata((int) $post->post_author);
-	return $user instanceof \WP_User ? AuthorProfileData::FromWpUser($user) : null;
-};
+$members = PostFactory::Members(
+	$post,
+	authorFactory: static fn (\WP_User $author): ?AuthorProfileData =>
+		AuthorProfileData::FromWpUser($author),
+);
 ```
+
+取得条件そのものを変更したい場合は、従来どおり`PostMembers::$AuthorResolver`を直接差し替えることもできます。
 
 `WpUserData`の派生クラスには`UserMembers`を渡します。
 
@@ -187,6 +195,10 @@ final readonly class AuthorProfileData extends WpUserData
 ```
 
 `CommentData`・`TermData`・`MenuNodeData`を拡張する場合も、対応する`CommentMembers`・`TermMembers`・`MenuNodeMembers`を子で受け取り、親へそのまま渡します。さらに下のサブクラスを作る場合も、同じMembersを受け渡します。上の`final`クラスをさらに継承する場合は、`final`を外し、生成メソッドの戻り値・生成先も見直してください。
+
+`CommentFactory::Members()`には`relatedCommentFactory`、`TermFactory::Members()`には`relatedTermFactory`を指定できます。コメントでは親と子、タームでは親と子へ適用されます。省略時はそれぞれ`CommentData`・`TermData`を返します。
+
+異なる種類のDataを返す関係にも個別のFactoryを指定できます。`PostFactory`の`authorFactory`は`GetAuthor()`、`CommentFactory`の`userFactory`は`GetUser()`、`postFactory`は`GetPost()`へ適用されます。すべて任意指定で、省略時は純粋な`WpUserData`または`PostData`です。
 
 ## タームの親取得
 

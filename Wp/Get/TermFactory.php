@@ -12,13 +12,15 @@ final class TermFactory
 {
 	private function __construct() {}
 
-	public static function Members(\WP_Term $term): ?TermMembers
+	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	public static function Members(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermMembers
 	{
-		return TermAdapter::MembersFromWpTerm($term);
+		return TermAdapter::MembersFromWpTerm($term, $relatedTermFactory);
 	}
 
-	public static function From(\WP_Term $term): ?TermData
+	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	public static function From(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermData
 	{
-		return TermAdapter::FromWpTerm($term);
+		return TermAdapter::FromWpTerm($term, $relatedTermFactory);
 	}
 }

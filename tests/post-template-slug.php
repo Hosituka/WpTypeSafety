@@ -9,11 +9,16 @@ if (PHP_SAPI !== 'cli') {
 
 require_once __DIR__ . '/../Wp/Data/PostData.php';
 require_once __DIR__ . '/../Wp/Data/PostMembers.php';
+require_once __DIR__ . '/../Wp/Data/WpUserData.php';
+require_once __DIR__ . '/../Wp/Data/UserMembers.php';
+require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
 require_once __DIR__ . '/../Wp/Get/PostFactory.php';
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Get\PostFactory;
 
 class WP_Post
@@ -27,6 +32,17 @@ class WP_Post
 		public string $post_name = 'sample',
 		public string $post_password = '',
 	) {}
+}
+
+class WP_User
+{
+	public function __construct(
+		public int $ID,
+		public string $display_name = '投稿者',
+		public string $description = '',
+	) {}
+
+	public function exists(): bool { return $this->ID > 0; }
 }
 
 function get_permalink(WP_Post $post): string { return '/post/' . $post->ID; }
@@ -46,6 +62,36 @@ function get_post(int $id): mixed
 	$GLOBALS['postCalls'][] = $id;
 	return $GLOBALS['postValues'][$id] ?? null;
 }
+function is_post_type_hierarchical(string $postType): bool { return $postType === 'page'; }
+function get_posts(array $args): array { return $GLOBALS['postChildren'] ?? []; }
+function get_adjacent_post(bool $inSameTerm, string $excludedTerms, bool $previous): mixed
+{
+	return $previous ? ($GLOBALS['previousPost'] ?? null) : ($GLOBALS['nextPost'] ?? null);
+}
+function get_userdata(int $id): mixed { return $GLOBALS['users'][$id] ?? null; }
+function get_author_posts_url(int $id): string { return 'https://example.com/author/' . $id . '/'; }
+
+readonly class ProjectPostData extends PostData
+{
+	public function __construct(PostMembers $members, public string $Label)
+	{
+		parent::__construct($members);
+	}
+
+	public static function FromWpPost(WP_Post $post): self
+	{
+		$relatedPostFactory = static fn (WP_Post $related): self => self::FromWpPost($related);
+		return new self(PostFactory::Members($post, $relatedPostFactory), '派生投稿' . $post->ID);
+	}
+}
+
+readonly class ProjectUserData extends WpUserData
+{
+	public function __construct(UserMembers $members, public string $Label)
+	{
+		parent::__construct($members);
+	}
+}
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -63,7 +109,7 @@ $check(! $plain->IsPublished() && ! $plain->IsPasswordProtected && ! $plain->IsP
 $calls = 0;
 $direct = new PostData(
 	new PostMembers(
-		PostId: 1,
+		Id: 1,
 		Url: '/',
 		Title: 'title',
 		Content: '',
@@ -93,10 +139,10 @@ $GLOBALS['templateValues'] = [
 	6 => [],
 ];
 $factoryMembers = PostFactory::Members(new WP_Post(20));
-$check($factoryMembers instanceof PostMembers && $factoryMembers->PostId === 20, '公開FactoryからPostMembersを生成する');
+$check($factoryMembers instanceof PostMembers && $factoryMembers->Id === 20, '公開FactoryからPostMembersを生成する');
 $GLOBALS['postCalls'] = [];
 $GLOBALS['postValues'] = [21 => new WP_Post(21)];
-$check(PostFactory::FromId(21)?->PostId === 21, '投稿IDからPostDataを生成する');
+$check(PostFactory::FromId(21)?->Id === 21, '投稿IDからPostDataを生成する');
 $check($GLOBALS['postCalls'] === [21], '投稿IDをget_postへ渡す');
 $check(PostFactory::FromId(22) === null, '存在しない投稿IDはnull');
 $check($GLOBALS['postCalls'] === [21, 22], '存在しない投稿も1回だけ取得する');
@@ -132,5 +178,33 @@ $private = PostFactory::From(new WP_Post(
 ));
 $check(! $private->IsPublished() && $private->IsPasswordProtected, '非公開状態とパスワード保護を分けて保持する');
 $check(! $private->IsPubliclyViewable, '公開閲覧できない投稿を判定する');
+
+$rootPost = new WP_Post(30, post_type: 'page');
+$GLOBALS['postValues'][30] = $rootPost;
+$GLOBALS['postChildren'] = [new WP_Post(31, post_type: 'page')];
+$GLOBALS['nextPost'] = new WP_Post(32, post_type: 'page');
+$derivedPost = ProjectPostData::FromWpPost($rootPost);
+$check($derivedPost->GetChildren()[0] instanceof ProjectPostData, '関連Factoryで子投稿の派生型を維持する');
+$check($derivedPost->GetNextPost() instanceof ProjectPostData, '関連Factoryで隣接投稿の派生型を維持する');
+$baseRelations = new ProjectPostData(PostFactory::Members($rootPost), '基底関連');
+$check(
+	$baseRelations->GetChildren()[0] instanceof PostData
+	&& ! $baseRelations->GetChildren()[0] instanceof ProjectPostData,
+	'関連Factory省略時は純粋なPostDataを返す',
+);
+$GLOBALS['users'][7] = new WP_User(7);
+$postWithAuthor = new WP_Post(40, post_author: 7);
+$authorFactory = static fn (WP_User $user): ProjectUserData => new ProjectUserData(
+	new UserMembers($user->ID, $user->display_name),
+	'派生投稿者',
+);
+$customAuthorPost = PostFactory::From($postWithAuthor, authorFactory: $authorFactory);
+$check($customAuthorPost->GetAuthor() instanceof ProjectUserData, 'Author Factoryで投稿者の派生型を返す');
+$baseAuthorPost = PostFactory::From($postWithAuthor);
+$check(
+	$baseAuthorPost->GetAuthor() instanceof WpUserData
+	&& ! $baseAuthorPost->GetAuthor() instanceof ProjectUserData,
+	'Author Factory省略時は純粋なWpUserDataを返す',
+);
 
 echo "Post template slug: {$checks} checks passed.\n";

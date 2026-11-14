@@ -12,24 +12,35 @@ final class WpGetTerm
 {
 	private function __construct() {}
 
-	/** @return list<TermData> */
-	public static function FromPost(\WP_Post|PostData|int $post, string $taxonomy): array
-	{
-		return TermAdapter::FromPost($post, $taxonomy);
-	}
-
 	/**
-	 * @param list<TermData> $terms
-	 * @return list<TermData>
+	 * @template TTerm of TermData
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
 	 */
-	public static function Roots(array $terms): array
+	public static function FromPost(
+		\WP_Post|PostData|int $post,
+		string $taxonomy,
+		?\Closure $termFactory = null,
+	): array
 	{
-		return TermAdapter::Roots($terms);
+		return TermAdapter::FromPost($post, $taxonomy, $termFactory);
 	}
 
 	/**
-	 * @param list<TermData> $terms
-	 * @return list<TermData>
+	 * @template TTerm of TermData
+	 * @param list<TTerm> $terms
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 */
+	public static function Roots(array $terms, ?\Closure $termFactory = null): array
+	{
+		return TermAdapter::Roots($terms, $termFactory);
+	}
+
+	/**
+	 * @template TTerm of TermData
+	 * @param list<TTerm> $terms
+	 * @return list<TTerm>
 	 */
 	public static function Deepest(array $terms): array
 	{
@@ -37,8 +48,9 @@ final class WpGetTerm
 	}
 
 	/**
-	 * @param list<TermData> $terms
-	 * @return list<TermData>
+	 * @template TTerm of TermData
+	 * @param list<TTerm> $terms
+	 * @return list<TTerm>
 	 */
 	public static function Shallowest(array $terms): array
 	{

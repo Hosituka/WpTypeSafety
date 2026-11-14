@@ -138,6 +138,30 @@ $members = $postGet->Users('members', avatarSize: 160);
 
 戻り値はそれぞれ`list<PostData>`・`list<TermData>`・`list<WpUserData>`です。ACFの返却形式がオブジェクトまたはIDのどちらでも変換し、未入力・配列以外は`[]`、取得・変換できない要素は除外します。入力順と重複は維持します。`Users()`の`avatarSize`は各`WpUserData`へ設定するアバター取得用Resolverに渡されます。
 
+案件固有の派生Dataを維持する場合は、単数・複数の取得口へ生成処理を指定できます。ACFの参照値は`WP_Post`・`WP_Term`・`WP_User`へ正規化されてからFactoryへ渡されます。
+
+```php
+<?php
+$featuredCase = $postGet->Post(
+	'featured_case',
+	postFactory: CaseData::FromWpPost(...),
+);
+$relatedCases = $postGet->Posts(
+	'related_cases',
+	postFactory: CaseData::FromWpPost(...),
+);
+$areas = $postGet->Terms(
+	'areas',
+	termFactory: AreaData::FromWpTerm(...),
+);
+$members = $postGet->Users(
+	'members',
+	userFactory: StaffUserData::FromWpUser(...),
+);
+```
+
+単数フィールドの未選択・型違いは`null`、複数フィールドの未選択・変換できない参照値は空配列または要素除外となり、その値に対してFactoryは呼ばれません。ユーザーFactoryには第2引数として`avatarSize`も渡します。Factoryが呼ばれた場合は対応するDataを必ず返す必要があり、`null`による要素の除外はできません。絞り込みはACFのフィールド設定または取得後の利用側で明示してください。Factory未指定時は従来どおり共通Dataを返します。
+
 WordPressやプラグインのAPIへネイティブオブジェクトを渡す場合は、`WpPost()`・`WpTerm()`・`WpUser()`と、それぞれの複数形を使用できます。Dataを返す既存取得口は変更せず、必要な境界だけ明示的にWordPressの型へ戻します。
 
 ```php
@@ -171,7 +195,7 @@ $postGet = new AcfGet($post);                    // WP_Post
 $postDataGet = new AcfGet($postData);            // PostData・案件用の派生DTO
 $userGet = new AcfGet($user);                    // WP_User・WpUserData
 $termGet = new AcfGet($term);                    // WP_Term・TermData
-$postIdGet = new AcfGet($postData->PostId);
+$postIdGet = new AcfGet($postData->Id);
 $optionGet = new AcfGet('site_options');          // オプションページの取得先ID
 $currentPostGet = new AcfGet();                   // null：ACFの現在のコンテキストを使う
 

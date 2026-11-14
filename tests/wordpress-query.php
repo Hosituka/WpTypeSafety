@@ -204,6 +204,19 @@ use WpTypeSafety\Wp\Get\PostQuery;
 use WpTypeSafety\Wp\Get\TermQuery;
 use WpTypeSafety\Wp\Get\UserQuery;
 use WpTypeSafety\Wp\Internal\QueryPagination;
+use WpTypeSafety\Wp\Data\CommentData;
+use WpTypeSafety\Wp\Data\CommentMembers;
+use WpTypeSafety\Wp\Data\PostData;
+use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Data\TermData;
+use WpTypeSafety\Wp\Data\TermMembers;
+use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\WpUserData;
+
+readonly class ProjectQueryPostData extends PostData {}
+readonly class ProjectQueryTermData extends TermData {}
+readonly class ProjectQueryUserData extends WpUserData {}
+readonly class ProjectQueryCommentData extends CommentData {}
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -225,10 +238,23 @@ $postResult = PostQuery::Get([
 	'_total' => 7,
 	'_max_pages' => 4,
 ]);
-$check(count($postResult->Posts) === 2 && $postResult->Posts[0]->PostId === 10, '投稿をPostDataへ変換する');
+$check(count($postResult->Posts) === 2 && $postResult->Posts[0]->Id === 10, '投稿をPostDataへ変換する');
 $check($postResult->TotalCount === 7 && $postResult->MaxPageCount === 4, '投稿の総数と最大ページ数を保持する');
 $check($postResult->CurrentPageNumber === 2 && $postResult->HasPosts(), '投稿の現在ページと存在を判定する');
 $check(($GLOBALS['postQueryArgs'][0]['post_type'] ?? null) === 'staff', '投稿クエリ引数をそのまま渡す');
+
+$derivedPostResult = PostQuery::Get(
+	['_results' => [new WP_Post(12)]],
+	postFactory: static fn (WP_Post $post): ProjectQueryPostData => new ProjectQueryPostData(
+		new PostMembers(
+			Id: $post->ID,
+			Url: 'https://example.com/project/' . $post->ID . '/',
+			Title: '案件投稿' . $post->ID,
+			Content: '',
+		),
+	),
+);
+$check($derivedPostResult->Posts[0] instanceof ProjectQueryPostData, '投稿生成処理で派生PostDataを返す');
 
 $postNoTotal = PostQuery::Get(['no_found_rows' => true]);
 $check($postNoTotal->TotalCount === null && $postNoTotal->MaxPageCount === null, '投稿の件数計算無効をnullで表す');
@@ -241,6 +267,20 @@ $check(count($termResult->Terms) === 1 && $termResult->Terms[0]->Taxonomy === 'a
 $check($termResult->HasTerms(), 'タームの存在を判定する');
 $check(($GLOBALS['termQueryArgs'][0]['taxonomy'] ?? null) === 'area', 'タームクエリ引数をそのまま渡す');
 
+$derivedTermResult = TermQuery::Get(
+	['_results' => [new WP_Term(4, '藤沢市', 'fujisawa', 'area')]],
+	termFactory: static fn (WP_Term $term): ProjectQueryTermData => new ProjectQueryTermData(
+		new TermMembers(
+			Id: $term->term_id,
+			Name: $term->name,
+			Slug: $term->slug,
+			Taxonomy: $term->taxonomy,
+			Url: 'https://example.com/area/' . $term->slug . '/',
+		),
+	),
+);
+$check($derivedTermResult->Terms[0] instanceof ProjectQueryTermData, 'ターム生成処理で派生TermDataを返す');
+
 $userResult = UserQuery::Get([
 	'role' => 'author',
 	'number' => 2,
@@ -252,6 +292,24 @@ $check(count($userResult->Users) === 1 && $userResult->Users[0]->Id === 5, 'ユ�
 $check($userResult->TotalCount === 5 && $userResult->MaxPageCount === 3, 'ユーザーの最大ページ数を計算する');
 $check($userResult->CurrentPageNumber === 3 && $userResult->HasUsers(), 'ユーザーの現在ページと存在を判定する');
 $check(($GLOBALS['userQueryArgs'][0]['role'] ?? null) === 'author', 'ユーザークエリ引数をそのまま渡す');
+
+$queryUserAvatarSizes = [];
+$derivedUserResult = UserQuery::Get(
+	['_results' => [new WP_User(6, '案件利用者')]],
+	avatarSize: 144,
+	userFactory: static function (WP_User $user, int $avatarSize) use (&$queryUserAvatarSizes): ProjectQueryUserData {
+		$queryUserAvatarSizes[] = $avatarSize;
+		return new ProjectQueryUserData(
+			new UserMembers(
+				Id: $user->ID,
+				DisplayName: $user->display_name,
+				AvatarSize: $avatarSize,
+			),
+		);
+	},
+);
+$check($derivedUserResult->Users[0] instanceof ProjectQueryUserData, 'ユーザー生成処理で派生WpUserDataを返す');
+$check($queryUserAvatarSizes === [144], 'ユーザー生成処理へアバター寸法を渡す');
 
 $commentResult = CommentQuery::Get([
 	'post_id' => 10,
@@ -266,6 +324,32 @@ $check(count($commentResult->Comments) === 1 && $commentResult->Comments[0]->Id 
 $check($commentResult->TotalCount === 3 && $commentResult->MaxPageCount === 2, 'コメントの総数と最大ページ数を保持する');
 $check($commentResult->CurrentPageNumber === 2 && $commentResult->HasComments(), 'コメントの現在ページと存在を判定する');
 $check(($GLOBALS['commentQueryArgs'][0]['post_id'] ?? null) === 10, 'コメントクエリ引数をそのまま渡す');
+
+$queryCommentAvatarSizes = [];
+$derivedCommentResult = CommentQuery::Get(
+	['_results' => [new WP_Comment(12, 10)]],
+	avatarSize: 128,
+	commentFactory: static function (WP_Comment $comment, int $avatarSize) use (&$queryCommentAvatarSizes): ProjectQueryCommentData {
+		$queryCommentAvatarSizes[] = $avatarSize;
+		return new ProjectQueryCommentData(
+			new CommentMembers(
+				Id: $comment->comment_ID,
+				PostId: $comment->comment_post_ID,
+				ParentId: $comment->comment_parent,
+				AuthorUserId: $comment->user_id,
+				AuthorName: $comment->comment_author,
+				AuthorUrl: '',
+				Url: 'https://example.com/#comment-' . $comment->comment_ID,
+				Content: $comment->comment_content,
+				Type: 'comment',
+				Status: 'approved',
+				AvatarSize: $avatarSize,
+			),
+		);
+	},
+);
+$check($derivedCommentResult->Comments[0] instanceof ProjectQueryCommentData, 'コメント生成処理で派生CommentDataを返す');
+$check($queryCommentAvatarSizes === [128], 'コメント生成処理へアバター寸法を渡す');
 
 $commentAllResult = CommentQuery::Get([
 	'_results' => [new WP_Comment(9), new WP_Comment(10)],
@@ -323,7 +407,7 @@ foreach ([
 
 $nativePostQuery = new WP_Query();
 $nativePostQuery->query(['_results' => [new WP_Post(20)]]);
-$check(PostQuery::From($nativePostQuery)->Posts[0]->PostId === 20, '既存のWP_Queryも変換できる');
+$check(PostQuery::From($nativePostQuery)->Posts[0]->Id === 20, '既存のWP_Queryも変換できる');
 
 $nativeTermQuery = new WP_Term_Query();
 $nativeTermQuery->query(['_results' => [new WP_Term(21, '横浜市', 'yokohama', 'area')]]);
@@ -345,6 +429,32 @@ $nativeCommentQuery->query([
 $nativeCommentResult = CommentQuery::From($nativeCommentQuery);
 $check($nativeCommentResult->Comments[0]->Id === 23, '既存のWP_Comment_Queryも変換できる');
 $check($nativeCommentResult->TotalCount === null && $nativeCommentResult->MaxPageCount === null, 'コメントの件数計算無効をnullで表す');
+
+foreach ([
+	static fn () => PostQuery::Get(
+		['_results' => [new WP_Post(30)]],
+		postFactory: static fn (WP_Post $post): mixed => null,
+	),
+	static fn () => TermQuery::Get(
+		['_results' => [new WP_Term(31, '不正', 'invalid')]],
+		termFactory: static fn (WP_Term $term): mixed => null,
+	),
+	static fn () => UserQuery::Get(
+		['_results' => [new WP_User(32)]],
+		userFactory: static fn (WP_User $user, int $avatarSize): mixed => null,
+	),
+	static fn () => CommentQuery::Get(
+		['_results' => [new WP_Comment(33)]],
+		commentFactory: static fn (WP_Comment $comment, int $avatarSize): mixed => null,
+	),
+] as $invalidFactory) {
+	try {
+		$invalidFactory();
+		throw new RuntimeException('Queryの生成処理がnullを返せた');
+	} catch (UnexpectedValueException) {
+		$check(true, 'Queryの生成処理は対応するDataを必ず返す');
+	}
+}
 
 $directPostResult = new \WpTypeSafety\Wp\Data\PostQueryData(
 	Posts: [],
