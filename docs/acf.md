@@ -48,7 +48,7 @@ APIの分類から探す場合は、次の目次を利用できます。
 | `GalleryUrl()` | `list<string>` | URL返却形式のギャラリー |
 | `File()` | `?FileData` | ID・ファイルサイズを取得できるファイル |
 | `FileUrl()` | `?string` | URL返却形式のファイル |
-| `Date()` | `?DateTimeImmutable` | Date Picker。時刻は00:00:00 |
+| `Date()` | `?DateData` | Date Picker。時刻とタイムゾーンを含まない日付 |
 | `DateTime()` | `?DateTimeImmutable` | Date Time Picker |
 | `Time()` | `?TimeData` | Time Picker。日付を含まない時刻 |
 | `Post()`・`Posts()` | `?PostData`・`list<PostData>` | 投稿オブジェクト・関連フィールド |
@@ -281,7 +281,7 @@ ACFのReturn Formatに依存せず扱う場合は、時間系フィールド専�
 
 | 取得口 | ACFフィールドタイプ | 戻り値 | ACFの未整形形式 |
 |---|---|---|---|
-| `Date()` | Date Picker | `?DateTimeImmutable` | `Ymd` |
+| `Date()` | Date Picker | `?DateData` | `Ymd` |
 | `DateTime()` | Date Time Picker | `?DateTimeImmutable` | `Y-m-d H:i:s` |
 | `Time()` | Time Picker | `?TimeData` | `H:i:s` |
 
@@ -296,7 +296,7 @@ echo esc_html($eventStart?->format('Y-m-d H:i') ?? '');
 echo esc_html($openingTime?->Format('H:i') ?? '');
 ```
 
-`Date()`は時刻を`00:00:00`に固定し、`Date()`と`DateTime()`はWordPressのサイトタイムゾーンを持つ`DateTimeImmutable`を返します。`TimeData`は日付やタイムゾーンを補わず、`Hour`・`Minute`・`Second`を保持します。`Format()`の既定形式は`H:i:s`で、`Format('H:i')`のようにPHPの日時フォーマットを指定できます。未入力、異なるフィールドタイプ、存在しない日付・時刻、解析失敗は`null`です。
+`Date()`は時刻とタイムゾーンを補わず、`Year`・`Month`・`Day`を持つ`DateData`を返します。`DateTime()`はWordPressのサイトタイムゾーンを持つ`DateTimeImmutable`、`Time()`は日付とタイムゾーンを含まない`TimeData`を返します。`DateData::Format()`の既定形式は`Y-m-d`、`TimeData::Format()`は`H:i:s`で、どちらもPHPの日時フォーマットを指定できます。未入力、異なるフィールドタイプ、存在しない日付・時刻、解析失敗は`null`です。
 
 専用取得口は`get_field_object()`から未整形値を取得するため、管理画面のReturn Formatを変更しても戻り値の契約は変わりません。Return Formatどおりの表示文字列が必要な場合は、従来どおり`Text()`を使用できます。
 

@@ -25,7 +25,7 @@ final readonly class FlexibleNode
 
 `WpUserData->AuthorUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。直接構築する場合は`UserMembers`の`AuthorUrl:`で指定でき、省略時は空文字です。コンストラクターはURL形式を検証しないため、直接渡す値は呼び出し元で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
 
-`Core/Data/`には`ImgData`・`LinkData`・`ChoiceData`・`FileData`・`TimeData`を置きます。`TimeData`は日付・タイムゾーンを含まない時刻を`Hour`・`Minute`・`Second`として保持し、`Format()`で文字列化できます。WordPress固有の`PostData`・`CommentData`・`TermData`・`WpUserData`・`MenuNodeData`・`MenuItemType`は`Wp/Data/`へ置き、名前空間は`WpTypeSafety\Wp\Data`です。いずれも値をコンストラクターで受け取ります。`PostData`・`CommentData`・`TermData`・`WpUserData`・`MenuNodeData`は値に加え、案件側が渡す取得関数を呼ぶメソッドを持ちます。分類は扱う概念によるもので、これらのデータクラス自身がWordPressの関数を直接呼ぶわけではありません。
+`Core/Data/`には`ImgData`・`LinkData`・`ChoiceData`・`FileData`・`DateData`・`TimeData`を置きます。`DateData`は時刻とタイムゾーンを含まない日付を`Year`・`Month`・`Day`、`TimeData`は日付とタイムゾーンを含まない時刻を`Hour`・`Minute`・`Second`として保持し、それぞれ`Format()`で文字列化できます。WordPress固有の`PostData`・`CommentData`・`TermData`・`WpUserData`・`MenuNodeData`・`MenuItemType`は`Wp/Data/`へ置き、名前空間は`WpTypeSafety\Wp\Data`です。いずれも値をコンストラクターで受け取ります。`PostData`・`CommentData`・`TermData`・`WpUserData`・`MenuNodeData`は値に加え、案件側が渡す取得関数を呼ぶメソッドを持ちます。分類は扱う概念によるもので、これらのデータクラス自身がWordPressの関数を直接呼ぶわけではありません。
 
 URLの形式、IDや寸法の正負、配列要素の型など、PHPの型宣言では表せない条件はコンストラクターで検証しません。呼び出し元が確認してください。
 

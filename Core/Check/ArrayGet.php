@@ -6,6 +6,7 @@ namespace WpTypeSafety\Core\Check;
 use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
@@ -93,6 +94,12 @@ class ArrayGet extends InternalArrayGet
 		return $this->Instance($key, TimeData::class, $predicate);
 	}
 
+	/** @param (callable(DateData): bool)|null $predicate */
+	public function DateData(int|string $key, ?callable $predicate = null): ?DateData
+	{
+		return $this->Instance($key, DateData::class, $predicate);
+	}
+
 	/**
 	 * @param (callable(ImgData): bool)|null $predicate
 	 * @return list<ImgData>
@@ -136,5 +143,14 @@ class ArrayGet extends InternalArrayGet
 	public function TimeDataList(int|string $key, ?callable $predicate = null): array
 	{
 		return $this->InstanceList($key, TimeData::class, $predicate);
+	}
+
+	/**
+	 * @param (callable(DateData): bool)|null $predicate
+	 * @return list<DateData>
+	 */
+	public function DateDataList(int|string $key, ?callable $predicate = null): array
+	{
+		return $this->InstanceList($key, DateData::class, $predicate);
 	}
 }

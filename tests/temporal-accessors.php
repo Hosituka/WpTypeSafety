@@ -10,6 +10,7 @@ require_once __DIR__ . '/../autoload.php';
 
 use WpTypeSafety\Acf\Data\FlexibleNode;
 use WpTypeSafety\Acf\Get\AcfGet;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\TimeData;
 
 class WP_Post { public function __construct(public int $ID) {} }
@@ -34,6 +35,7 @@ function get_field(string $name, mixed $source = null): mixed
 	return $GLOBALS['temporalFields'][$name]['formatted_value'] ?? null;
 }
 
+require_once __DIR__ . '/../Core/Data/DateData.php';
 require_once __DIR__ . '/../Core/Data/TimeData.php';
 require_once __DIR__ . '/../Acf/Data/FlexibleNode.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
@@ -207,9 +209,11 @@ $GLOBALS['temporalFields']['custom_value']['formatted_value'] = $customValue;
 $get = new AcfGet(new WP_Post(123));
 $check($get->Native('custom_value') === $customValue, 'Native returns ACF formatted value without WpTypeSafety conversion');
 $date = $get->Date('event_date');
-$check($date instanceof DateTimeImmutable, 'Date returns DateTimeImmutable');
-$check($date?->format('Y-m-d H:i:s') === '2026-11-07 00:00:00', 'Date starts at midnight');
-$check($date?->getTimezone()->getName() === 'Asia/Tokyo', 'Date uses site timezone');
+$check($date instanceof DateData, 'Date returns DateData');
+$check([$date?->Year, $date?->Month, $date?->Day] === [2026, 11, 7], 'Date components');
+$check($date?->Format() === '2026-11-07', 'Date default format');
+$check($date?->Format('Y年n月j日') === '2026年11月7日', 'Date custom format');
+$check((new DateData(Year: 2026, Month: 2, Day: 31))->Format() === '', 'invalid DateData cannot be formatted');
 $check($GLOBALS['lastTemporalRequest'] === ['event_date', 123, false, true], 'Date requests unformatted value');
 
 $dateTime = $get->DateTime('event_start');
@@ -233,27 +237,27 @@ $check((new AcfGet(['group' => ['event_date' => '20261107']]))->Nested('group')-
 $scheduleGet = $get->Nested('schedule');
 $check($scheduleGet->Native('event_date') === '2026年11月8日', 'Nested Native keeps formatted value by default');
 $check($scheduleGet->Text('event_date') === '2026年11月8日', 'Nested keeps formatted values for display');
-$check($scheduleGet->Date('event_date')?->format('Y-m-d') === '2026-11-08', 'Nested Date uses raw group value');
+$check($scheduleGet->Date('event_date')?->Format() === '2026-11-08', 'Nested Date uses raw group value');
 $check($scheduleGet->DateTime('event_start')?->format('Y-m-d H:i:s') === '2026-11-08 16:30:45', 'Nested DateTime uses raw group value');
 $check($scheduleGet->Time('opening_time')?->Format() === '10:15:30', 'Nested Time uses raw group value');
 $check($scheduleGet->Date('date_text') === null, 'Nested validates temporal field type');
-$check($scheduleGet->Nested('details')->Date('event_date')?->format('Y-m-d') === '2026-11-09', 'multiple Nested levels retain raw values');
-$check($scheduleGet->Repeater('events')[0]->Date('event_date')?->format('Y-m-d') === '2026-11-12', 'Nested Repeater retains temporal context');
-$check($scheduleGet->Flexible('blocks')[0]->Get->Date('event_date')?->format('Y-m-d') === '2026-11-13', 'Nested Flexible retains temporal context');
+$check($scheduleGet->Nested('details')->Date('event_date')?->Format() === '2026-11-09', 'multiple Nested levels retain raw values');
+$check($scheduleGet->Repeater('events')[0]->Date('event_date')?->Format() === '2026-11-12', 'Nested Repeater retains temporal context');
+$check($scheduleGet->Flexible('blocks')[0]->Get->Date('event_date')?->Format() === '2026-11-13', 'Nested Flexible retains temporal context');
 
 $eventGet = $get->Repeater('events')[0];
 $check($eventGet->Native('event_date') === '2026年11月10日', 'Repeater Native keeps formatted value by default');
 $check($eventGet->Text('event_date') === '2026年11月10日', 'Repeater keeps formatted values for display');
-$check($eventGet->Date('event_date')?->format('Y-m-d') === '2026-11-10', 'Repeater Date uses raw row value');
+$check($eventGet->Date('event_date')?->Format() === '2026-11-10', 'Repeater Date uses raw row value');
 $check($eventGet->DateTime('event_start')?->format('Y-m-d H:i:s') === '2026-11-10 14:30:45', 'Repeater DateTime uses raw row value');
 $check($eventGet->Time('opening_time')?->Format() === '08:45:30', 'Repeater Time uses raw row value');
-$check($eventGet->Nested('details')->Date('event_date')?->format('Y-m-d') === '2026-11-11', 'Repeater Nested retains temporal context');
+$check($eventGet->Nested('details')->Date('event_date')?->Format() === '2026-11-11', 'Repeater Nested retains temporal context');
 
 $block = $get->Flexible('content_blocks')[0] ?? null;
 $check($block instanceof FlexibleNode && $block->Layout === 'event', 'Flexible keeps layout');
 $check($block?->Get->Native('event_date') === '2026年11月14日', 'Flexible Native keeps formatted value by default');
 $check($block?->Get->Text('event_date') === '2026年11月14日', 'Flexible keeps formatted values for display');
-$check($block?->Get->Date('event_date')?->format('Y-m-d') === '2026-11-14', 'Flexible Date uses raw row value');
+$check($block?->Get->Date('event_date')?->Format() === '2026-11-14', 'Flexible Date uses raw row value');
 
 $arrayEventGet = (new AcfGet(['events' => $GLOBALS['temporalFields']['events']['formatted_value']]))->Repeater('events')[0];
 $check($arrayEventGet->Native('event_date') === '2026年11月10日', 'array source Native returns its stored value');

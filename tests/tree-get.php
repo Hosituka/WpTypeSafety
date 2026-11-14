@@ -8,6 +8,7 @@ use WpTypeSafety\Core\Check\TypeCheck;
 use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
+use WpTypeSafety\Core\Data\DateData;
 
 enum TreeGetPublishStatus: string
 {
@@ -85,6 +86,12 @@ $source = [
 		'invalid',
 	],
 	'counts' => ['1', 2, 'invalid'],
+	'opening_date' => new DateData(Year: 2026, Month: 11, Day: 14),
+	'dates' => [
+		new DateData(Year: 2026, Month: 11, Day: 14),
+		'invalid',
+		new DateData(Year: 2026, Month: 12, Day: 31),
+	],
 ];
 
 $treeGet = new TreeGet($source, NumericMode::Str);
@@ -109,6 +116,8 @@ $check($johnGet->AsArrayGet() === null, 'AsArrayGet returns null for an object n
 $check($johnGet->Int('Age') === 30, 'TreeGet inherits NumericMode through a mixed path');
 $check($johnGet->BackedEnum('Status', TreeGetPublishStatus::class) === TreeGetPublishStatus::Published, 'TreeGet delegates BackedEnum normalization');
 $check($treeGet->IntList('counts') === [1, 2], 'TreeGet delegates primitive list normalization');
+$check($treeGet->DateData('opening_date')?->Format() === '2026-11-14', 'TreeGet returns a DateData instance');
+$check(count($treeGet->DateDataList('dates')) === 2, 'TreeGet DateDataList filters non-DateData items');
 $check($treeGet->NestedPath('company', 'missing', 'john')->String('Name') === '', 'TreeGet returns an empty getter after a missing segment');
 $check($treeGet->NestedPath('company', 'users', 'john', 'Name')->String('value') === '', 'TreeGet returns an empty getter after reaching a scalar');
 $check($treeGet->NestedPath('users', 0, 'Profiles', 0)->String('Name') === 'Indexed user', 'TreeGet crosses array indexes and object properties in one path');

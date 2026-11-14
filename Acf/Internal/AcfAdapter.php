@@ -7,6 +7,7 @@ use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
@@ -292,7 +293,7 @@ class AcfAdapter
 		return self::boolRules()->NormalizeBool($this->GetRaw($fieldName, $source));
 	}
 
-	public function GetDate(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?\DateTimeImmutable
+	public function GetDate(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?DateData
 	{
 		return is_array($source) ? null : self::date($fieldName, $source);
 	}
@@ -307,7 +308,7 @@ class AcfAdapter
 		return is_array($source) ? null : self::time($fieldName, $source);
 	}
 
-	public function ConvertDate(mixed $value): ?\DateTimeImmutable
+	public function ConvertDate(mixed $value): ?DateData
 	{
 		return TemporalValue::Date($value);
 	}
@@ -556,7 +557,7 @@ class AcfAdapter
 		return AcfDtoFactory::ChoiceFromAcf($value);
 	}
 
-	private static function date(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?\DateTimeImmutable
+	private static function date(string $fieldName, \WP_Post|PostData|int|string|null $postId = null): ?DateData
 	{
 		$value = self::rawTemporalField($fieldName, $postId, 'date_picker');
 		return TemporalValue::Date($value);

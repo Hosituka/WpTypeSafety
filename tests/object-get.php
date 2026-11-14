@@ -9,6 +9,7 @@ use WpTypeSafety\Core\Check\TypeCheck;
 use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\TimeData;
 
 enum ObjectGetPublishStatus: string
@@ -41,7 +42,9 @@ final class ObjectGetTestSource
 	public array $Children;
 	public array $Groups;
 	public TimeData $OpeningTime;
+	public DateData $OpeningDate;
 	public array $Times;
+	public array $Dates;
 	public readonly string $ReadOnly;
 	public ?string $Nullable = null;
 	public string $Uninitialized;
@@ -64,10 +67,16 @@ final class ObjectGetTestSource
 			['Name' => 'Second group'],
 		];
 		$this->OpeningTime = new TimeData(Hour: 9, Minute: 30, Second: 0);
+		$this->OpeningDate = new DateData(Year: 2026, Month: 11, Day: 14);
 		$this->Times = [
 			$this->OpeningTime,
 			'invalid',
 			new TimeData(Hour: 18, Minute: 0, Second: 0),
+		];
+		$this->Dates = [
+			$this->OpeningDate,
+			'invalid',
+			new DateData(Year: 2026, Month: 12, Day: 31),
 		];
 		$this->ReadOnly = 'readonly';
 	}
@@ -240,6 +249,8 @@ $check($groups[1]->String('Name') === 'Second group', 'NestedArrayList preserves
 $check($get->NestedArrayList('Missing') === [], 'NestedArrayList returns an empty list for a missing property');
 $check($get->TimeData('OpeningTime') === $source->OpeningTime, 'TimeData returns a TimeData instance');
 $check(count($get->TimeDataList('Times')) === 2, 'TimeDataList filters non-TimeData items');
+$check($get->DateData('OpeningDate') === $source->OpeningDate, 'DateData returns a DateData instance');
+$check(count($get->DateDataList('Dates')) === 2, 'DateDataList filters non-DateData items');
 
 $dynamicSource = (object) ['Count' => 10];
 $dynamicGet = new ObjectGet($dynamicSource);
@@ -301,11 +312,13 @@ $propertyMethods = [
 	'ChoiceData',
 	'FileData',
 	'TimeData',
+	'DateData',
 	'ImgDataList',
 	'LinkDataList',
 	'ChoiceDataList',
 	'FileDataList',
 	'TimeDataList',
+	'DateDataList',
 ];
 foreach ($propertyMethods as $methodName) {
 	$parameterType = (new ReflectionMethod(ObjectGet::class, $methodName))

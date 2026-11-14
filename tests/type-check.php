@@ -5,6 +5,7 @@ require_once dirname(__DIR__) . '/autoload.php';
 
 use WpTypeSafety\Core\Check\TypeCheck;
 use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
@@ -23,6 +24,7 @@ $cases = [
 	['LinkData', new LinkData(Url: '/page')],
 	['ChoiceData', new ChoiceData(Value: 'value', Label: 'Label')],
 	['FileData', new FileData(Id: 1, Url: '/file.pdf', FileName: 'file.pdf', MimeType: 'application/pdf', FileSize: 100)],
+	['DateData', new DateData(Year: 2026, Month: 11, Day: 14)],
 	['TimeData', new TimeData(Hour: 9, Minute: 30, Second: 0)],
 ];
 

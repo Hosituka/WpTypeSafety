@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace WpTypeSafety\Core\Check;
 
 use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
@@ -41,6 +42,11 @@ class TypeCheck extends InternalTypeCheck
 	public static function TimeData(mixed $value): ?TimeData
 	{
 		return self::Instance($value, TimeData::class);
+	}
+
+	public static function DateData(mixed $value): ?DateData
+	{
+		return self::Instance($value, DateData::class);
 	}
 
 	/**
@@ -81,6 +87,14 @@ class TypeCheck extends InternalTypeCheck
 	public static function TimeDataList(mixed $value): ?array
 	{
 		return self::InstanceList($value, TimeData::class);
+	}
+
+	/**
+	 * @return list<DateData>|null
+	 */
+	public static function DateDataList(mixed $value): ?array
+	{
+		return self::InstanceList($value, DateData::class);
 	}
 
 }

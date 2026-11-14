@@ -7,6 +7,7 @@ use WpTypeSafety\Acf\Data\FlexibleNode;
 use WpTypeSafety\Acf\Internal\AcfAdapter;
 use WpTypeSafety\Acf\Internal\AcfFieldDefinition;
 use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
@@ -546,8 +547,8 @@ class AcfGet
 		return $this->adapter->GetBool($fieldName, $this->source);
 	}
 
-	/** Date Pickerをサイトタイムゾーンの00:00:00として返す。 */
-	public function Date(string $fieldName): ?\DateTimeImmutable
+	/** Date Pickerを時刻とタイムゾーンを含まない日付として返す。 */
+	public function Date(string $fieldName): ?DateData
 	{
 		if ($this->hasNestedContext) {
 			$field = $this->nestedFieldOfType($fieldName, 'date_picker');

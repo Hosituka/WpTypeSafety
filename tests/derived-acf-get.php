@@ -32,6 +32,7 @@ function get_field_object(
 	return $GLOBALS['derivedFields'][$name] ?? false;
 }
 
+require_once __DIR__ . '/../Core/Data/DateData.php';
 require_once __DIR__ . '/../Core/Data/TimeData.php';
 require_once __DIR__ . '/../Acf/Data/FlexibleNode.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
@@ -124,24 +125,24 @@ $get = new ProjectAcfGet(123, 'injected dependency');
 $nestedGet = $get->Nested('settings');
 $check($nestedGet instanceof ProjectAcfGet, 'Nested preserves derived type');
 $check($nestedGet->Dependency() === 'injected dependency', 'Nested preserves injected dependency');
-$check($nestedGet->Date('event_date')?->format('Y-m-d') === '2026-11-10', 'Nested preserves temporal context');
+$check($nestedGet->Date('event_date')?->Format() === '2026-11-10', 'Nested preserves temporal context');
 
 $nestedPathGet = $get->NestedPath('settings', 'details');
 $check($nestedPathGet instanceof ProjectAcfGet, 'NestedPath preserves derived type');
 $check($nestedPathGet->Dependency() === 'injected dependency', 'NestedPath preserves injected dependency');
-$check($nestedPathGet->Date('event_date')?->format('Y-m-d') === '2026-11-13', 'NestedPath preserves temporal context through multiple groups');
+$check($nestedPathGet->Date('event_date')?->Format() === '2026-11-13', 'NestedPath preserves temporal context through multiple groups');
 
 $rows = $get->Repeater('rows');
 $check(($rows[0] ?? null) instanceof ProjectAcfGet, 'Repeater preserves derived type');
 $check($rows[0]->Dependency() === 'injected dependency', 'Repeater preserves injected dependency');
 $check($rows[0]->Text('title') === 'Row', 'Repeater child reads row');
-$check($rows[0]->Date('event_date')?->format('Y-m-d') === '2026-11-11', 'Repeater preserves temporal context');
+$check($rows[0]->Date('event_date')?->Format() === '2026-11-11', 'Repeater preserves temporal context');
 
 $nodes = $get->Flexible('contents');
 $check(($nodes[0] ?? null) instanceof FlexibleNode, 'Flexible returns node');
 $check($nodes[0]->Get instanceof ProjectAcfGet, 'Flexible Get preserves derived type');
 $check($nodes[0]->Get->Dependency() === 'injected dependency', 'Flexible preserves injected dependency');
 $check($nodes[0]->Get->Text('title') === 'Flexible', 'Flexible child reads row');
-$check($nodes[0]->Get->Date('event_date')?->format('Y-m-d') === '2026-11-12', 'Flexible preserves temporal context');
+$check($nodes[0]->Get->Date('event_date')?->Format() === '2026-11-12', 'Flexible preserves temporal context');
 
 echo "Derived AcfGet: {$checks} checks passed.\n";

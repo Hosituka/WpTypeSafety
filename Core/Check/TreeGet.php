@@ -6,6 +6,7 @@ namespace WpTypeSafety\Core\Check;
 use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
@@ -128,6 +129,12 @@ class TreeGet extends InternalTreeGet
 		return $this->Instance($segment, TimeData::class, $predicate);
 	}
 
+	/** @param (callable(DateData): bool)|null $predicate */
+	public function DateData(int|string $segment, ?callable $predicate = null): ?DateData
+	{
+		return $this->Instance($segment, DateData::class, $predicate);
+	}
+
 	/**
 	 * @param (callable(ImgData): bool)|null $predicate
 	 * @return list<ImgData>
@@ -171,5 +178,14 @@ class TreeGet extends InternalTreeGet
 	public function TimeDataList(int|string $segment, ?callable $predicate = null): array
 	{
 		return $this->InstanceList($segment, TimeData::class, $predicate);
+	}
+
+	/**
+	 * @param (callable(DateData): bool)|null $predicate
+	 * @return list<DateData>
+	 */
+	public function DateDataList(int|string $segment, ?callable $predicate = null): array
+	{
+		return $this->InstanceList($segment, DateData::class, $predicate);
 	}
 }

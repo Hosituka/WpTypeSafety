@@ -8,6 +8,7 @@ use WpTypeSafety\Core\Check\TypeCheck;
 use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\TimeData;
 
 enum ArrayGetPublishStatus: string
@@ -40,6 +41,8 @@ $check = static function (bool $condition, string $message) use (&$checks): void
 
 $openingTime = new TimeData(Hour: 9, Minute: 30, Second: 0);
 $closingTime = new TimeData(Hour: 18, Minute: 0, Second: 0);
+$openingDate = new DateData(Year: 2026, Month: 11, Day: 14);
+$closingDate = new DateData(Year: 2026, Month: 12, Day: 31);
 $get = new ArrayGet([
 	0 => 'Zero index',
 	-1 => [
@@ -82,6 +85,8 @@ $get = new ArrayGet([
 	],
 	'invalid_items' => 'invalid',
 	'opening_time' => $openingTime,
+	'opening_date' => $openingDate,
+	'dates' => [$openingDate, 'invalid', $closingDate],
 	'times' => [
 		$openingTime,
 		'invalid',
@@ -249,6 +254,10 @@ $check($get->TimeData('opening_time') === $openingTime, 'TimeData returns a Time
 $check($get->TimeData('missing') === null, 'TimeData returns null for a missing key');
 $check($get->TimeDataList('times') === [$openingTime, $closingTime], 'TimeDataList filters non-TimeData items');
 $check($get->TimeDataList('missing') === [], 'TimeDataList returns an empty list for a missing key');
+$check($get->DateData('opening_date') === $openingDate, 'DateData returns a DateData instance');
+$check($get->DateData('missing') === null, 'DateData returns null for a missing key');
+$check($get->DateDataList('dates') === [$openingDate, $closingDate], 'DateDataList filters non-DateData items');
+$check($get->DateDataList('missing') === [], 'DateDataList returns an empty list for a missing key');
 
 $numericGet = new ArrayGet([
 	'int' => '12',

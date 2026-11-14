@@ -6,6 +6,7 @@ namespace WpTypeSafety\Core\Check;
 use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Data\ChoiceData;
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\FileData;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
@@ -93,6 +94,12 @@ class ObjectGet extends InternalObjectGet
 		return $this->Instance($propertyName, TimeData::class, $predicate);
 	}
 
+	/** @param (callable(DateData): bool)|null $predicate */
+	public function DateData(string $propertyName, ?callable $predicate = null): ?DateData
+	{
+		return $this->Instance($propertyName, DateData::class, $predicate);
+	}
+
 	/**
 	 * @param (callable(ImgData): bool)|null $predicate
 	 * @return list<ImgData>
@@ -136,5 +143,14 @@ class ObjectGet extends InternalObjectGet
 	public function TimeDataList(string $propertyName, ?callable $predicate = null): array
 	{
 		return $this->InstanceList($propertyName, TimeData::class, $predicate);
+	}
+
+	/**
+	 * @param (callable(DateData): bool)|null $predicate
+	 * @return list<DateData>
+	 */
+	public function DateDataList(string $propertyName, ?callable $predicate = null): array
+	{
+		return $this->InstanceList($propertyName, DateData::class, $predicate);
 	}
 }

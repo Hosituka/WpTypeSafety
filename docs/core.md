@@ -51,6 +51,7 @@ WpTypeSafetyの`ArrayGet`、`ObjectGet`、`TreeGet`には、Core Dataをクラ�
 | `ChoiceData()` | `ChoiceDataList()` | `ChoiceData` |
 | `FileData()` | `FileDataList()` | `FileData` |
 | `TimeData()` | `TimeDataList()` | `TimeData` |
+| `DateData()` | `DateDataList()` | `DateData` |
 
 ```php
 $image = $get->ImgData('image');

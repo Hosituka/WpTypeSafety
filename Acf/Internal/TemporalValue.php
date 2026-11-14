@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Acf\Internal;
 
+use WpTypeSafety\Core\Data\DateData;
 use WpTypeSafety\Core\Data\TimeData;
 
 /** @internal ACFの未整形日時値を固定型へ変換する。 */
@@ -10,9 +11,24 @@ final class TemporalValue
 {
 	private function __construct() {}
 
-	public static function Date(mixed $value): ?\DateTimeImmutable
+	public static function Date(mixed $value): ?DateData
 	{
-		return self::parseDateTime($value, 'Ymd');
+		if (! is_string($value) || preg_match('/^(\d{4})(\d{2})(\d{2})$/', $value, $matches) !== 1) {
+			return null;
+		}
+
+		$year = (int) $matches[1];
+		$month = (int) $matches[2];
+		$day = (int) $matches[3];
+		if (! checkdate($month, $day, $year)) {
+			return null;
+		}
+
+		return new DateData(
+			Year: $year,
+			Month: $month,
+			Day: $day,
+		);
 	}
 
 	public static function DateTime(mixed $value): ?\DateTimeImmutable
