@@ -12,13 +12,21 @@ final class MenuNodeFactory
 {
 	private function __construct() {}
 
-	/** @param list<MenuNodeData> $children */
+	/**
+	 * @template TChild of MenuNodeData
+	 * @param list<TChild> $children
+	 * @return MenuNodeMembers<TChild>
+	 */
 	public static function Members(\WP_Post $item, array $children = []): MenuNodeMembers
 	{
 		return MenuAdapter::MembersFromWpPost($item, $children);
 	}
 
-	/** @param list<MenuNodeData> $children */
+	/**
+	 * @template TChild of MenuNodeData
+	 * @param list<TChild> $children
+	 * @return MenuNodeData<TChild>
+	 */
 	public static function From(\WP_Post $item, array $children = []): MenuNodeData
 	{
 		return MenuAdapter::FromWpPost($item, $children);

@@ -94,7 +94,17 @@ $price = $postGet->Float('price'); // "12.5"も12.5へ正規化
 $count = $postGet->Int('count');    // "12"も12へ正規化
 ```
 
-`Float()`はPHPの`is_numeric()`に従うため、前後に空白がある数値文字列や指数表記も受け入れて`float`へ変換します。`Int()`は整数、整数として正確に表現できるfloat、前後のASCII空白を除いて符号と数字だけで構成された整数形式の文字列を受け入れます。小数文字列・指数表記・数字の途中に空白がある文字列・PHPの整数範囲外は`null`です。`TypeCheck::Int()`は変換を行わず、最初から`int`である値だけを通すCore APIです。
+代表的な入力の変換結果は次のとおりです。
+
+| 入力例 | `Float()` | `Int()` |
+|---|---|---|
+| `12` | `12.0` | `12` |
+| `'12'` | `12.0` | `12` |
+| `'12.5'` | `12.5` | `null` |
+| `'1e3'` | `1000.0` | `null` |
+| 非数値文字列 | `null` | `null` |
+
+`Float()`はPHPの`is_numeric()`に従うため、前後に空白がある数値文字列や指数表記も受け入れます。`Int()`は整数、整数として正確に表現できるfloat、前後のASCII空白を除いて符号と数字だけで構成された整数形式の文字列を受け入れます。数字の途中に空白がある文字列・PHPの整数範囲外は`null`です。`TypeCheck::Int()`は変換を行わず、最初から`int`である値だけを通すCore APIです。
 
 ## ACFの取得先の指定
 
@@ -126,6 +136,15 @@ $groupAuthorName = $postGet->Nested('settings')->UserGet('author')->Text('profil
 `Nested()`は同じ取得結果内の配列へ進み、`PostGet()`・`UserGet()`・`TermGet()`は参照先の投稿・ユーザー・タームへ取得対象を切り替えます。これらは単一値用です。ACFフィールドで複数選択を許可した場合の配列は対象にせず、空の取得元になります。投稿の標準投稿者や通常のタクソノミー割り当てを読むメソッドでもありません。
 
 ## 投稿・ターム・ユーザーの複数取得
+
+参照フィールドでは、必要な戻り値に合わせて取得口を選びます。表の`Post`部分は、タームでは`Term`、ユーザーでは`User`に置き換えられます。
+
+| やりたいこと | 単数 | 複数 | 投稿の場合の戻り値 |
+|---|---|---|---|
+| WpTypeSafetyのDataへ変換する | `Post()` | `Posts()` | `?PostData`・`list<PostData>` |
+| WordPressネイティブ型へ変換する | `WpPost()` | `WpPosts()` | `?WP_Post`・`list<WP_Post>` |
+| 参照先のACFを読む | `PostGet()` | `PostGets()` | `AcfGet`・`list<AcfGet>` |
+| ACFの値を変換せず取得する | `Native()` | — | `mixed` |
 
 複数選択を許可した投稿オブジェクト・関連・タクソノミー・ユーザーフィールドには、`Posts()`・`Terms()`・`Users()`を使います。`AcfGet`および`Nested()`で利用できます。
 
@@ -187,7 +206,18 @@ foreach ($relatedPostGets as $relatedPostGet) {
 
 単数用の`Post()`・`Term()`・`User()`へ複数値を渡しても、先頭要素を推測して返すことはありません。同様に、複数用メソッドへ単一値を渡した場合も空配列です。投稿の標準タームや投稿者を取得するAPIではなく、指定したACFフィールドの値だけを対象にします。
 
-`AcfGet`のコンストラクターは`WP_Post | PostData | WP_User | WpUserData | WP_Term | TermData | int | string | array | null`を受け取ります。投稿オブジェクト・DTO（派生クラスを含む）は投稿ID、ユーザーとタームはACFの参照先IDへ変換します。文字列と`null`はそのままACFへ渡し、配列の場合はその配列内のキーを読みます。
+`AcfGet`の取得元には次の値を指定できます。
+
+| 渡す値 | 解釈 |
+|---|---|
+| `WP_Post`・`PostData`・`int` | 投稿ID |
+| `WP_User`・`WpUserData` | ACFのユーザー参照ID |
+| `WP_Term`・`TermData` | ACFのターム参照ID |
+| `string` | オプションページなどの取得先ID |
+| `array` | 取得済み配列内のキー |
+| `null` | ACFの現在のコンテキスト |
+
+派生Dataも対応する基底Dataと同じように扱います。
 
 ```php
 <?php
@@ -216,6 +246,14 @@ $groupGet->Text('label');                         // 取得済みの配列内の
 外部から渡された生配列の場合のみ`new AcfGet($row)`を使います。
 
 ## ACF画像・ファイルの取得
+
+必要な情報量に合わせて取得口を選びます。
+
+| ACFフィールド | Dataで取得 | URLだけ取得 |
+|---|---|---|
+| 画像 | `Img()` | `ImgUrl()` |
+| ギャラリー | `Gallery()` | `GalleryUrl()` |
+| ファイル | `File()` | `FileUrl()` |
 
 ```php
 <?php

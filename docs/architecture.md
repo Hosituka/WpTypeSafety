@@ -1,10 +1,29 @@
 # 内部構造と検証
 
-`Acf/Get/`には`WpTypeSafety\Acf\Get\AcfGet`・`AcfDataFactory`、`Wp/Get/`には`WpGet`・`WpGetTerm`・`WpGetMenuNode`、対象別Factory、対象別Queryを置いています。WordPressの対象別Factoryは`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`・`AttachmentFactory`、対象別Queryは`PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery`です。名前空間には`Public`を含めず、`Data`・`Get`は含めます。ACF固有のデータクラスは`Acf/Data/`に配置し、`AcfBlockData`の名前空間は`WpTypeSafety\Acf\Data`です。
+## ディレクトリと責務
 
-各対象別Factoryは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または対象別Adapterへ処理を委譲します。`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Members()`を提供します。
+| ディレクトリ | 公開・内部 | 責務 |
+|---|---|---|
+| `Core/Data` | 公開 | WordPress・ACFに依存しないData |
+| `Core/Check` | 公開 | 型確認と汎用取得 |
+| `Core/Internal` | 内部 | Wp・Acfが共用する処理 |
+| `Internal/TreeTypeReader` | 内部 | Coreの汎用readerが利用する基盤 |
+| `Wp/Data` | 公開 | WordPress固有のDataとQuery結果 |
+| `Wp/Get` | 公開 | WordPressのFactory・Query・取得API |
+| `Wp/Internal` | 内部 | WordPress APIとの接続・正規化 |
+| `Acf/Data` | 公開 | ACF固有のData |
+| `Acf/Get` | 公開 | `AcfGet`と`AcfDataFactory` |
+| `Acf/Internal` | 内部 | ACF APIとの接続・正規化 |
+
+公開名前空間には`Public`を含めず、`Data`・`Get`を含めます。WordPressの対象別Factoryは`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`・`AttachmentFactory`、対象別Queryは`PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery`です。
+
+## FactoryとQuery
+
+各対象別Factoryは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または対象別Adapterへ処理を委譲します。`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Members()`を提供します。関連Dataを返すDataとMembersはその関連型をジェネリクスとして保持し、FactoryからData内の遅延Resolverまで案件固有型を失わずに接続します。
 
 対象別Queryも`Wp/Get/`の公開入口ですが、クエリビルダーの責務は持ちません。`Get()`はWordPressネイティブの引数配列をクエリクラスへ渡し、`From()`は生成済みのネイティブクエリを受け取ります。実行とData変換は`Wp/Internal/*QueryAdapter.php`へ委譲し、結果は`Wp/Data/*QueryData.php`へまとめます。`TermQueryData`はWordPress側に共通のページ総数プロパティがないため、タームのリストだけを保持します。取得手段を表す`Query`はクラス名で区別し、`Wp/Get/Query/`のような取得層内の追加階層は設けません。
+
+## Autoloader
 
 起動処理は`autoload.php`へ集約しています。`autoload.php`が`WpTypeSafety\`のPSR-4設定を登録し、Core・Wp・Acfのクラスは参照された時点で個別に読み込まれます。領域別の中継入口や、取得処理の初期登録はありません。
 
@@ -15,9 +34,21 @@ autoload.php
        └─ composer.jsonのWpTypeSafety\\を登録
 ```
 
+## GetとAdapter
+
 公開Get系は対応するAdapterへ直接委譲し、staticなClosure登録や登録順への依存を持ちません。`AcfGet`は`AcfAdapter`をインスタンスに1個保持し、投稿・ユーザー・ターム・ACF参照先ID・取得済み配列を共通の取得元として扱います。ユーザーとタームは同じAdapterでACFの参照先IDへ正規化します。`Nested()`・`Repeater()`・`Flexible()`・`PostGet()`・`UserGet()`・`TermGet()`と、その複数形メソッドが作る子取得口は、呼び出し元の派生型と同じAdapterを引き継ぎます。投稿等から作る入れ子の子取得口は、時間系とIcon Pickerのフィールド型判定に必要な未整形値・子フィールド定義も引き継ぎます。Wpのstatic取得口は、対応するInternal Adapterのstaticメソッドへ直接委譲します。
 
-`Wp/Internal/DtoFactory.php`はWordPressの値をWp固有またはCore共通のDTOへ変換し、必要なResolverをDTOへ渡します。`Acf/Internal/AcfDtoFactory.php`はACFの戻り値をDTOへ変換します。ターム階層は`TermAdapter`、メニューツリーは`MenuAdapter`、ACF値の正規化は`AcfAdapter`が担当します。依存方向は`Acf → Wp → Core`および`Acf → Core`です。CoreはWp・Acfを参照しません。
+## 依存方向
+
+`Wp/Internal/DtoFactory.php`はWordPressの値をWp固有またはCore共通のDTOへ変換し、必要なResolverをDTOへ渡します。`Acf/Internal/AcfDtoFactory.php`はACFの戻り値をDTOへ変換します。ターム階層は`TermAdapter`、メニューツリーは`MenuAdapter`、ACF値の正規化は`AcfAdapter`が担当します。
+
+| 参照元 | 参照できる領域 |
+|---|---|
+| `Core` | `Core` |
+| `Wp` | `Wp`・`Core` |
+| `Acf` | `Acf`・`Wp`・`Core` |
+
+領域間の主な依存方向は`Acf → Wp → Core`および`Acf → Core`です。CoreはWp・Acfを参照しません。
 
 この依存方向は、`Acf`・`Wp`・`Core`という領域間の依存を表します。同じ領域内にある`Data`と`Get`の参照方向を一律に制限する規則ではありません。たとえば`Acf\Data\FlexibleNode`が`Acf\Get\AcfGet`を保持し、`AcfGet::Flexible()`が`FlexibleNode`を返す構成は、ACF領域内で基本単位と取得口を相互に構成するものです。`Wp`と`Acf`が相互依存しているわけではなく、CoreがWp・Acfを参照しないという境界も維持されます。
 

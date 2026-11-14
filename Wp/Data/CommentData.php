@@ -5,6 +5,11 @@ namespace WpTypeSafety\Wp\Data;
 
 use WpTypeSafety\Core\Data\ImgData;
 
+/**
+ * @template TRelatedComment of CommentData = CommentData
+ * @template TUser of WpUserData = WpUserData
+ * @template TPost of PostData = PostData
+ */
 readonly class CommentData
 {
 	public int $Id;
@@ -19,12 +24,17 @@ readonly class CommentData
 	public string $Status;
 	public ?\DateTimeImmutable $CreatedAt;
 	private ?int $avatarSize;
+	/** @var null|\Closure(): (TUser|null) */
 	private ?\Closure $userResolver;
 	private ?\Closure $avatarResolver;
+	/** @var null|\Closure(): (TPost|null) */
 	private ?\Closure $postResolver;
+	/** @var null|\Closure(): (TRelatedComment|null) */
 	private ?\Closure $parentResolver;
+	/** @var null|\Closure(string, string): list<TRelatedComment> */
 	private ?\Closure $childrenResolver;
 
+	/** @param CommentMembers<TRelatedComment, TUser, TPost> $members */
 	public function __construct(CommentMembers $members)
 	{
 		$this->Id = $members->Id;
@@ -66,6 +76,7 @@ readonly class CommentData
 		return $this->Status === 'approved';
 	}
 
+	/** @return TUser|null */
 	public function GetUser(): ?WpUserData
 	{
 		return $this->HasUser() && $this->userResolver !== null
@@ -80,11 +91,13 @@ readonly class CommentData
 			: null;
 	}
 
+	/** @return TPost|null */
 	public function GetPost(): ?PostData
 	{
 		return $this->postResolver !== null ? ($this->postResolver)() : null;
 	}
 
+	/** @return TRelatedComment|null */
 	public function GetParent(): ?CommentData
 	{
 		return $this->HasParent() && $this->parentResolver !== null
@@ -92,7 +105,7 @@ readonly class CommentData
 			: null;
 	}
 
-	/** @return list<CommentData> */
+	/** @return list<TRelatedComment> */
 	public function GetChildren(string $status = 'approve', string $order = 'ASC'): array
 	{
 		if ($this->childrenResolver === null) {

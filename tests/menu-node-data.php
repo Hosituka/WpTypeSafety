@@ -45,8 +45,10 @@ class WP_Post
 function get_nav_menu_locations(): array { return ['primary' => 10]; }
 function wp_get_nav_menu_items(int $menuId): mixed { return $GLOBALS['menuItems'] ?? []; }
 
+/** @extends MenuNodeData<ProjectMenuNodeData> */
 readonly class ProjectMenuNodeData extends MenuNodeData
 {
+	/** @param MenuNodeMembers<ProjectMenuNodeData> $members */
 	public function __construct(
 		MenuNodeMembers $members,
 		public string $Label,
@@ -104,8 +106,11 @@ $check(
 $check(! $data->IsNewTab(), 'Target省略時は同じタブとして扱う');
 $check($data->GetThumbnail() === null, 'Resolver省略時は画像なし');
 
-$derived = new ProjectMenuNodeData($members, '案件固有');
-$check($derived->Title === '変更後' && $derived->Label === '案件固有', 'Membersを派生Dataへ渡せる');
+/** @var list<ProjectMenuNodeData> $projectChildren */
+$projectChildren = [];
+$projectMembers = MenuNodeFactory::Members(new WP_Post(3, title: '派生タイトル'), $projectChildren);
+$derived = new ProjectMenuNodeData($projectMembers, '案件固有');
+$check($derived->Title === '派生タイトル' && $derived->Label === '案件固有', 'Membersを派生Dataへ渡せる');
 
 $item = new WP_Post(
 	ID: 20,
@@ -186,11 +191,16 @@ $GLOBALS['menuItems'] = [
 	new WP_Post(ID: 100, title: '親', url: '/parent/', object: 'custom'),
 	new WP_Post(ID: 101, menu_item_parent: 100, title: '子', url: '/child/', object: 'custom'),
 ];
-$nodeFactory = static fn (WP_Post $menuItem, array $children): ProjectMenuNodeData =>
-	new ProjectMenuNodeData(MenuNodeFactory::Members($menuItem, $children), '派生メニュー' . $menuItem->ID);
+$nodeFactory = static function (WP_Post $menuItem, array $children): ProjectMenuNodeData {
+	/** @var list<ProjectMenuNodeData> $children */
+	return new ProjectMenuNodeData(
+		MenuNodeFactory::Members($menuItem, $children),
+		'派生メニュー' . $menuItem->ID,
+	);
+};
 $derivedTree = WpGetMenuNode::TreeFromLocation('primary', $nodeFactory);
 $check($derivedTree[0] instanceof ProjectMenuNodeData, '指定Factoryでルートの派生型を生成する');
-$check($derivedTree[0]->Children[0] instanceof ProjectMenuNodeData, '指定Factoryを子ノードへ引き継ぐ');
+$check($derivedTree[0]->Children[0]->Label === '派生メニュー101', '指定Factoryを子ノードへ引き継ぐ');
 $check(
 	WpGetMenuNode::FindById($derivedTree, 101) instanceof ProjectMenuNodeData,
 	'派生ツリーの検索結果も派生型を維持する',

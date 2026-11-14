@@ -74,6 +74,8 @@ Composerコマンドや`vendor/`は不要です。詳しくは[Autoload](docs/au
 
 ## クイックスタート
 
+まだ使うAPIを決めていない場合は、[はじめてのWpTypeSafety](docs/getting-started.md)から読むと、取得元に合う入口を選び、ひとつのテンプレートで試せます。最初からFactoryやQueryを含む全機能を導入する必要はありません。
+
 ```php
 <?php
 use WpTypeSafety\Acf\Get\AcfGet;
@@ -124,6 +126,13 @@ $viewCount = $metaGet->Int('view_count');
 | WordPressクエリ | 対象別`Query` | クエリ結果を型付きDataへ変換する |
 
 `DictCheck`、`AcfDataFactory`、Members、派生Dataなどの詳細は、下部の用途別ドキュメントにあります。
+
+選び方の目安は次のとおりです。
+
+- ACFを使うテンプレートなら、まず`AcfGet`
+- `get_post_meta()`等を置き換えるなら、まず`MetaGet`
+- `$args`や任意の配列を安全に読むなら、まず`ArrayGet`
+- 投稿全体を共通形式で扱いたくなったら、対象別`Factory`や`Query`
 
 ## WpTypeSafety DataとWordPressネイティブ型を選ぶ
 
@@ -192,6 +201,7 @@ Coreは厳密な型確認を既定値とします。`NumericMode`・`BoolMode`�
 
 | 内容 | 文書 |
 |---|---|
+| 初めての導入、入口の選び方、最小構成の実例 | [はじめてのWpTypeSafety](docs/getting-started.md) |
 | ACFの取得口、グループ、リピーター、参照先、ブロック | [ACF](docs/acf.md) |
 | WordPressの取得口、meta、Factory、Query | [WordPress](docs/wordpress.md) |
 | 型確認、値正規化、配列・オブジェクト・混在ツリー | [Core](docs/core.md) |

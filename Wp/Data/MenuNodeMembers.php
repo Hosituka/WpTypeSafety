@@ -5,13 +5,17 @@ namespace WpTypeSafety\Wp\Data;
 
 use WpTypeSafety\Core\Data\ImgData;
 
-/** MenuNodeDataを構築する共通メンバ。Dataへ渡す前に値を調整できます。 */
+/**
+ * MenuNodeDataを構築する共通メンバ。Dataへ渡す前に値を調整できます。
+ *
+ * @template TChild of MenuNodeData = MenuNodeData
+ */
 final class MenuNodeMembers
 {
 	/**
 	 * @param list<string> $Classes
-	 * @param list<MenuNodeData> $Children
-	 * @param null|\Closure(string|array): ?ImgData $ThumbnailResolver
+	 * @param list<TChild> $Children
+	 * @param null|\Closure(string|array{0: int, 1: int}): ?ImgData $ThumbnailResolver
 	 */
 	public function __construct(
 		public int $Id,

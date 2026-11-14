@@ -15,9 +15,13 @@ final class CommentFactory
 	private function __construct() {}
 
 	/**
-	 * @param null|\Closure(\WP_Comment): ?CommentData $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $userFactory
-	 * @param null|\Closure(\WP_Post): ?PostData $postFactory
+	 * @template TRelatedComment of CommentData = CommentData
+	 * @template TUser of WpUserData = WpUserData
+	 * @template TPost of PostData = PostData
+	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
+	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
+	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
+	 * @return CommentMembers<TRelatedComment, TUser, TPost>
 	 */
 	public static function Members(
 		\WP_Comment $comment,
@@ -37,9 +41,13 @@ final class CommentFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Comment): ?CommentData $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $userFactory
-	 * @param null|\Closure(\WP_Post): ?PostData $postFactory
+	 * @template TRelatedComment of CommentData = CommentData
+	 * @template TUser of WpUserData = WpUserData
+	 * @template TPost of PostData = PostData
+	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
+	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
+	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
+	 * @return CommentData<TRelatedComment, TUser, TPost>
 	 */
 	public static function From(
 		\WP_Comment $comment,

@@ -43,16 +43,24 @@ function is_wp_error(mixed $value): bool { return $value instanceof WP_Error; }
 function is_taxonomy_hierarchical(string $taxonomy): bool { return $taxonomy === 'area'; }
 function get_terms(array $args): mixed { return $GLOBALS['termChildren'] ?? []; }
 
+/**
+ * @template TRelatedTerm of TermData = TermData
+ * @extends TermData<TRelatedTerm>
+ */
 readonly class ProjectTermData extends TermData
 {
+	/** @param TermMembers<TRelatedTerm> $members */
 	public function __construct(TermMembers $members, public string $Label)
 	{
 		parent::__construct($members);
 	}
 
+	/** @return ProjectTermData<ProjectTermData>|null */
 	public static function FromWpTerm(WP_Term $term): ?self
 	{
+		/** @var \Closure(WP_Term): (ProjectTermData<ProjectTermData>|null) $relatedTermFactory */
 		$relatedTermFactory = static fn (WP_Term $related): ?self => self::FromWpTerm($related);
+		/** @var TermMembers<ProjectTermData>|null $members */
 		$members = TermFactory::Members($term, $relatedTermFactory);
 		return $members !== null ? new self($members, '派生ターム' . $term->term_id) : null;
 	}
@@ -132,8 +140,8 @@ $GLOBALS['termValues'][1] = new WP_Term(1, '神奈川県', 'kanagawa');
 $GLOBALS['termValues'][2] = $wpChild;
 $GLOBALS['termChildren'] = [new WP_Term(3, '綾瀬市', 'ayase', parent: 2)];
 $derivedTerm = ProjectTermData::FromWpTerm($wpChild);
-$check($derivedTerm?->GetParent() instanceof ProjectTermData, '関連Factoryで親タームの派生型を維持する');
-$check($derivedTerm?->GetChildren()[0] instanceof ProjectTermData, '関連Factoryで子タームの派生型を維持する');
+$check($derivedTerm?->GetParent()?->Label === '派生ターム1', '関連Factoryで親タームの派生型を維持する');
+$check($derivedTerm?->GetChildren()[0]->Label === '派生ターム3', '関連Factoryで子タームの派生型を維持する');
 $baseRelations = new ProjectTermData(TermFactory::Members($wpChild), '基底関連');
 $check(
 	$baseRelations->GetParent() instanceof TermData

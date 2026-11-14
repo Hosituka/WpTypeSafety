@@ -3,12 +3,16 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** TermDataを構築する共通メンバ。Dataへ渡す前に値を調整できます。 */
+/**
+ * TermDataを構築する共通メンバ。Dataへ渡す前に値を調整できます。
+ *
+ * @template TRelatedTerm of TermData = TermData
+ */
 final class TermMembers
 {
 	/**
-	 * @param null|\Closure(bool, string, string): list<TermData> $ChildrenResolver
-	 * @param null|\Closure(): ?TermData $ParentResolver
+	 * @param null|\Closure(bool, string, string): list<TRelatedTerm> $ChildrenResolver
+	 * @param null|\Closure(): (TRelatedTerm|null) $ParentResolver
 	 */
 	public function __construct(
 		public int $Id,

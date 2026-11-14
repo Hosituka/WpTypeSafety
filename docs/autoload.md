@@ -38,7 +38,16 @@ require_once __DIR__ . '/WpTypeSafety/autoload.php';
 
 この例では`Theme\Parts\PostCard\Data`を使うと、`template-parts/PostCard/Data.php`を読み込みます。ディレクトリはJSONファイルの位置を基準に解決します。同じ名前空間に複数のディレクトリを指定する場合は文字列の配列も使えます。クラスファイルの追加やJSONの変更は次のPHPリクエストから反映され、再生成コマンドは不要です。同じJSONを同じリクエスト内で再登録しても登録処理は増えません。
 
-読み取る設定は`autoload.psr-4`のみです。`files`、`classmap`、`require`による依存パッケージの取得は行いません。JSONが不正、PSR-4の指定が不正、指定ディレクトリが存在しない場合は例外を投げます。利用者が通常のComposer autoloaderを使う場合は、この登録メソッドを呼ばずに自分の`vendor/autoload.php`を読み込んでください。
+読み取る設定は次のとおりです。
+
+| `composer.json`の設定 | 対応 |
+|---|---|
+| `autoload.psr-4` | 対応 |
+| `autoload.files` | 非対応 |
+| `autoload.classmap` | 非対応 |
+| `require`による依存パッケージの取得 | 非対応 |
+
+JSONが不正、PSR-4の指定が不正、指定ディレクトリが存在しない場合は例外を投げます。利用者が通常のComposer autoloaderを使う場合は、この登録メソッドを呼ばずに自分の`vendor/autoload.php`を読み込んでください。
 
 内部にはComposerの`ClassLoader.php`を同梱しています。出所とライセンスは`Autoload/Internal/Composer/LICENSE`を参照してください。
 

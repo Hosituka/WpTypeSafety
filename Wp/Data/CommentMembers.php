@@ -5,15 +5,21 @@ namespace WpTypeSafety\Wp\Data;
 
 use WpTypeSafety\Core\Data\ImgData;
 
-/** CommentDataを構築する共通メンバ。Dataへ渡す前に値を調整できます。 */
+/**
+ * CommentDataを構築する共通メンバ。Dataへ渡す前に値を調整できます。
+ *
+ * @template TRelatedComment of CommentData = CommentData
+ * @template TUser of WpUserData = WpUserData
+ * @template TPost of PostData = PostData
+ */
 final class CommentMembers
 {
 	/**
-	 * @param null|\Closure(): ?WpUserData $UserResolver
+	 * @param null|\Closure(): (TUser|null) $UserResolver
 	 * @param null|\Closure(int): ?ImgData $AvatarResolver
-	 * @param null|\Closure(): ?PostData $PostResolver
-	 * @param null|\Closure(): ?CommentData $ParentResolver
-	 * @param null|\Closure(string, string): list<CommentData> $ChildrenResolver
+	 * @param null|\Closure(): (TPost|null) $PostResolver
+	 * @param null|\Closure(): (TRelatedComment|null) $ParentResolver
+	 * @param null|\Closure(string, string): list<TRelatedComment> $ChildrenResolver
 	 */
 	public function __construct(
 		public int $Id,

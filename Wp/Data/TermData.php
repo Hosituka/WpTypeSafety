@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
+/** @template TRelatedTerm of TermData = TermData */
 readonly class TermData
 {
 	public int $Id;
@@ -12,9 +13,12 @@ readonly class TermData
 	public string $Url;
 	public int $ParentId;
 	public string $Description;
+	/** @var null|\Closure(bool, string, string): list<TRelatedTerm> */
 	private ?\Closure $childrenResolver;
+	/** @var null|\Closure(): (TRelatedTerm|null) */
 	private ?\Closure $parentResolver;
 
+	/** @param TermMembers<TRelatedTerm> $members */
 	public function __construct(TermMembers $members)
 	{
 		$this->Id = $members->Id;
@@ -28,7 +32,7 @@ readonly class TermData
 		$this->parentResolver = $members->ParentResolver;
 	}
 
-	/** @return list<TermData> */
+	/** @return list<TRelatedTerm> */
 	public function GetChildren(bool $hideEmpty = false, string $orderby = 'name', string $order = 'ASC'): array
 	{
 		if ($this->childrenResolver === null) {
@@ -53,7 +57,11 @@ readonly class TermData
 		return $this->ParentId !== 0;
 	}
 
-	/** 直接の親を取得する。親なし・Resolver省略時はnull。 */
+	/**
+	 * 直接の親を取得する。親なし・Resolver省略時はnull。
+	 *
+	 * @return TRelatedTerm|null
+	 */
 	public function GetParent(): ?TermData
 	{
 		return $this->HasParent() && $this->parentResolver !== null

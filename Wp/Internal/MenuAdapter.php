@@ -10,7 +10,7 @@ use WpTypeSafety\Wp\Data\MenuNodeMembers;
 /** @internal */
 final class MenuAdapter
 {
-	/** @var array<string, list<MenuNodeData>> */
+	/** @var array<string, list<MenuNodeData<MenuNodeData>>> */
 	private static array $treeCache = [];
 
 	private function __construct() {}
@@ -166,7 +166,11 @@ final class MenuAdapter
 		return [];
 	}
 
-	/** @param list<MenuNodeData> $children */
+	/**
+	 * @template TChild of MenuNodeData
+	 * @param list<TChild> $children
+	 * @return MenuNodeMembers<TChild>
+	 */
 	public static function MembersFromWpPost(\WP_Post $item, array $children = []): MenuNodeMembers
 	{
 		$objectId = (int) $item->object_id;
@@ -194,7 +198,11 @@ final class MenuAdapter
 		);
 	}
 
-	/** @param list<MenuNodeData> $children */
+	/**
+	 * @template TChild of MenuNodeData
+	 * @param list<TChild> $children
+	 * @return MenuNodeData<TChild>
+	 */
 	public static function FromWpPost(\WP_Post $item, array $children = []): MenuNodeData
 	{
 		return new MenuNodeData(self::MembersFromWpPost($item, $children));

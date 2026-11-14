@@ -74,6 +74,8 @@ Composer commands and a `vendor/` directory are not required. See [Autoloading](
 
 ## Quick start
 
+If you have not chosen an API yet, start with the Japanese [getting-started guide](docs/getting-started.md). It selects an entry point from the value's source and introduces the library in a single template; you do not need to adopt Factory and Query APIs up front.
+
 ```php
 <?php
 use WpTypeSafety\Acf\Get\AcfGet;
@@ -194,6 +196,7 @@ The detailed documentation is currently available in Japanese.
 
 | Topic | Document |
 |---|---|
+| First setup, choosing an entry point, and minimal examples (Japanese) | [Getting started](docs/getting-started.md) |
 | ACF accessors, groups, repeaters, references, and blocks | [ACF](docs/acf.md) |
 | WordPress accessors, metadata, Factory, and Query | [WordPress](docs/wordpress.md) |
 | Type checks, normalization, arrays, objects, and mixed trees | [Core](docs/core.md) |

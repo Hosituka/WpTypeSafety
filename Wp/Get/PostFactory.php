@@ -14,8 +14,11 @@ final class PostFactory
 	private function __construct() {}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $relatedPostFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
+	 * @template TRelatedPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return PostMembers<TRelatedPost, TAuthor>
 	 */
 	public static function Members(
 		\WP_Post $post,
@@ -27,8 +30,11 @@ final class PostFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $relatedPostFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
+	 * @template TRelatedPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return PostData<TRelatedPost, TAuthor>
 	 */
 	public static function From(
 		\WP_Post $post,
@@ -40,8 +46,11 @@ final class PostFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $relatedPostFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
+	 * @template TRelatedPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return PostData<TRelatedPost, TAuthor>|null
 	 */
 	public static function FromId(
 		int $postId,

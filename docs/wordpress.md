@@ -46,9 +46,24 @@ foreach ($result->Posts as $caseData) {
 }
 ```
 
-同様に、`TermQuery`は`termFactory`、`UserQuery`は`userFactory`、`CommentQuery`は`commentFactory`を受け取ります。`Get()`と`From()`のどちらでも指定できます。ユーザーとコメントのFactoryには、第2引数として指定済みの`avatarSize`も渡します。生成処理はクエリ結果の各オブジェクトに対して対応するDataを必ず返し、`null`は返せません。Queryの絞り込みは生成処理ではなく、WordPressのクエリ引数で行ってください。未指定時は従来どおりWpTypeSafetyの共通Dataへ変換します。
+各Queryの生成処理と結果は次のとおりです。Factoryは`Get()`と`From()`のどちらでも指定できます。
 
-投稿・ユーザー・コメントは、取得結果とページ情報をそれぞれ`PostQueryData`・`UserQueryData`・`CommentQueryData`で返します。ページングするQueryで`no_found_rows: true`または`count_total: false`によりWordPress側の総件数計算を無効にした場合、`TotalCount`と`MaxPageCount`は不明を表す`null`です。0件を表す`0`とは区別されます。
+| Query | Factory引数 | 結果Data | 要素プロパティ | ページ情報 |
+|---|---|---|---|---|
+| `PostQuery` | `postFactory` | `PostQueryData` | `Posts` | あり |
+| `UserQuery` | `userFactory` | `UserQueryData` | `Users` | あり |
+| `CommentQuery` | `commentFactory` | `CommentQueryData` | `Comments` | あり |
+| `TermQuery` | `termFactory` | `TermQueryData` | `Terms` | なし |
+
+ユーザーとコメントのFactoryには、第2引数として指定済みの`avatarSize`も渡します。生成処理はクエリ結果の各オブジェクトに対して対応するDataを必ず返し、`null`は返せません。Queryの絞り込みは生成処理ではなく、WordPressのクエリ引数で行ってください。Factory未指定時はWpTypeSafetyの共通Dataへ変換します。
+
+投稿・ユーザー・コメントのページ情報には次の規則があります。
+
+| 状況 | `TotalCount`・`MaxPageCount` |
+|---|---|
+| 通常のページングQuery | WordPressが計算した件数とページ数 |
+| `no_found_rows: true`または`count_total: false` | 不明を表す`null` |
+| 該当結果が0件 | `0` |
 
 `CommentQuery`は`number`を指定しない場合、WordPressと同じく件数制限のない取得として扱います。この場合は返された`Comments`の件数を`TotalCount`とし、結果があれば`MaxPageCount`を1、空なら0とします。`number`を指定した場合は、`no_found_rows: false`のときだけWordPressが計算した総件数と最大ページ数を保持します。
 
@@ -279,7 +294,20 @@ $path = WpGetMenuNode::PathToUrl($menu, '/company/access/');
 
 ## WordPressの値からデータクラスを生成する
 
-対象別FactoryはWordPressの値から共通Dataを生成します。`WP_Post`・`WP_Comment`・`WP_User`・`WP_Term`はオブジェクトを渡します。`PostFactory::FromId()`だけは投稿IDを受け取り、`get_post()`で取得した投稿を`PostData`へ変換します。0以下のID・存在しない投稿・`WP_Post`以外の結果は`null`です。コメントID・ユーザーID・タームIDからの検索は行いません。添付画像とファイルはIDを渡します。ユーザー・ターム・添付ファイルを変換できない場合も`null`です。
+対象別FactoryはWordPressの値から共通Dataを生成します。
+
+| Factory | 入力 | 戻り値 | 変換できない場合 |
+|---|---|---|---|
+| `PostFactory::From()` | `WP_Post` | `PostData` | — |
+| `PostFactory::FromId()` | 投稿ID | `?PostData` | `null` |
+| `CommentFactory::From()` | `WP_Comment` | `CommentData` | — |
+| `UserFactory::From()` | `WP_User` | `?WpUserData` | `null` |
+| `TermFactory::From()` | `WP_Term` | `?TermData` | `null` |
+| `MenuNodeFactory::From()` | セットアップ済みのメニュー項目`WP_Post` | `MenuNodeData` | — |
+| `AttachmentFactory::ImgFromId()` | 添付ID | `?ImgData` | `null` |
+| `AttachmentFactory::FileFromId()` | 添付ID | `?FileData` | `null` |
+
+`PostFactory::FromId()`は`get_post()`で取得した投稿を変換し、0以下のID・存在しない投稿・`WP_Post`以外の結果では`null`を返します。コメントID・ユーザーID・タームIDからの検索は行いません。
 
 ```php
 <?php
@@ -303,6 +331,26 @@ $file = AttachmentFactory::FileFromId($attachmentId);
 `PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`の`Members()`は、対応する`PostMembers`・`CommentMembers`・`UserMembers`・`TermMembers`・`MenuNodeMembers`を返します。Membersは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。`MenuNodeFactory`は`wp_get_nav_menu_items()`等でセットアップ済みのメニュー項目`WP_Post`を対象とし、必要なら構築済みの子ノードを第2引数で受け取ります。
 
 `PostFactory`・`CommentFactory`・`TermFactory`では、任意の`relatedPostFactory`・`relatedCommentFactory`・`relatedTermFactory`を指定すると自己参照する関連Dataにも案件固有の派生型を使用できます。未指定時は共通Dataを返すため、派生型を必要としない取得へ明示的に戻せます。
+
+`PostData`・`TermData`・`CommentData`・`MenuNodeData`と対応するMembersは関連Data型をジェネリクスとして保持します。そのため、案件固有Dataの`@extends`へ関連型を指定すると、子・親・前後投稿・投稿者などを取得した後もPHPStanで派生型を維持できます。
+
+```php
+<?php
+/** @extends PostData<ArticleData, ProjectUserData> */
+final readonly class ArticleData extends PostData
+{
+	/** @param PostMembers<ArticleData, ProjectUserData> $members */
+	public function __construct(PostMembers $members)
+	{
+		parent::__construct($members);
+	}
+}
+
+$child = $article->GetChildren()[0]; // ArticleData
+$author = $article->GetAuthor();     // ProjectUserData|null
+```
+
+関連Factoryを指定せず基底Dataを返す派生Dataも作る場合は、案件固有Data自体をテンプレート化し、コンストラクターへ渡すMembersの型引数と対応させます。
 
 ```php
 <?php

@@ -146,14 +146,22 @@ final class TermAdapter
 		return $data;
 	}
 
-	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	/**
+	 * @template TRelatedTerm of TermData = TermData
+	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
+	 * @return TermData<TRelatedTerm>|null
+	 */
 	public static function FromWpTerm(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermData
 	{
 		$members = self::MembersFromWpTerm($term, $relatedTermFactory);
 		return $members !== null ? new TermData($members) : null;
 	}
 
-	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	/**
+	 * @template TRelatedTerm of TermData = TermData
+	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
+	 * @return TermMembers<TRelatedTerm>|null
+	 */
 	public static function MembersFromWpTerm(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermMembers
 	{
 		$url = \get_term_link($term);
@@ -194,8 +202,9 @@ final class TermAdapter
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory
-	 * @return list<TermData>
+	 * @template TRelatedTerm of TermData = TermData
+	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
+	 * @return list<TRelatedTerm>
 	 */
 	private static function childrenOf(
 		int $parentId,
@@ -236,7 +245,11 @@ final class TermAdapter
 		return $children;
 	}
 
-	/** @param null|\Closure(\WP_Term): ?TermData $relatedTermFactory */
+	/**
+	 * @template TRelatedTerm of TermData = TermData
+	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
+	 * @return TRelatedTerm|null
+	 */
 	private static function relatedTerm(\WP_Term $term, ?\Closure $relatedTermFactory): ?TermData
 	{
 		$data = $relatedTermFactory !== null ? $relatedTermFactory($term) : self::FromWpTerm($term);

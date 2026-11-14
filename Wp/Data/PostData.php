@@ -6,6 +6,10 @@ namespace WpTypeSafety\Wp\Data;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 
+/**
+ * @template TRelatedPost of PostData = PostData
+ * @template TAuthor of WpUserData = WpUserData
+ */
 readonly class PostData
 {
 	public int $Id;
@@ -14,12 +18,16 @@ readonly class PostData
 	public string $Content;
 	public ?\DateTimeImmutable $PublishedAt;
 	public ?\DateTimeImmutable $ModifiedAt;
+	/** @var null|\Closure(): (TAuthor|null) */
 	private ?\Closure $authorResolver;
 	private ?\Closure $excerptResolver;
 	private ?\Closure $excerptPresenceResolver;
 	private ?\Closure $thumbnailResolver;
+	/** @var null|\Closure(string|array<array-key, string>, string): list<TRelatedPost> */
 	private ?\Closure $childrenResolver;
+	/** @var null|\Closure(): (TRelatedPost|null) */
 	private ?\Closure $previousPostResolver;
+	/** @var null|\Closure(): (TRelatedPost|null) */
 	private ?\Closure $nextPostResolver;
 	private ?\Closure $templateSlugResolver;
 	public string $Status;
@@ -28,6 +36,7 @@ readonly class PostData
 	public bool $IsPasswordProtected;
 	public bool $IsPubliclyViewable;
 
+	/** @param PostMembers<TRelatedPost, TAuthor> $members */
 	public function __construct(PostMembers $members)
 	{
 		$this->Id = $members->Id;
@@ -57,6 +66,7 @@ readonly class PostData
 		return $this->templateSlugResolver !== null ? ($this->templateSlugResolver)() : '';
 	}
 
+	/** @return TAuthor|null */
 	public function GetAuthor(): ?WpUserData
 	{
 		return $this->authorResolver !== null ? ($this->authorResolver)() : null;
@@ -95,8 +105,8 @@ readonly class PostData
 	}
 
 	/**
-	 * @param string|array<string, string> $orderby
-	 * @return list<PostData>
+	 * @param string|array<array-key, string> $orderby
+	 * @return list<TRelatedPost>
 	 */
 	public function GetChildren(string|array $orderby = 'menu_order title ID', string $order = 'ASC'): array
 	{
@@ -117,11 +127,13 @@ readonly class PostData
 		return $children;
 	}
 
+	/** @return TRelatedPost|null */
 	public function GetPreviousPost(): ?PostData
 	{
 		return $this->previousPostResolver !== null ? ($this->previousPostResolver)() : null;
 	}
 
+	/** @return TRelatedPost|null */
 	public function GetNextPost(): ?PostData
 	{
 		return $this->nextPostResolver !== null ? ($this->nextPostResolver)() : null;

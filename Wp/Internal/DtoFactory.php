@@ -20,9 +20,13 @@ final class DtoFactory
 	private function __construct() {}
 
 	/**
-	 * @param null|\Closure(\WP_Comment): ?CommentData $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $userFactory
-	 * @param null|\Closure(\WP_Post): ?PostData $postFactory
+	 * @template TRelatedComment of CommentData = CommentData
+	 * @template TUser of WpUserData = WpUserData
+	 * @template TPost of PostData = PostData
+	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
+	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
+	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
+	 * @return CommentData<TRelatedComment, TUser, TPost>
 	 */
 	public static function CommentFromWpComment(
 		\WP_Comment $comment,
@@ -42,9 +46,13 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Comment): ?CommentData $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $userFactory
-	 * @param null|\Closure(\WP_Post): ?PostData $postFactory
+	 * @template TRelatedComment of CommentData = CommentData
+	 * @template TUser of WpUserData = WpUserData
+	 * @template TPost of PostData = PostData
+	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
+	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
+	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
+	 * @return CommentMembers<TRelatedComment, TUser, TPost>
 	 */
 	public static function CommentMembersFromWpComment(
 		\WP_Comment $comment,
@@ -148,10 +156,13 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Comment): ?CommentData $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $userFactory
-	 * @param null|\Closure(\WP_Post): ?PostData $postFactory
-	 * @return list<CommentData>
+	 * @template TRelatedComment of CommentData = CommentData
+	 * @template TUser of WpUserData = WpUserData
+	 * @template TPost of PostData = PostData
+	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
+	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
+	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
+	 * @return list<TRelatedComment>
 	 */
 	private static function commentChildren(
 		int $commentId,
@@ -192,8 +203,11 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $relatedPostFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
+	 * @template TRelatedPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return PostData<TRelatedPost, TAuthor>
 	 */
 	public static function PostFromWpPost(
 		\WP_Post $post,
@@ -205,8 +219,11 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $relatedPostFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
+	 * @template TRelatedPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return PostMembers<TRelatedPost, TAuthor>
 	 */
 	public static function PostMembersFromWpPost(
 		\WP_Post $post,
@@ -269,9 +286,11 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $relatedPostFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
-	 * @return list<PostData>
+	 * @template TRelatedPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return list<TRelatedPost>
 	 */
 	private static function postChildren(
 		int $postId,
@@ -307,8 +326,11 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $relatedPostFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
+	 * @template TRelatedPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return TRelatedPost|null
 	 */
 	private static function adjacentPost(
 		int $postId,
@@ -339,9 +361,13 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Comment): ?CommentData $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $userFactory
-	 * @param null|\Closure(\WP_Post): ?PostData $postFactory
+	 * @template TRelatedComment of CommentData = CommentData
+	 * @template TUser of WpUserData = WpUserData
+	 * @template TPost of PostData = PostData
+	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
+	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
+	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
+	 * @return TRelatedComment|null
 	 */
 	private static function relatedComment(
 		\WP_Comment $comment,
@@ -366,8 +392,11 @@ final class DtoFactory
 	}
 
 	/**
-	 * @param null|\Closure(\WP_Post): ?PostData $postFactory
-	 * @param null|\Closure(\WP_User): ?WpUserData $authorFactory
+	 * @template TPost of PostData = PostData
+	 * @template TAuthor of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
+	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
+	 * @return TPost|null
 	 */
 	private static function relatedPost(
 		\WP_Post $post,
@@ -384,7 +413,11 @@ final class DtoFactory
 		return $data;
 	}
 
-	/** @param null|\Closure(\WP_User): ?WpUserData $userFactory */
+	/**
+	 * @template TUser of WpUserData = WpUserData
+	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
+	 * @return TUser|null
+	 */
 	private static function relatedUser(\WP_User $user, ?\Closure $userFactory): ?WpUserData
 	{
 		$data = $userFactory !== null ? $userFactory($user) : self::UserFromWpUser($user);

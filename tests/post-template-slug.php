@@ -71,13 +71,20 @@ function get_adjacent_post(bool $inSameTerm, string $excludedTerms, bool $previo
 function get_userdata(int $id): mixed { return $GLOBALS['users'][$id] ?? null; }
 function get_author_posts_url(int $id): string { return 'https://example.com/author/' . $id . '/'; }
 
+/**
+ * @template TRelatedPost of PostData = PostData
+ * @template TAuthor of WpUserData = WpUserData
+ * @extends PostData<TRelatedPost, TAuthor>
+ */
 readonly class ProjectPostData extends PostData
 {
+	/** @param PostMembers<TRelatedPost, TAuthor> $members */
 	public function __construct(PostMembers $members, public string $Label)
 	{
 		parent::__construct($members);
 	}
 
+	/** @return ProjectPostData<ProjectPostData, WpUserData> */
 	public static function FromWpPost(WP_Post $post): self
 	{
 		$relatedPostFactory = static fn (WP_Post $related): self => self::FromWpPost($related);
@@ -184,8 +191,8 @@ $GLOBALS['postValues'][30] = $rootPost;
 $GLOBALS['postChildren'] = [new WP_Post(31, post_type: 'page')];
 $GLOBALS['nextPost'] = new WP_Post(32, post_type: 'page');
 $derivedPost = ProjectPostData::FromWpPost($rootPost);
-$check($derivedPost->GetChildren()[0] instanceof ProjectPostData, '関連Factoryで子投稿の派生型を維持する');
-$check($derivedPost->GetNextPost() instanceof ProjectPostData, '関連Factoryで隣接投稿の派生型を維持する');
+$check($derivedPost->GetChildren()[0]->Label === '派生投稿31', '関連Factoryで子投稿の派生型を維持する');
+$check($derivedPost->GetNextPost()?->Label === '派生投稿32', '関連Factoryで隣接投稿の派生型を維持する');
 $baseRelations = new ProjectPostData(PostFactory::Members($rootPost), '基底関連');
 $check(
 	$baseRelations->GetChildren()[0] instanceof PostData

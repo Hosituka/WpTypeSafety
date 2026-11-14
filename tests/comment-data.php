@@ -95,13 +95,21 @@ use WpTypeSafety\Wp\Data\UserMembers;
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Get\CommentFactory;
 
+/**
+ * @template TRelatedComment of CommentData = CommentData
+ * @template TUser of WpUserData = WpUserData
+ * @template TPost of PostData = PostData
+ * @extends CommentData<TRelatedComment, TUser, TPost>
+ */
 readonly class ProjectCommentData extends CommentData
 {
+	/** @param CommentMembers<TRelatedComment, TUser, TPost> $members */
 	public function __construct(CommentMembers $members, public string $Label)
 	{
 		parent::__construct($members);
 	}
 
+	/** @return ProjectCommentData<ProjectCommentData, WpUserData, PostData> */
 	public static function FromWpComment(WP_Comment $comment): self
 	{
 		$relatedCommentFactory = static fn (WP_Comment $related): self => self::FromWpComment($related);
@@ -275,8 +283,8 @@ try {
 
 $GLOBALS['children'] = [new WP_Comment(9, 12, '返信者', comment_parent: 8)];
 $derivedComment = ProjectCommentData::FromWpComment($comment);
-$check($derivedComment->GetParent() instanceof ProjectCommentData, '関連Factoryで親コメントの派生型を維持する');
-$check($derivedComment->GetChildren()[0] instanceof ProjectCommentData, '関連Factoryで子コメントの派生型を維持する');
+$check($derivedComment->GetParent()?->Label === '派生コメント4', '関連Factoryで親コメントの派生型を維持する');
+$check($derivedComment->GetChildren()[0]->Label === '派生コメント9', '関連Factoryで子コメントの派生型を維持する');
 $baseRelations = new ProjectCommentData(CommentFactory::Members($comment), '基底関連');
 $check(
 	$baseRelations->GetParent() instanceof CommentData
@@ -298,8 +306,8 @@ $crossData = CommentFactory::From(
 	userFactory: $userFactory,
 	postFactory: $postFactory,
 );
-$check($crossData->GetUser() instanceof ProjectCommentUserData, 'User Factoryでコメント投稿者の派生型を返す');
-$check($crossData->GetPost() instanceof ProjectCommentPostData, 'Post Factoryで関連投稿の派生型を返す');
+$check($crossData->GetUser()?->Label === '派生ユーザー', 'User Factoryでコメント投稿者の派生型を返す');
+$check($crossData->GetPost()?->Label === '派生投稿', 'Post Factoryで関連投稿の派生型を返す');
 $crossParent = $crossData->GetParent();
 $check(
 	$crossParent?->GetUser() instanceof ProjectCommentUserData

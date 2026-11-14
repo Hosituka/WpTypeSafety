@@ -25,7 +25,25 @@ final readonly class FlexibleNode
 
 `WpUserData->AuthorUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。直接構築する場合は`UserMembers`の`AuthorUrl:`で指定でき、省略時は空文字です。コンストラクターはURL形式を検証しないため、直接渡す値は呼び出し元で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
 
-`Core/Data/`には`ImgData`・`LinkData`・`ChoiceData`・`FileData`・`DateData`・`TimeData`を置きます。`DateData`は時刻とタイムゾーンを含まない日付を`Year`・`Month`・`Day`、`TimeData`は日付とタイムゾーンを含まない時刻を`Hour`・`Minute`・`Second`として保持し、それぞれ`Format()`で文字列化できます。WordPress固有の`PostData`・`CommentData`・`TermData`・`WpUserData`・`MenuNodeData`・`MenuItemType`は`Wp/Data/`へ置き、名前空間は`WpTypeSafety\Wp\Data`です。いずれも値をコンストラクターで受け取ります。`PostData`・`CommentData`・`TermData`・`WpUserData`・`MenuNodeData`は値に加え、案件側が渡す取得関数を呼ぶメソッドを持ちます。分類は扱う概念によるもので、これらのデータクラス自身がWordPressの関数を直接呼ぶわけではありません。
+公開Dataは、扱う概念によって次の領域に分かれます。
+
+| 領域 | Data | 主な内容 | 関連取得 |
+|---|---|---|---|
+| `Core/Data` | `ImgData` | URL・幅・高さ・代替テキスト | なし |
+| `Core/Data` | `LinkData` | URL・タイトル・ターゲット | なし |
+| `Core/Data` | `ChoiceData`・`FileData` | 選択肢、添付ファイル | なし |
+| `Core/Data` | `DateData`・`TimeData` | 日付または時刻の構成値 | `Format()` |
+| `Wp/Data` | `PostData` | 投稿情報 | 投稿者・抜粋・画像・関連投稿など |
+| `Wp/Data` | `CommentData` | コメント情報 | ユーザー・画像・投稿・親子コメント |
+| `Wp/Data` | `TermData` | ターム情報 | 親・子ターム |
+| `Wp/Data` | `WpUserData` | ユーザー情報 | アバター画像 |
+| `Wp/Data` | `MenuNodeData` | メニュー項目 | サムネイル画像 |
+| `Wp/Data` | 各`*QueryData` | Query結果とページ情報 | なし |
+| `Wp/Data` | `MenuItemType` | メニュー項目の種類 | なし |
+| `Acf/Data` | `FlexibleNode` | レイアウト名と行の`AcfGet` | 行内のACF取得 |
+| `Acf/Data` | `AcfBlockData` | ACFブロックの描画情報 | ラッパー属性 |
+
+`DateData`は時刻とタイムゾーンを含まない日付を`Year`・`Month`・`Day`、`TimeData`は日付とタイムゾーンを含まない時刻を`Hour`・`Minute`・`Second`として保持します。WordPress固有のDataの名前空間は`WpTypeSafety\Wp\Data`です。いずれも値をコンストラクターで受け取り、Data自身がWordPressの関数を直接呼ぶことはありません。
 
 URLの形式、IDや寸法の正負、配列要素の型など、PHPの型宣言では表せない条件はコンストラクターで検証しません。呼び出し元が確認してください。
 
@@ -45,7 +63,25 @@ $image = new ImgData(
 );
 ```
 
-`PostData`の`GetAuthor()`、`GetExcerpt()`、`HasExcerpt()`、`GetThumbnail()`、`GetChildren()`、`GetPreviousPost()`、`GetNextPost()`、`CommentData`の`GetUser()`、`GetAvatar()`、`GetPost()`、`GetParent()`、`GetChildren()`、`TermData`の`GetChildren()`、`WpUserData`の`GetAvatar()`、`MenuNodeData`の`GetThumbnail()`は、対応するMembersへ渡した`Closure`へ処理を委ねます。関数を持つMembersプロパティには`AuthorResolver`・`ThumbnailResolver`・`ChildrenResolver`のように`Resolver`を付け、利用側のGet系メソッドと区別します。関数を省略すると文字列は空文字、リストは空配列、真偽値はfalse、それ以外はnullを返します。結果はキャッシュせず、呼び出すたびに関数を実行します。`GetChildren()`はリストと要素のData型を実行時にも確認し、契約違反なら`UnexpectedValueException`を投げます。他のGet系はPHPの戻り値型で確認します。
+関連取得メソッドは、対応するMembersへ渡した`Closure`に処理を委ねます。
+
+| Data | 取得メソッド | MembersのResolver | 省略時 |
+|---|---|---|---|
+| `PostData` | `GetAuthor()` | `AuthorResolver` | `null` |
+| `PostData` | `GetExcerpt()` | `ExcerptResolver` | 空文字 |
+| `PostData` | `HasExcerpt()` | `ExcerptPresenceResolver` | `false` |
+| `PostData` | `GetThumbnail()` | `ThumbnailResolver` | `null` |
+| `PostData` | `GetChildren()` | `ChildrenResolver` | 空配列 |
+| `PostData` | `GetPreviousPost()`・`GetNextPost()` | `PreviousPostResolver`・`NextPostResolver` | `null` |
+| `PostData` | `GetTemplateSlug()` | `TemplateSlugResolver` | 空文字 |
+| `CommentData` | `GetUser()`・`GetAvatar()`・`GetPost()` | `UserResolver`・`AvatarResolver`・`PostResolver` | `null` |
+| `CommentData` | `GetParent()` | `ParentResolver` | `null` |
+| `CommentData` | `GetChildren()` | `ChildrenResolver` | 空配列 |
+| `TermData` | `GetParent()`・`GetChildren()` | `ParentResolver`・`ChildrenResolver` | `null`・空配列 |
+| `WpUserData` | `GetAvatar()` | `AvatarResolver` | `null` |
+| `MenuNodeData` | `GetThumbnail()` | `ThumbnailResolver` | `null` |
+
+関数を持つMembersプロパティには`Resolver`を付け、利用側のGet系メソッドと区別します。結果はキャッシュせず、呼び出すたびに関数を実行します。`GetChildren()`はリストと要素のData型を実行時にも確認し、契約違反なら`UnexpectedValueException`を投げます。他のGet系はPHPの戻り値型で確認します。
 
 ```php
 <?php

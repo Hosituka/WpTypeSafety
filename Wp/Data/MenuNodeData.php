@@ -6,6 +6,7 @@ namespace WpTypeSafety\Wp\Data;
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
 
+/** @template TChild of MenuNodeData = MenuNodeData */
 readonly class MenuNodeData
 {
 	public int $Id;
@@ -22,10 +23,11 @@ readonly class MenuNodeData
 	public MenuItemType $Type;
 	public string $Object;
 	public int $ObjectId;
-	/** @var list<MenuNodeData> */
+	/** @var list<TChild> */
 	public array $Children;
 	private ?\Closure $thumbnailResolver;
 
+	/** @param MenuNodeMembers<TChild> $members */
 	public function __construct(MenuNodeMembers $members)
 	{
 		$this->Id = $members->Id;
