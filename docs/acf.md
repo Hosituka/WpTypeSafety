@@ -12,21 +12,6 @@
 - 独自フィールドへ対応したい：[案件固有フィールドへの拡張](#案件固有フィールドへの拡張)
 - ACFブロックを扱いたい：[ACFブロックの描画情報](#acfブロックの描画情報)
 
-APIの分類から探す場合は、次の目次を利用できます。
-
-- [標準取得口の一覧](#標準取得口の一覧)
-- [数値フィールドの取得](#数値フィールドの取得)
-- [ACFの取得先の指定](#acfの取得先の指定)
-- [投稿・ターム・ユーザーの複数取得](#投稿タームユーザーの複数取得)
-- [ACF画像・ファイルの取得](#acf画像ファイルの取得)
-- [Icon Pickerの取得](#icon-pickerの取得)
-- [日付・日時・時刻の取得](#日付日時時刻の取得)
-- [選択系フィールド](#ラジオボタングループチェックボックスの取得口)
-- [案件固有フィールドへの拡張](#案件固有フィールドへの拡張)
-- [リピーター行の取得](#リピーター行の取得)
-- [フレキシブルコンテンツの取得](#フレキシブルコンテンツの取得)
-- [ACFブロックの描画情報](#acfブロックの描画情報)
-
 ## 標準取得口の一覧
 
 投稿・ユーザー・ターム・ACF参照先ID・取得済み配列は、すべて`AcfGet`から同じ取得口を利用できます。型違い・未入力時は、単数Dataとnullableな値が`null`、文字列が空文字、リストと配列が空配列です。
@@ -179,9 +164,9 @@ $members = $postGet->Users(
 );
 ```
 
-単数フィールドの未選択・型違いは`null`、複数フィールドの未選択・変換できない参照値は空配列または要素除外となり、その値に対してFactoryは呼ばれません。ユーザーFactoryには第2引数として`avatarSize`も渡します。Factoryが呼ばれた場合は対応するDataを必ず返す必要があり、`null`による要素の除外はできません。絞り込みはACFのフィールド設定または取得後の利用側で明示してください。Factory未指定時は従来どおり共通Dataを返します。
+単数フィールドの未選択・型違いは`null`、複数フィールドの未選択・変換できない参照値は空配列または要素除外となり、その値に対してFactoryは呼ばれません。ユーザーFactoryには第2引数として`avatarSize`も渡します。Factoryが呼ばれた場合は対応するDataを必ず返す必要があり、`null`による要素の除外はできません。絞り込みはACFのフィールド設定または取得後の利用側で明示してください。Factory未指定時は共通Dataを返します。
 
-WordPressやプラグインのAPIへネイティブオブジェクトを渡す場合は、`WpPost()`・`WpTerm()`・`WpUser()`と、それぞれの複数形を使用できます。Dataを返す既存取得口は変更せず、必要な境界だけ明示的にWordPressの型へ戻します。
+WordPressやプラグインのAPIへネイティブオブジェクトを渡す場合は、`WpPost()`・`WpTerm()`・`WpUser()`と、それぞれの複数形を使用できます。DataとWordPressネイティブ型は、利用先に合わせて選べます。
 
 ```php
 <?php
@@ -267,7 +252,7 @@ $fileUrl = $fields->FileUrl('document'); // URL返却形式のファイルは?st
 
 対象のユーザー・タームを`AcfGet`のコンストラクターへ渡すと、その対象のACFフィールドを取得します。URL返却形式の画像には`ImgUrl()`、ファイルには`FileUrl()`を使います。
 
-ギャラリーのURL返却形式には`GalleryUrl($fieldName): list<string>`を使用します。`AcfGet`および`Nested()`に対応します。未入力・配列以外は`[]`、不正URL・ID・画像情報配列は除外します。有効なHTTP(S)絶対URLの順序と重複を保持し、エスケープは出力側で行います。画像情報が必要な場合は従来の`Gallery()`を使います。
+ギャラリーのURL返却形式には`GalleryUrl($fieldName): list<string>`を使用します。`AcfGet`および`Nested()`に対応します。未入力・配列以外は`[]`、不正URL・ID・画像情報配列は除外します。有効なHTTP(S)絶対URLの順序と重複を保持し、エスケープは出力側で行います。画像情報が必要な場合は`Gallery()`を使います。
 
 画像URL専用の入口として`AcfGet->ImgUrl()`があります。URL返却形式の画像は`ImgData`に詰めず、寸法を取得できる画像だけを`ImgData`として返します。URLが未設定・不正なら`null`です。
 
@@ -317,11 +302,11 @@ ACFのフィルターで追加した独自タブは、標準の3取得口では�
 
 ACFのReturn Formatに依存せず扱う場合は、時間系フィールド専用の取得口を使用します。
 
-| 取得口 | ACFフィールドタイプ | 戻り値 | ACFの未整形形式 |
-|---|---|---|---|
-| `Date()` | Date Picker | `?DateData` | `Ymd` |
-| `DateTime()` | Date Time Picker | `?DateTimeImmutable` | `Y-m-d H:i:s` |
-| `Time()` | Time Picker | `?TimeData` | `H:i:s` |
+| 取得口 | ACFフィールドタイプ | 戻り値 | ACFの未整形形式 | 外部の取得済み配列から作った取得口 | 取得できない場合 |
+|---|---|---|---|---|---|
+| `Date()` | Date Picker | `?DateData` | `Ymd` | `null` | `null` |
+| `DateTime()` | Date Time Picker | `?DateTimeImmutable` | `Y-m-d H:i:s` | `null` | `null` |
+| `Time()` | Time Picker | `?TimeData` | `H:i:s` | `null` | `null` |
 
 ```php
 <?php
@@ -329,16 +314,16 @@ $eventDate = $postGet->Date('event_date');
 $eventStart = $postGet->DateTime('event_start');
 $openingTime = $postGet->Time('opening_time');
 
-echo esc_html($eventDate?->format('Y-m-d') ?? '');
+echo esc_html($eventDate?->Format('Y-m-d') ?? '');
 echo esc_html($eventStart?->format('Y-m-d H:i') ?? '');
 echo esc_html($openingTime?->Format('H:i') ?? '');
 ```
 
-`Date()`は時刻とタイムゾーンを補わず、`Year`・`Month`・`Day`を持つ`DateData`を返します。`DateTime()`はWordPressのサイトタイムゾーンを持つ`DateTimeImmutable`、`Time()`は日付とタイムゾーンを含まない`TimeData`を返します。`DateData::Format()`の既定形式は`Y-m-d`、`TimeData::Format()`は`H:i:s`で、どちらもPHPの日時フォーマットを指定できます。未入力、異なるフィールドタイプ、存在しない日付・時刻、解析失敗は`null`です。
+`Date()`は時刻とタイムゾーンを補わず、`Year`・`Month`・`Day`を持つ`DateData`を返します。`DateTime()`はWordPressのサイトタイムゾーンを持つ`DateTimeImmutable`、`Time()`は日付とタイムゾーンを含まない`TimeData`を返します。`DateData::Format()`の既定形式は`Y-m-d`、`TimeData::Format()`は`H:i:s`で、どちらもPHPの日時フォーマットを指定できます。表の「取得できない場合」には未入力、異なるフィールドタイプ、存在しない日付・時刻、解析失敗を含みます。
 
-専用取得口は`get_field_object()`から未整形値を取得するため、管理画面のReturn Formatを変更しても戻り値の契約は変わりません。Return Formatどおりの表示文字列が必要な場合は、従来どおり`Text()`を使用できます。
+専用取得口は`get_field_object()`から未整形値を取得するため、管理画面のReturn Formatを変更しても戻り値の契約は変わりません。Return Formatどおりの表示文字列が必要な場合は、`Text()`を使用できます。
 
-時間系取得口は、投稿・ID・オプションページ・ユーザー・タームなどACFの取得先を直接指定した場合と、そこからたどる`Nested()`・`Repeater()`・`Flexible()`に対応します。グループ内のリピーター、リピーター行内のグループなど、複数種類を組み合わせた入れ子でも未整形値と子フィールド定義を引き継ぎます。外部の取得済み配列を渡した`new AcfGet($array)`と、その配列から作る子取得口ではフィールド定義と未整形値を復元できないため、時間系取得口は`null`を返します。
+時間系取得口は、投稿・ID・オプションページ・ユーザー・タームなどACFの取得先を直接指定した場合と、そこからたどる`Nested()`・`Repeater()`・`Flexible()`に対応します。グループ内のリピーター、リピーター行内のグループなど、複数種類を組み合わせた入れ子でも利用できます。外部の取得済み配列ではフィールド定義と未整形値を復元できないため、子取得口でも表のとおり`null`です。
 
 ## ラジオ・ボタングループ・チェックボックスの取得口
 
@@ -404,8 +389,6 @@ $type = $rowGet->SelectValue('type');
 
 値とラベルの逆引きや、単一・複数間の自動変換は行いません。
 
-検証は`php tests/select-accessors.php`で実行できます（APIスタブ、DB接続なし）。
-
 ## URLフィールドの取得
 
 `Url('url')`は`?string`を返します。`AcfGet`、
@@ -414,7 +397,6 @@ $type = $rowGet->SelectValue('type');
 未入力・型違い・不正URL・相対パス・`javascript:`・`mailto:`などは`null`です。
 値は変換・エスケープせず返すため、描画時には`esc_url($url)`を使用してください。
 Select取得口と異なり、フィールド型の照合は行わず、取得した値がURLとして妥当かを検証します。
-検証は`php tests/url-accessors.php`で実行できます（APIスタブ、DB接続なし）。
 
 ```php
 <?php
@@ -431,10 +413,7 @@ if ($url !== null) {
 `Text()`は空文字、`Array()`・`Repeater()`・複数選択は空配列、
 画像・URL・単一選択などは`null`です。`Nested()`も空の取得元を引き継ぎます。
 現在の投稿へのフォールバックは行いません。
-有効なターム・ユーザーを`AcfGet`へ渡すと、保持しているAdapterが参照先IDを組み立てます。nullableな変数を直接渡す場合、`null`は現在の投稿を意味するため、空の取得元にしたい場合は`new AcfGet($subject ?? [])`と明示してください。
-Get系のstaticな初期登録は不要です。
-`new AcfGet(null)`は従来どおり現在の投稿を参照し、この変更の対象外です。
-検証は`php tests/nullable-subjects.php`で実行できます。
+有効なターム・ユーザーも取得元に指定できます。nullableな変数を直接渡す場合、`null`は現在の投稿を意味するため、空の取得元にしたい場合は`new AcfGet($subject ?? [])`と明示してください。
 
 ## 案件固有フィールドへの拡張
 
@@ -467,7 +446,7 @@ $price = $postGet->Price('price');
 
 `Native()`は公開取得口ですが、戻り値型は`mixed`です。通常のテンプレートでは用途別の型付き取得口を優先し、未対応フィールドの調査や案件固有の取得メソッドを実装するときの拡張口として使用してください。型確認・正規化・描画時のエスケープは自動では行いません。
 
-`Nested()`・`Repeater()`・`FlexibleNode::Get`が生成する子取得口は、呼び出し元の派生型とコンストラクターで注入された依存・Adapterを引き継ぎます。内部では`protected createChild()`が現在の取得口を複製し、取得元だけを子配列へ差し替えます。通常は派生クラス側で子生成処理を書く必要はありません。複製時に追加の初期化が必要な派生型だけ、`createChild()`をオーバーライドしてください。
+`Nested()`・`Repeater()`・`FlexibleNode::Get`が生成する子取得口でも、呼び出し元の派生型と追加したメソッドを利用できます。独自の初期化が必要な派生型では、子取得口の生成処理を調整してください。詳しくは[内部構造](architecture.md#getとadapter)を参照してください。
 
 ```php
 <?php
@@ -481,12 +460,10 @@ foreach ($projectGet->Repeater('items') as $rowGet) {
 
 ## 生配列の取得
 
-`Group()`は用途を明確にするため`Array()`へ改名しました（旧名は削除）。
-グループ・リピーターなど、取得値が配列なら加工せず返し、未設定・配列以外は`[]`です。
+`Array()`はグループ・リピーターなどの取得値が配列なら加工せず返し、未設定・配列以外は`[]`を返します。
 返り値は`array<mixed>`で、キー・要素の型は保証しません。
 各フィールドを型付きで読む場合は`Nested()`を使います。
 `Repeater()`は基底型から呼ぶと`list<AcfGet>`、派生型から呼ぶと同じ派生型のリストを返します。生の行配列が必要な場合は`Array()`を使います。
-検証は`php tests/array-accessors.php`で実行できます。
 
 ## リピーター行の取得
 
@@ -505,10 +482,7 @@ foreach ($postGet->Repeater('items') as $rowGet) {
 $rawRows = $postGet->Array('items'); // 生配列が必要な場合
 ```
 
-旧コードの`new AcfGet($row)`や`is_array($row)`による包み直しは削除し、
-コールバックの行引数は`AcfGet`型へ変更してください。
-`count()`・`array_slice()`など外側の配列操作は従来どおり利用できます。
-検証は`php tests/repeater-rows.php`で実行できます。
+`Repeater()`の各行は`AcfGet`型として扱えます。戻り値はリストなので、`count()`・`array_slice()`などの配列操作も利用できます。
 
 ## フレキシブルコンテンツの取得
 
@@ -517,17 +491,24 @@ $rawRows = $postGet->Array('items'); // 生配列が必要な場合
 ```php
 <?php
 foreach ($postGet->Flexible('contents') as $node) {
-	match ($node->Layout) {
-		'image_section' => ImageSectionView::Render($node->Get),
-		'text_section' => TextSectionView::Render($node->Get),
+	$templateSlug = match ($node->Layout) {
+		'image_section' => 'template-parts/flexible/image-section',
+		'text_section' => 'template-parts/flexible/text-section',
 		default => null,
 	};
+	if ($templateSlug === null) {
+		continue;
+	}
+
+	get_template_part($templateSlug, null, ['rowGet' => $node->Get]);
 }
 ```
 
+各テンプレートパーツでは`$args['rowGet']`を`AcfGet`として使います。レイアウト名とテンプレートパスの対応を明示しているため、未対応のレイアウトは読み込みません。
+
 内部では`Repeater()`と同じ行配列の正規化を利用します。`acf_fc_layout`が未入力・空文字・文字列以外の行は除外します。`Get`は取得済み行配列を保持する取得口であり、行内のフィールドを`Text()`・`Img()`・`Nested()`・`Repeater()`・`Flexible()`などで取得できます。投稿・IDなどACFの取得先から呼んだ場合は、該当レイアウトの未整形値と子フィールド定義も引き継ぐため、時間系取得口も利用できます。
 
-`FlexibleNode`はreadonlyですが、利用側から`new FlexibleNode(Layout: ..., Get: ...)`で直接構築できます。検証は`php tests/flexible-content.php`で実行できます。
+`FlexibleNode`はreadonlyですが、利用側から`new FlexibleNode(Layout: ..., Get: ...)`で直接構築できます。
 
 ## ACFブロックの描画情報
 
@@ -543,7 +524,7 @@ $wrapperAttributes = $blockData->GetWrapperAttributes(className: 'staff-card');
 
 `Name`・`Id`・`Anchor`・`Classes`・`IsPreview`をreadonlyで保持します。`Classes`は`$block['className']`を空白で分割し重複を除いたリストで、WordPressが出力時に生成するクラスは含めません。`HasClass()`・`HasStyle()`は完全一致で判定します。`HasStyle('default')`は明示された`is-style-default`にだけ一致し、スタイル未選択をdefaultと推測しません。
 
-Factoryの`bool $isPreview = false`引数でプレビュー状態を明示します。`$block`内の値や`is_admin()`から推測しません。`AcfDataFactory`は`Acf/Internal/BlockAdapter::FromAcf()`へ委譲し、Internalが文字列項目の欠損・型違いを空文字、クラスの欠損・型違いを空配列へ正規化して`new AcfBlockData(...)`で生成します。静的登録は不要です。元配列や周辺状態が変化しても、生成済みインスタンスの値は変更されません。
+Factoryの`bool $isPreview = false`引数でプレビュー状態を明示します。`$block`内の値や`is_admin()`から推測しません。文字列項目の欠損・型違いは空文字、クラスの欠損・型違いは空配列へ正規化されます。元配列や周辺状態が変化しても、生成済みインスタンスの値は変更されません。
 
 PostDataと同様に、正規化済みの値を使って直接生成することもできます。Dataのコンストラクターは生の`$block`配列ではなく、名前付き引数を受け取ります。
 
@@ -560,12 +541,10 @@ $blockData = new AcfBlockData(
 );
 ```
 
-Data単独での生成・プロパティ参照・クラス判定にWordPress・ACF・Internal・`autoload.php`は不要です。`Classes`の要素を含む正規化済み入力の用意は、直接生成する呼び出し元の責務です。生成用・取得用処理をDataへ静的登録する方式は使いません。
+Data単独での生成・プロパティ参照・クラス判定にWordPress・ACFは不要です。`Classes`の要素を含む正規化済み入力の用意は、直接生成する呼び出し元の責務です。
 
-`GetWrapperAttributes(string $className = ''): string`は、コンストラクターの任意引数`wrapperAttributesResolver`（`Closure(string): string`）へ処理を委譲します。原則DataにHTML生成を持たせませんが、このラッパー属性取得のみ、注入した描画処理への委譲を例外として許可します。Data自身はWordPress関数・エスケープ処理・プレビュー分岐を持ちません。Resolver未指定でも直接構築できますが、属性取得を呼ぶと`LogicException`になります。
+`GetWrapperAttributes(string $className = ''): string`は、コンストラクターの任意引数`wrapperAttributesResolver`（`Closure(string): string`）を使います。Resolver未指定でも直接構築できますが、属性取得を呼ぶと`LogicException`になります。
 
-Factoryは、プレビューなら基本クラスと生成時のClassesを結合・重複除去して`class`属性をエスケープする処理、フロントなら`get_block_wrapper_attributes(['class' => $className])`へ委譲する処理を注入します。プレビューの内側へアンカーを重複付与せず、フロントのクラス・アンカー・スタイルはWordPressの描画コンテキストへ任せます。戻り値はエスケープ済みなので、`<div <?= $wrapperAttributes ?>>`のようにそのまま出力してください。二重エスケープはしません。フロントでは対象ブロックの描画中に呼んでください。
+Factoryから生成した場合、プレビューでは基本クラスと生成時のClassesが`class`属性に反映され、フロントではWordPressのブロック属性が使われます。プレビューの内側へアンカーを重複付与せず、フロントのクラス・アンカー・スタイルはWordPressの描画コンテキストへ任せます。戻り値はエスケープ済みなので、`<div <?= $wrapperAttributes ?>>`のようにそのまま出力してください。二重エスケープはしません。フロントでは対象ブロックの描画中に呼んでください。
 
 独自に直接生成する場合は、`wrapperAttributesResolver: static fn (string $className): string => ...`のように描画処理を渡せます。処理は属性取得時に毎回呼ばれ、コンストラクターでは実行しません。独自Resolverもエスケープ済みの属性文字列を返す責務を持ちます。ACFフィールドの取得・その他のHTML描画は引き続きテンプレート側に残します。
-
-旧`new AcfBlockData($block, isPreview: ...)`は、`AcfDataFactory::BlockFromAcf($block, isPreview: ...)`へ置き換えてください。この実装方針はルートの`AGENTS.md`に固定しています。Get系APIもstaticなClosure登録を必要としません。

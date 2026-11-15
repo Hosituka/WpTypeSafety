@@ -74,7 +74,7 @@ Composerコマンドや`vendor/`は不要です。詳しくは[Autoload](docs/au
 
 ## クイックスタート
 
-まだ使うAPIを決めていない場合は、[はじめてのWpTypeSafety](docs/getting-started.md)から読むと、取得元に合う入口を選び、ひとつのテンプレートで試せます。最初からFactoryやQueryを含む全機能を導入する必要はありません。
+ACFフィールドを読む最小例です。取得元ごとの入口の選び方と、テンプレートでの出力例は[はじめてのWpTypeSafety](docs/getting-started.md)にまとめています。
 
 ```php
 <?php
@@ -87,52 +87,13 @@ if (! $post instanceof WP_Post)
 $postGet = new AcfGet($post);
 $title = $postGet->Text('title');
 $mainImg = $postGet->Img('main_img');
-$relatedPosts = $postGet->Posts('related_posts');
 ```
 
-- `Text()`は必ず`string`
-- `Img()`は`?ImgData`
-- `Posts()`は`list<PostData>`
-- 欠損・型違い時の規則はメソッドごとに固定
+`Text()`は必ず`string`、`Img()`は`?ImgData`を返します。欠損・型違い時の規則はメソッドごとに固定です。
 
 HTMLへ出力するときは、これまでどおり`esc_html()`・`esc_url()`等を出力先に合わせて使用してください。WpTypeSafetyはHTMLを自動エスケープしません。
 
-Coreは、ACFのネイティブ値やテンプレートパーツ・ブロックの引数など、値をPHP配列のまま扱う境界で利用できます。ACFフィールドの意味までは解釈しないため、フィールド用途が分かっている場合は`AcfGet`を使用します。
-
-```php
-<?php
-use WpTypeSafety\Core\Check\ArrayGet;
-use WpTypeSafety\Wp\Get\MetaGet;
-
-$argsGet = new ArrayGet($args);
-$heading = $argsGet->String('heading');
-
-$metaGet = new MetaGet($post);
-$viewCount = $metaGet->Int('view_count');
-```
-
-プラグイン由来のオブジェクトや配列・オブジェクト混在API向けに`ObjectGet`・`TreeGet`も提供していますが、通常のテーマテンプレートで使用する必要はありません。必要な境界と拡張方法は[TreeTypeReaderの詳細](Internal/TreeTypeReader/README.md)を参照してください。
-
-## 入口を選ぶ
-
-各入口は段階ではなく、同じ案件内で併用できる選択肢です。
-
-| 境界 | 入口 | 主な用途 |
-|---|---|---|
-| PHPの生値・配列 | `TypeCheck` / `ArrayGet` | ACFネイティブ値、`$args`、API配列を読む |
-| WordPress meta | `MetaGet` | 投稿・ユーザー・ターム・コメントmetaを読む |
-| ACF | `AcfGet` | ACF値を画像・参照・選択肢等の用途別に正規化する |
-| WordPressオブジェクト | 対象別`Factory` | `WP_Post`等をDataへ変換する |
-| WordPressクエリ | 対象別`Query` | クエリ結果を型付きDataへ変換する |
-
-`DictCheck`、`AcfDataFactory`、Members、派生Dataなどの詳細は、下部の用途別ドキュメントにあります。
-
-選び方の目安は次のとおりです。
-
-- ACFを使うテンプレートなら、まず`AcfGet`
-- `get_post_meta()`等を置き換えるなら、まず`MetaGet`
-- `$args`や任意の配列を安全に読むなら、まず`ArrayGet`
-- 投稿全体を共通形式で扱いたくなったら、対象別`Factory`や`Query`
+Core、WordPress meta、Factory、Queryの入口も利用できます。[導入ガイド](docs/getting-started.md#どこから始めるか)で取得元に合うものを選んでください。
 
 ## WpTypeSafety DataとWordPressネイティブ型を選ぶ
 
@@ -210,7 +171,6 @@ Coreは厳密な型確認を既定値とします。`NumericMode`・`BoolMode`�
 | `autoload.php`と任意PSR-4読み込み | [Autoload](docs/autoload.md) |
 | 入れ子のACF、派生Data、ACFブロックの実装例 | [利用例](docs/examples.md) |
 | 内部構造、テスト、検証手順 | [Architecture](docs/architecture.md) |
-| 旧APIからの移行 | [Migration](docs/migration.md) |
 
 ## WpTypeSafetyが行わないこと
 

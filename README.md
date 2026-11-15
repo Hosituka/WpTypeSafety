@@ -74,7 +74,7 @@ Composer commands and a `vendor/` directory are not required. See [Autoloading](
 
 ## Quick start
 
-If you have not chosen an API yet, start with the Japanese [getting-started guide](docs/getting-started.md). It selects an entry point from the value's source and introduces the library in a single template; you do not need to adopt Factory and Query APIs up front.
+Here is a minimal ACF example. The Japanese [getting-started guide](docs/getting-started.md) covers choosing an entry point and rendering values in a template.
 
 ```php
 <?php
@@ -87,45 +87,13 @@ if (! $post instanceof WP_Post)
 $postGet = new AcfGet($post);
 $title = $postGet->Text('title');
 $mainImg = $postGet->Img('main_img');
-$relatedPosts = $postGet->Posts('related_posts');
 ```
 
-- `Text()` always returns `string`
-- `Img()` returns `?ImgData`
-- `Posts()` returns `list<PostData>`
-- Each accessor has a fixed fallback contract for missing or invalid values
+`Text()` always returns `string`, and `Img()` returns `?ImgData`. Each accessor has a fixed fallback for missing or invalid values.
 
 Continue to escape HTML for its output context with functions such as `esc_html()` and `esc_url()`. WpTypeSafety does not escape rendered HTML automatically.
 
-Core is useful where values intentionally remain native PHP arrays, such as ACF native values and template-part or block arguments. It checks the boundary without interpreting ACF field semantics; use `AcfGet` when the field purpose is known.
-
-```php
-<?php
-use WpTypeSafety\Core\Check\ArrayGet;
-use WpTypeSafety\Wp\Get\MetaGet;
-
-$argsGet = new ArrayGet($args);
-$heading = $argsGet->String('heading');
-
-$metaGet = new MetaGet($post);
-$viewCount = $metaGet->Int('view_count');
-```
-
-`ObjectGet` and `TreeGet` are also available for plugin objects and mixed API trees, but they are not required for ordinary theme templates. See the [TreeTypeReader engine details](Internal/TreeTypeReader/README.md) when those boundaries or extension points are needed.
-
-## Choose an entry point
-
-These entry points are choices that can coexist in one project, not adoption levels.
-
-| Boundary | Entry point | Main purpose |
-|---|---|---|
-| Raw PHP value or array | `TypeCheck` / `ArrayGet` | Read ACF native values, template `$args`, and API arrays |
-| WordPress metadata | `MetaGet` | Read post, user, term, and comment metadata |
-| ACF | `AcfGet` | Normalize ACF values by purpose, including images, choices, and references |
-| WordPress object | Target-specific `Factory` | Convert `WP_Post` and related objects into Data |
-| WordPress query | Target-specific `Query` | Convert query results into typed Data |
-
-`DictCheck`, `AcfDataFactory`, Members, and derived Data are covered by the detailed guides linked below.
+Core, WordPress metadata, Factory, and Query entry points are also available. Use the [getting-started guide](docs/getting-started.md#どこから始めるか) to choose one for your data source.
 
 ## Choose between WpTypeSafety Data and native WordPress types
 
@@ -205,7 +173,6 @@ The detailed documentation is currently available in Japanese.
 | `autoload.php` and optional PSR-4 mappings | [Autoloading](docs/autoload.md) |
 | Nested ACF, derived Data, and ACF block examples | [Examples](docs/examples.md) |
 | Internal architecture, tests, and verification | [Architecture](docs/architecture.md) |
-| Migration from older APIs | [Migration](docs/migration.md) |
 
 ## What WpTypeSafety does not do
 

@@ -59,15 +59,20 @@ foreach ($result->Posts as $caseData) {
 
 投稿・ユーザー・コメントのページ情報には次の規則があります。
 
-| 状況 | `TotalCount`・`MaxPageCount` |
+| Queryと条件 | `TotalCount` | `MaxPageCount` |
+|---|---|---|
+| `PostQuery`・`UserQuery`、総件数を計算する設定 | WordPressが計算した総件数 | WordPressが計算したページ数 |
+| `PostQuery`の`no_found_rows: true`、`UserQuery`の`count_total: false` | `null` | `null` |
+| `CommentQuery`、`number`未指定 | 返された`Comments`の件数 | 結果があれば`1`、空なら`0` |
+| `CommentQuery`、`number`指定かつ`no_found_rows: false` | WordPressが計算した総件数 | WordPressが計算したページ数 |
+| `CommentQuery`、`number`指定かつ`no_found_rows: true` | `null` | `null` |
+
+総件数を計算する設定で該当結果が0件なら、件数とページ数は`0`です。`CommentQuery`で`number`を指定しない場合は、WordPressと同じく件数制限のない取得として扱います。
+
+| `CurrentPageNumber`の条件 | 値 |
 |---|---|
-| 通常のページングQuery | WordPressが計算した件数とページ数 |
-| `no_found_rows: true`または`count_total: false` | 不明を表す`null` |
-| 該当結果が0件 | `0` |
-
-`CommentQuery`は`number`を指定しない場合、WordPressと同じく件数制限のない取得として扱います。この場合は返された`Comments`の件数を`TotalCount`とし、結果があれば`MaxPageCount`を1、空なら0とします。`number`を指定した場合は、`no_found_rows: false`のときだけWordPressが計算した総件数と最大ページ数を保持します。
-
-`CurrentPageNumber`は、Queryへ指定された`paged`を1以上へ正規化した値です。`offset`も指定した場合、WordPressでは`offset`が取得位置へ優先して使用されるため、`CurrentPageNumber`は実際の取得位置を表すページ番号とは限りません。
+| 通常 | 指定された`paged`を1以上へ正規化した値 |
+| `offset`も指定 | 同じく`paged`から得た値。`offset`が取得位置に優先するため、実際の取得位置を表すページ番号とは限らない |
 
 タームクエリは`TermQueryData`を返し、変換結果を`Terms`へ保持します。WordPressに共通のページ総数プロパティがないため、`TermQueryData`は`TotalCount`・`MaxPageCount`・`CurrentPageNumber`を持ちません。総件数取得のための追加クエリも自動実行しません。
 
