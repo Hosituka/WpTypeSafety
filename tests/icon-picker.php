@@ -199,4 +199,46 @@ $check($groupGet->IconClass('icon_class') === 'dashicons-heart', 'Nested内のDa
 $check($groupGet->IconImg('icon_img', 'medium')?->Url === 'https://example.com/icon-55-medium.png', 'Nested内の画像');
 $check($groupGet->IconUrl('icon_url') === 'https://example.com/group-icon.svg', 'Nested内のURL');
 
+$check($postGet->IconId('media_icon') === 42, '未整形のメディアIDを取得する');
+$lastRequest = $GLOBALS['iconFieldRequests'][array_key_last($GLOBALS['iconFieldRequests'])];
+$check($lastRequest === ['media_icon', 10, false, true], 'IconIdもReturn Formatに依存せず取得する');
+$check($arrayImgGet->IconId('icon') === 70, '整形済み画像配列からIDを抽出する');
+$check($groupGet->IconId('icon_img') === 55, 'Nested内のURL整形前のIDを保持する');
+$check($groupGet->IconId('icon_class') === null && $groupGet->IconId('icon_url') === null, 'Nested内の別タブはnull');
+$check($groupGet->IconId('missing') === null, 'Nested内の欠損はnull');
+foreach (['dashicon', 'url_icon', 'custom_icon', 'wrong_field_type', 'missing'] as $fieldName) {
+	$check($postGet->IconId($fieldName) === null, '別タブ・別フィールド・欠損はnull');
+}
+
+$GLOBALS['iconFields']['wrong_media_field'] = [
+	'type' => 'image',
+	'value' => ['type' => 'media_library', 'value' => 42],
+];
+$check($postGet->IconId('wrong_media_field') === null, 'メディア形式でもIcon Picker以外は除外する');
+
+foreach ([
+	[42, 42], ['42', 42], ['0042', 42], [['id' => '43'], 43],
+	[['ID' => 44, 'id' => 45], 44], [PHP_INT_MAX, PHP_INT_MAX],
+	[0, null], [-1, null], [42.0, null], [false, null], [null, null],
+	['', null], ['42.0', null], [' 42', null], [(string) PHP_INT_MAX . '0', null],
+	['https://example.com/icon.png', null], [['url' => 'https://example.com/icon.png'], null],
+	[[], null], [new stdClass(), null],
+] as [$value, $expected]) {
+	$idGet = new AcfGet(['icon' => ['type' => 'media_library', 'value' => $value]]);
+	$check($idGet->IconId('icon') === $expected, 'メディアIDの正規化');
+}
+foreach ([42, '42', 'dashicons-camera', 'https://example.com/icon.png', [], ['value' => 42], ['type' => 'url', 'value' => 42]] as $value) {
+	$idGet = new AcfGet(['icon' => $value]);
+	$check($idGet->IconId('icon') === null, 'メディアタブを識別できない値はnull');
+}
+
+$rowsGet = new AcfGet([
+	'rows' => [['icon' => ['type' => 'media_library', 'value' => 46]]],
+	'layouts' => [['acf_fc_layout' => 'sample', 'icon' => ['type' => 'media_library', 'value' => 47]]],
+]);
+$rowGet = $rowsGet->Repeater('rows')[0];
+$check($rowGet->IconId('icon') === 46, 'Repeater行でIDを取得する');
+$layoutGet = $rowsGet->Flexible('layouts')[0]->Get;
+$check($layoutGet->IconId('icon') === 47, 'Flexible行でIDを取得する');
+
 echo "Icon Picker: {$checks} checks passed.\n";

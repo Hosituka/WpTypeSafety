@@ -26,13 +26,17 @@
 | `Url()` | `?string` | HTTP(S)の絶対URL |
 | `Img()` | `?ImgData` | ID・寸法を取得できる画像 |
 | `ImgUrl()` | `?string` | URL返却形式の画像 |
+| `ImgId()` | `?int` | ID・画像配列から正の添付IDを抽出 |
 | `IconClass()` | `?string` | Icon PickerのDashiconクラス名 |
 | `IconImg()` | `?ImgData` | Icon Pickerのメディアライブラリ画像 |
+| `IconId()` | `?int` | Icon Pickerのメディアライブラリ添付ID |
 | `IconUrl()` | `?string` | Icon PickerのURLタブ |
 | `Gallery()` | `list<ImgData>` | 画像情報を持つギャラリー |
 | `GalleryUrl()` | `list<string>` | URL返却形式のギャラリー |
+| `GalleryIds()` | `list<int>` | ID・画像配列のリストから添付IDを抽出 |
 | `File()` | `?FileData` | ID・ファイルサイズを取得できるファイル |
 | `FileUrl()` | `?string` | URL返却形式のファイル |
+| `FileId()` | `?int` | ID・ファイル配列から正の添付IDを抽出 |
 | `Date()` | `?DateData` | Date Picker。時刻とタイムゾーンを含まない日付 |
 | `DateTime()` | `?DateTimeImmutable` | Date Time Picker |
 | `Time()` | `?TimeData` | Time Picker。日付を含まない時刻 |
@@ -52,6 +56,27 @@
 | `Flexible()` | `list<FlexibleNode>` | レイアウト名と行の取得口 |
 
 ラジオ・ボタングループ・チェックボックス・セレクトは、ACFの返り値設定に対応する専用取得口を使います。詳細は各節を参照してください。
+
+## 添付IDをWordPressの描画APIへ渡す
+
+`ImgId()`・`FileId()`は正の整数・数字だけの文字列・配列の`ID`または`id`を`?int`へ正規化します。先頭の0は許可しますが、PHPの整数範囲を超える値、0・負数・float・真偽値・URLだけの値は`null`です。配列では`ID`を優先し、欠損または`null`の場合だけ`id`を使用します。
+
+`GalleryIds()`は同じ規則で各要素を変換し、不正な要素を除外して入力順と重複を維持した連番リストを返します。未入力・配列以外・全件不一致は`[]`です。いずれもURLからのID逆引き、添付の実在・メディア種類・ファイルの存在確認は行いません。`ImgId()`でIDが取得できても、画像として描画できる保証ではありません。
+
+```php
+<?php
+$postGet = new AcfGet($post);
+$photoId = $postGet->ImgId('photo');
+
+if ($photoId !== null) {
+	echo wp_get_attachment_image($photoId, 'medium_large', false, ['class' => 'photo']);
+}
+
+$galleryIds = $postGet->GalleryIds('gallery');
+$fileId = $postGet->FileId('document');
+```
+
+HTML生成は利用側で行います。IDだけを取得する際に`ImgData`・`FileData`の生成や寸法取得は行いません。URL返却形式のフィールドからもIDを必要とする場合は、ACFの返却形式をIDまたは配列に設定してください。
 
 ## ACF文字列の未入力時の扱い
 
@@ -272,6 +297,7 @@ ACF 6.3以降のIcon Pickerは、選択したタブに対応する取得口を�
 |---|---|---|
 | `IconClass()` | Dashicons | `?string` |
 | `IconImg()` | Media Library | `?ImgData` |
+| `IconId()` | Media Library | `?int` |
 | `IconUrl()` | URL | `?string` |
 
 ```php
@@ -279,6 +305,7 @@ ACF 6.3以降のIcon Pickerは、選択したタブに対応する取得口を�
 $postGet = new AcfGet($post);
 $iconClass = $postGet->IconClass('menu_icon');
 $iconImg = $postGet->IconImg('menu_icon', 'medium');
+$iconId = $postGet->IconId('menu_icon');
 $iconUrl = $postGet->IconUrl('menu_icon');
 ```
 
@@ -292,7 +319,9 @@ $iconUrl = $postGet->IconUrl('menu_icon');
 
 `IconImg()`はMedia Libraryで選ばれた添付画像を既存の`ImgData`へ変換します。第2引数には`Img()`と同じ画像サイズを指定でき、SVGも既存のSVG寸法取得仕様に従います。`IconUrl()`はURLタブのHTTP(S)絶対URLだけを返します。属性へ出力するときのエスケープは呼び出し側で行います。
 
-投稿・ID・ユーザー・ターム・オプションページ等を取得元にした場合は、Icon PickerのReturn Formatにかかわらず、ACFの未整形値から選択タブを判定します。`Nested()`・`Repeater()`・`Flexible()`も未整形値と子フィールド定義を引き継ぐため、同じ3つの取得口を利用できます。
+`IconId()`はMedia Libraryの未整形IDまたは画像配列内の`ID`・`id`を正の整数へ正規化します。Dashicons・URL・独自タブは`null`です。`ImgId()`と同じく、添付の実在・メディア種類は検証せず、URLからのID逆引きや寸法取得も行いません。戻り値は利用側で`wp_get_attachment_image()`などへ渡せます。
+
+投稿・ID・ユーザー・ターム・オプションページ等を取得元にした場合は、Icon PickerのReturn Formatにかかわらず、ACFの未整形値から選択タブを判定します。`Nested()`・`Repeater()`・`Flexible()`も未整形値と子フィールド定義を引き継ぐため、同じ4つの取得口を利用できます。
 
 外部で取得済みの配列を`AcfGet`へ渡す場合は、`['type' => 'dashicons|media_library|url', 'value' => ...]`というIcon Pickerの配列形式を維持してください。文字列だけの場合はDashiconクラス名とHTTP(S) URLを判別できますが、Media Library由来のURL文字列から添付画像IDや元のタブを復元することはできません。
 

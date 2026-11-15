@@ -137,6 +137,28 @@ class AcfAdapter
 		return self::httpUrl($this->GetRaw($fieldName, $source));
 	}
 
+	public function GetAttachmentId(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?int
+	{
+		return AcfDtoFactory::AttachmentIdFromAcf($this->GetRaw($fieldName, $source));
+	}
+
+	/** @return list<positive-int> */
+	public function GetGalleryIds(string $fieldName, \WP_Post|PostData|int|string|array|null $source): array
+	{
+		$value = $this->GetRaw($fieldName, $source);
+		if (! is_array($value))
+		{return [];}
+
+		$result = [];
+		foreach ($value as $item) {
+			$id = AcfDtoFactory::AttachmentIdFromAcf($item);
+			if ($id !== null) {
+				$result[] = $id;
+			}
+		}
+		return $result;
+	}
+
 	public function GetIconClass(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
 	{
 		return $this->ConvertIconClass(self::iconFieldValue($fieldName, $source));
@@ -148,6 +170,11 @@ class AcfAdapter
 		string|array $size,
 	): ?ImgData {
 		return $this->ConvertIconImg(self::iconFieldValue($fieldName, $source), $size);
+	}
+
+	public function GetIconId(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?int
+	{
+		return $this->ConvertIconId(self::iconFieldValue($fieldName, $source));
 	}
 
 	public function GetIconUrl(string $fieldName, \WP_Post|PostData|int|string|array|null $source): ?string
@@ -172,6 +199,14 @@ class AcfAdapter
 		$icon = self::iconValue($value);
 		return $icon !== null && $icon['type'] === 'media_library'
 			? AcfDtoFactory::ImgFromAcf($icon['value'], $size)
+			: null;
+	}
+
+	public function ConvertIconId(mixed $value): ?int
+	{
+		$icon = self::iconValue($value);
+		return $icon !== null && $icon['type'] === 'media_library'
+			? AcfDtoFactory::AttachmentIdFromAcf($icon['value'])
 			: null;
 	}
 

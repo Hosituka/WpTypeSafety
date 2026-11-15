@@ -145,6 +145,21 @@ final class AcfDtoFactory
 			? (string) $value : null;
 	}
 
+	/** @return positive-int|null URLからの逆引きや添付の実在確認は行わない。 */
+	public static function AttachmentIdFromAcf(mixed $value): ?int
+	{
+		if (is_array($value)) {
+			$value = $value['ID'] ?? $value['id'] ?? null;
+		}
+		if (is_int($value))
+		{return $value > 0 ? $value : null;}
+		if (! is_string($value) || $value === '' || ! ctype_digit($value))
+		{return null;}
+
+		$id = filter_var(ltrim($value, '0'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+		return $id !== false ? $id : null;
+	}
+
 	public static function ImgFromAcf(mixed $value, string|array $size = 'full'): ?ImgData
 	{
 		if (self::isPositiveId($value)) {

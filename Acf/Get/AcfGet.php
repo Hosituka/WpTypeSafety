@@ -367,6 +367,12 @@ class AcfGet
 		return $this->adapter->GetImgUrl($fieldName, $this->source);
 	}
 
+	/** 添付の実在・種類を検証せず、正の添付IDを抽出する。 */
+	public function ImgId(string $fieldName): ?int
+	{
+		return $this->adapter->GetAttachmentId($fieldName, $this->source);
+	}
+
 	/** Icon PickerのDashiconクラス名を返す。 */
 	public function IconClass(string $fieldName): ?string
 	{
@@ -391,6 +397,17 @@ class AcfGet
 		return $this->adapter->GetIconImg($fieldName, $this->source, $size);
 	}
 
+	/** メディアライブラリ選択時の添付ID。添付の実在・種類は検証しない。 */
+	public function IconId(string $fieldName): ?int
+	{
+		if ($this->hasNestedContext) {
+			$field = $this->nestedFieldOfType($fieldName, 'icon_picker');
+			return $field === null ? null : $this->adapter->ConvertIconId($this->nestedRawValue($field));
+		}
+
+		return $this->adapter->GetIconId($fieldName, $this->source);
+	}
+
 	/** Icon PickerのURLを返す。 */
 	public function IconUrl(string $fieldName): ?string
 	{
@@ -412,6 +429,12 @@ class AcfGet
 		return $this->adapter->GetFileUrl($fieldName, $this->source);
 	}
 
+	/** 添付の実在・種類を検証せず、正の添付IDを抽出する。 */
+	public function FileId(string $fieldName): ?int
+	{
+		return $this->adapter->GetAttachmentId($fieldName, $this->source);
+	}
+
 	/** @return list<ImgData> */
 	public function Gallery(string $fieldName, string|array $size = 'full'): array
 	{
@@ -422,6 +445,12 @@ class AcfGet
 	public function GalleryUrl(string $fieldName): array
 	{
 		return $this->adapter->GetGalleryUrl($fieldName, $this->source);
+	}
+
+	/** @return list<positive-int> 入力順・重複を維持した添付ID。実在・種類は検証しない。 */
+	public function GalleryIds(string $fieldName): array
+	{
+		return $this->adapter->GetGalleryIds($fieldName, $this->source);
 	}
 
 	/** @return list<static> */
