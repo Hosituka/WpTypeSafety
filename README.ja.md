@@ -95,6 +95,8 @@ HTMLへ出力するときは、これまでどおり`esc_html()`・`esc_url()`�
 
 Core、WordPress meta、Factory、Queryの入口も利用できます。[導入ガイド](docs/getting-started.md#どこから始めるか)で取得元に合うものを選んでください。
 
+投稿タイプ・タクソノミーの登録定義は、`PostTypeFactory`・`TaxonomyFactory`から取得できます。[定義情報の取得API](docs/wordpress.md#投稿タイプタクソノミーの登録定義)を参照してください。
+
 ## WpTypeSafety DataとWordPressネイティブ型を選ぶ
 
 ACFやmetaの参照値は、用途に応じてWpTypeSafetyのDataまたはWordPressネイティブ型として取得できます。

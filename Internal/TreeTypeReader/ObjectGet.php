@@ -8,7 +8,10 @@ use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode;
 use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 use WpTypeSafety\Internal\TreeTypeReader\Internal\ValueResolver;
 
-/** @internal publicインスタンスプロパティから値を取得する汎用実装です。 */
+/**
+ * @internal publicインスタンスプロパティから値を取得する汎用実装です。
+ * @template-covariant TArrayReader of ArrayGet = ArrayGet
+ */
 class ObjectGet extends TreeTypeReader
 {
 	private ?object $source;
@@ -148,7 +151,10 @@ class ObjectGet extends TreeTypeReader
 		return $this->readBackedEnumList($propertyName, $enumClass, $predicate);
 	}
 
-	/** @param (callable(array<array-key, mixed>): bool)|null $predicate */
+	/**
+	 * @param (callable(array<array-key, mixed>): bool)|null $predicate
+	 * @return array<array-key, mixed>
+	 */
 	public function Array(string $propertyName, ?callable $predicate = null): array
 	{
 		return $this->readArray($propertyName, $predicate);
@@ -173,9 +179,21 @@ class ObjectGet extends TreeTypeReader
 		)->Exists;
 	}
 
+	/**
+	 * 別種類のReaderを生成する拡張点。独自の型引数を指定する派生クラスは上書きする。
+	 * @return TArrayReader
+	 */
+	protected function createArrayReader(mixed $source): ArrayGet
+	{
+		/** @var TArrayReader $reader 型引数が既定値のときの生成処理。 */
+		$reader = new ArrayGet($source, $this->rulesSnapshot());
+		return $reader;
+	}
+
+	/** @return TArrayReader */
 	public function NestedArray(string $propertyName): ArrayGet
 	{
-		return new ArrayGet($this->value($propertyName), $this->rulesSnapshot());
+		return $this->createArrayReader($this->value($propertyName));
 	}
 
 	/** @return list<static> */
@@ -192,7 +210,7 @@ class ObjectGet extends TreeTypeReader
 		return $items;
 	}
 
-	/** @return list<ArrayGet> */
+	/** @return list<TArrayReader> */
 	public function NestedArrayList(string $propertyName): array
 	{
 		$items = [];
@@ -200,7 +218,7 @@ class ObjectGet extends TreeTypeReader
 			if (! is_array($value))
 			{continue;}
 
-			$items[] = new ArrayGet($value, $this->rulesSnapshot());
+			$items[] = $this->createArrayReader($value);
 		}
 
 		return $items;

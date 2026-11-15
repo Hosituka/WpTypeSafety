@@ -1,5 +1,40 @@
 # WordPressの取得API
 
+## 投稿タイプ・タクソノミーの登録定義
+
+`PostTypeData`は投稿タイプの定義、`TaxonomyData`はタクソノミーの定義を表します。投稿1件を表す`PostData`、ターム1件を表す`TermData`とは別の型です。
+
+```php
+<?php
+use WpTypeSafety\Wp\Get\PostTypeFactory;
+use WpTypeSafety\Wp\Get\TaxonomyFactory;
+
+// 投稿タイプ・タクソノミーの登録完了後に呼び出す。
+$postTypeData = PostTypeFactory::FromName('cases');
+$taxonomyData = TaxonomyFactory::FromName('area');
+
+$archiveUrl = $postTypeData?->ArchiveUrl;
+$taxonomyNames = $postTypeData?->GetTaxonomyNames() ?? [];
+$isCasesTaxonomy = $taxonomyData?->HasObjectType('cases') ?? false;
+```
+
+| Factory | `From()`の入力・戻り値 | `Members()`の戻り値 | `FromName()`の戻り値 |
+|---|---|---|---|
+| `PostTypeFactory` | `WP_Post_Type` → `PostTypeData` | `PostTypeMembers` | `PostTypeData|null` |
+| `TaxonomyFactory` | `WP_Taxonomy` → `TaxonomyData` | `TaxonomyMembers` | `TaxonomyData|null` |
+
+`FromName()`は登録名を検索し、未登録・空文字では`null`を返します。`From()`と`Members()`は取得済みのWordPressオブジェクトを受け取ります。`Members()`で調整してから派生Dataへ渡すこともできます。Data・Factoryによる登録・更新処理はありません。
+
+共通プロパティは`Name`・`Label`・`SingularLabel`・`Description`・`IsPublic`・`IsPubliclyQueryable`・`IsHierarchical`です。文字列以外の表示名・説明は空文字、欠損または空の単数形ラベルは`Label`へフォールバックします。公開設定は登録上のbool値であり、現在の閲覧者の権限や記事単位の閲覧可否を保証しません。
+
+`PostTypeData`は追加で`HasArchive: bool`・`ArchiveUrl: ?string`を保持します。`HasArchive`は登録設定`has_archive`をboolへ変換した値です。URLは生成時に`get_post_type_archive_link()`から取得し、HTTP(S)絶対URL以外・取得失敗は`null`です。標準投稿`post`は`HasArchive`がfalseでも投稿一覧URLを持つ場合があるため、URLの有無は`ArchiveUrl`で判断してください。
+
+`GetTaxonomyNames(): list<string>`は、注入されたResolverから呼び出しごとに関連タクソノミーの登録名を取得します。Factoryは`get_object_taxonomies()`へ接続するResolverを注入し、文字列以外・空文字の要素を除外して連番化します。Resolver省略時は`[]`です。直接注入したResolverが`list<string>`以外を返す場合は`UnexpectedValueException`、内部の例外はそのまま伝播します。
+
+`TaxonomyData`は`ObjectTypes: list<string>`を生成時点のスナップショットとして保持します。Factoryは不正な要素・空文字を除外して連番化します。`HasObjectType(string $postType): bool`は登録名の完全一致で判定し、WordPress APIを呼びません。タクソノミー全体の`Url`や投稿・ターム取得メソッドは提供せず、タームURLは`TermData`、一覧取得は既存Queryで扱います。
+
+DataはMembersの値をreadonlyプロパティへコピーします。Membersの後続の変更は既存Dataへ反映されません。直接構築した値の正規化は呼び出し側の責任です。`PostData::$PostType`と`TermData::$Taxonomy`は従来どおり文字列で、新しいData型へ自動変換しません。
+
 ## WordPressクエリからDataを取得する
 
 `PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery`は、WordPressネイティブのクエリ引数をそのまま受け取り、結果をWpTypeSafetyのDataへ変換する薄い接続口です。独自のクエリビルダーではないため、絞り込み・並び替え・メタクエリ等にはWordPressと同じ配列を使用します。

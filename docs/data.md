@@ -36,6 +36,8 @@ final readonly class FlexibleNode
 | `Wp/Data` | `PostData` | 投稿情報 | 投稿者・抜粋・画像・関連投稿など |
 | `Wp/Data` | `CommentData` | コメント情報 | ユーザー・画像・投稿・親子コメント |
 | `Wp/Data` | `TermData` | ターム情報 | 親・子ターム |
+| `Wp/Data` | `PostTypeData` | 投稿タイプの登録定義・アーカイブURL | タクソノミー登録名 |
+| `Wp/Data` | `TaxonomyData` | タクソノミーの登録定義・対象投稿タイプ | なし |
 | `Wp/Data` | `WpUserData` | ユーザー情報 | アバター画像 |
 | `Wp/Data` | `MenuNodeData` | メニュー項目 | サムネイル画像 |
 | `Wp/Data` | 各`*QueryData` | Query結果とページ情報 | なし |

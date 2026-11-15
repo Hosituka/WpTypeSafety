@@ -13,7 +13,11 @@ use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
 use WpTypeSafety\Internal\TreeTypeReader\ObjectGet as InternalObjectGet;
 
-/** publicインスタンスプロパティを動的に読み、設定した基準で値を取得します。 */
+/**
+ * publicインスタンスプロパティを動的に読み、設定した基準で値を取得します。
+ * @template-covariant TArrayReader of ArrayGet = ArrayGet
+ * @extends InternalObjectGet<TArrayReader>
+ */
 class ObjectGet extends InternalObjectGet
 {
 	public function __construct(
@@ -30,7 +34,7 @@ class ObjectGet extends InternalObjectGet
 		);
 	}
 
-	private function publicRulesSnapshot(): ValueRules
+	protected function publicRulesSnapshot(): ValueRules
 	{
 		return ValueRules::FromInternal($this->rulesSnapshot());
 	}
@@ -45,23 +49,24 @@ class ObjectGet extends InternalObjectGet
 		return $this->copyWithRules($rules);
 	}
 
-	public function NestedArray(string $propertyName): ArrayGet
+	/** @return TArrayReader 独自の型引数を指定する派生クラスは上書きする。 */
+	protected function createArrayReader(mixed $source): ArrayGet
 	{
-		return new ArrayGet($this->value($propertyName), $this->publicRulesSnapshot());
+		/** @var TArrayReader $reader 型引数が既定値のときの生成処理。 */
+		$reader = new ArrayGet($source, $this->publicRulesSnapshot());
+		return $reader;
 	}
 
-	/** @return list<ArrayGet> */
+	/** @return TArrayReader */
+	public function NestedArray(string $propertyName): ArrayGet
+	{
+		return $this->createArrayReader($this->value($propertyName));
+	}
+
+	/** @return list<TArrayReader> */
 	public function NestedArrayList(string $propertyName): array
 	{
-		$items = [];
-		foreach ($this->Array($propertyName) as $value) {
-			if (! is_array($value))
-			{continue;}
-
-			$items[] = new ArrayGet($value, $this->publicRulesSnapshot());
-		}
-
-		return $items;
+		return parent::NestedArrayList($propertyName);
 	}
 
 	/** @param (callable(ImgData): bool)|null $predicate */

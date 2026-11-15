@@ -95,6 +95,8 @@ Continue to escape HTML for its output context with functions such as `esc_html(
 
 Core, WordPress metadata, Factory, and Query entry points are also available. Use the [getting-started guide](docs/getting-started.md#どこから始めるか) to choose one for your data source.
 
+Registered post type and taxonomy definitions are available through `PostTypeFactory` and `TaxonomyFactory`. See the [definition APIs](docs/wordpress.md#投稿タイプタクソノミーの登録定義).
+
 ## Choose between WpTypeSafety Data and native WordPress types
 
 ACF and metadata references can be returned as WpTypeSafety Data or as native WordPress objects.

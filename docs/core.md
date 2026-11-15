@@ -88,7 +88,75 @@ final class SiteArrayGet extends ArrayGet
 }
 ```
 
-配列からオブジェクトへ取得口の種類を切り替える`NestedObject()`などは標準の取得口を返します。切替後も案件固有Getterが必要なら、派生クラス側で対応するメソッドを上書きしてください。
+## 別種類のreaderの生成フック
+
+配列からオブジェクトへ取得口の種類を切り替える`NestedObject()`などは、既定では標準の公開readerを返します。切替後も案件固有Getterが必要なら、protectedな生成フックを上書きします。
+
+| 継承元 | フック | 適用される取得口 |
+|---|---|---|
+| `ArrayGet` | `createObjectReader(mixed $source): ObjectGet` | `NestedObject()`・`NestedObjectList()` |
+| `ObjectGet` | `createArrayReader(mixed $source): ArrayGet` | `NestedArray()`・`NestedArrayList()` |
+| `TreeGet` | 上記の両フック | 対応する`Nested*()`に加え`AsArrayGet()`・`AsObjectGet()` |
+
+```php
+use WpTypeSafety\Core\Check\ArrayGet;
+use WpTypeSafety\Core\Check\ObjectGet;
+
+class SiteArrayGet extends ArrayGet
+{
+	protected function createObjectReader(mixed $source): ObjectGet
+	{
+		return new SiteObjectGet($source, $this->publicRulesSnapshot());
+	}
+}
+```
+
+`SiteObjectGet`は案件側が定義する`ObjectGet`の派生クラスです。フックには対象の値が渡され、`publicRulesSnapshot()`で現在の規則のコピーを取得できます。フックはReaderの生成だけを担当し、要素の型判定・リスト走査・連番化は親側で行います。単数の`Nested*()`は欠損・型違いでもフックを呼び、既定のReaderが空の取得口へ正規化します。リストは適合要素ごとに1回だけ呼び、`As*()`は元のコンテナ型が一致するときだけ呼びます。案件側も空Readerへのフォールバックと規則の引き継ぎを維持してください。
+
+同じ種類への`Nested()`・`NestedList()`等は引き続き`createChild()`を使い、今回の別種類生成フックは使いません。`MetaGet`も公開`TreeGet`の生成処理を継承しますが、メタ取得の解決や子に進んだときのメタ状態解除は従来どおりです。
+
+### 切替先の静的型を指定する
+
+汎用実装で宣言した型パラメーターを、公開Facadeも引き継ぎます。`ArrayGet<TObjectReader>`・`ObjectGet<TArrayReader>`・`TreeGet<TArrayReader, TObjectReader>`で切替先を指定できます。型引数の既定値は各領域の標準readerなので、通常利用で指定する必要はありません。同型への`Nested()`等は引き続き`static`で派生型を維持します。
+
+```php
+/** @extends ArrayGet<SiteObjectGet> */
+class SiteArrayGet extends ArrayGet
+{
+	/** @return SiteObjectGet */
+	protected function createObjectReader(mixed $source): ObjectGet
+	{
+		return new SiteObjectGet($source, $this->publicRulesSnapshot());
+	}
+}
+
+/** @extends ObjectGet<SiteArrayGet> */
+class SiteObjectGet extends ObjectGet
+{
+	/** @return SiteArrayGet */
+	protected function createArrayReader(mixed $source): ArrayGet
+	{
+		return new SiteArrayGet($source, $this->publicRulesSnapshot());
+	}
+}
+
+$siteGet = new SiteArrayGet($args);
+$objectGet = $siteGet->NestedObject('profile'); // SiteObjectGet
+$objectGets = $siteGet->NestedObjectList('profiles'); // list<SiteObjectGet>
+$arrayGet = $objectGet->NestedArray('details'); // SiteArrayGet
+```
+
+上の2つのコード例は独立した例で、同じクラスを重複定義するものではありません。`TreeGet`の案件版は`@extends TreeGet<SiteArrayGet, SiteObjectGet>`を指定して両方の生成フックを上書きします。これにより`AsArrayGet()`・`AsObjectGet()`のnullableな戻り値にも型引数が反映されます。`Nested*()`の公開メソッドを型指定だけのために上書きする必要はありません。
+
+PHPDocの型引数は生成処理を変更しません。標準reader以外を型引数に指定した派生クラスは、対応する生成フックを必ず上書きし、宣言した型のreaderを返してください。PHPDocだけの指定は実行時の型保証にはなりません。型パラメーターは戻り値専用の共変型として宣言しています。
+
+静的型の回帰テストは`tests/phpstan/reader-types.php`へ分離しています。PHPStanを開発環境へ導入している場合は次で実行できます。WordPress・ACFの起動は不要です。
+
+```powershell
+vendor\bin\phpstan.bat analyse -c tests/phpstan/readers.neon
+```
+
+設定は対象6クラスと型アサーションをレベル8で解析し、実行時テストの案件版reader宣言は`scanFiles`で参照するだけにしています。通常の`tests/*.php`の実行とは別に検証してください。PHPStanそのものはライブラリの実行時依存には追加しません。
 
 ## 責務の境界
 

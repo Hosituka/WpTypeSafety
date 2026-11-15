@@ -1,0 +1,14 @@
+parameters:
+	level: 8
+	bootstrapFiles:
+		- ../../autoload.php
+	scanFiles:
+		- ../reader-factories.php
+	paths:
+		- reader-types.php
+		- ../../Core/Check/ArrayGet.php
+		- ../../Core/Check/ObjectGet.php
+		- ../../Core/Check/TreeGet.php
+		- ../../Internal/TreeTypeReader/ArrayGet.php
+		- ../../Internal/TreeTypeReader/ObjectGet.php
+		- ../../Internal/TreeTypeReader/TreeGet.php

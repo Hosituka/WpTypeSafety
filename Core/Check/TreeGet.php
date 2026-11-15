@@ -13,7 +13,12 @@ use WpTypeSafety\Core\Data\LinkData;
 use WpTypeSafety\Core\Data\TimeData;
 use WpTypeSafety\Internal\TreeTypeReader\TreeGet as InternalTreeGet;
 
-/** 配列とオブジェクトが混在する木構造を、型を自動判定しながら取得します。 */
+/**
+ * 配列とオブジェクトが混在する木構造を、型を自動判定しながら取得します。
+ * @template-covariant TArrayReader of ArrayGet = ArrayGet
+ * @template-covariant TObjectReader of ObjectGet = ObjectGet
+ * @extends InternalTreeGet<TArrayReader, TObjectReader>
+ */
 class TreeGet extends InternalTreeGet
 {
 	public function __construct(
@@ -45,58 +50,56 @@ class TreeGet extends InternalTreeGet
 		return $this->copyWithRules($rules);
 	}
 
+	/** @return TArrayReader 独自の型引数を指定する派生クラスは上書きする。 */
+	protected function createArrayReader(mixed $source): ArrayGet
+	{
+		/** @var TArrayReader $reader 型引数が既定値のときの生成処理。 */
+		$reader = new ArrayGet($source, $this->publicRulesSnapshot());
+		return $reader;
+	}
+
+	/** @return TObjectReader 独自の型引数を指定する派生クラスは上書きする。 */
+	protected function createObjectReader(mixed $source): ObjectGet
+	{
+		/** @var TObjectReader $reader 型引数が既定値のときの生成処理。 */
+		$reader = new ObjectGet($source, $this->publicRulesSnapshot());
+		return $reader;
+	}
+
+	/** @return TArrayReader|null */
 	public function AsArrayGet(): ?ArrayGet
 	{
-		$source = $this->sourceValue();
-		return is_array($source)
-			? new ArrayGet($source, $this->publicRulesSnapshot())
-			: null;
+		return parent::AsArrayGet();
 	}
 
+	/** @return TObjectReader|null */
 	public function AsObjectGet(): ?ObjectGet
 	{
-		$source = $this->sourceValue();
-		return is_object($source)
-			? new ObjectGet($source, $this->publicRulesSnapshot())
-			: null;
+		return parent::AsObjectGet();
 	}
 
+	/** @return TArrayReader */
 	public function NestedArray(int|string $segment): ArrayGet
 	{
-		return new ArrayGet($this->value($segment), $this->publicRulesSnapshot());
+		return $this->createArrayReader($this->value($segment));
 	}
 
+	/** @return TObjectReader */
 	public function NestedObject(int|string $segment): ObjectGet
 	{
-		return new ObjectGet($this->value($segment), $this->publicRulesSnapshot());
+		return $this->createObjectReader($this->value($segment));
 	}
 
-	/** @return list<ArrayGet> */
+	/** @return list<TArrayReader> */
 	public function NestedArrayList(int|string $segment): array
 	{
-		$items = [];
-		foreach ($this->Array($segment) as $value) {
-			if (! is_array($value))
-			{continue;}
-
-			$items[] = new ArrayGet($value, $this->publicRulesSnapshot());
-		}
-
-		return $items;
+		return parent::NestedArrayList($segment);
 	}
 
-	/** @return list<ObjectGet> */
+	/** @return list<TObjectReader> */
 	public function NestedObjectList(int|string $segment): array
 	{
-		$items = [];
-		foreach ($this->Array($segment) as $value) {
-			if (! is_object($value))
-			{continue;}
-
-			$items[] = new ObjectGet($value, $this->publicRulesSnapshot());
-		}
-
-		return $items;
+		return parent::NestedObjectList($segment);
 	}
 
 	/** @param (callable(ImgData): bool)|null $predicate */

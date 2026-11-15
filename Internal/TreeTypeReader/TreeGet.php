@@ -8,7 +8,11 @@ use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode;
 use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 use WpTypeSafety\Internal\TreeTypeReader\Internal\ValueResolver;
 
-/** @internal 配列とオブジェクトが混在する木構造を読む汎用実装です。 */
+/**
+ * @internal 配列とオブジェクトが混在する木構造を読む汎用実装です。
+ * @template-covariant TArrayReader of ArrayGet = ArrayGet
+ * @template-covariant TObjectReader of ObjectGet = ObjectGet
+ */
 class TreeGet extends TreeTypeReader
 {
 	private mixed $source;
@@ -159,7 +163,10 @@ class TreeGet extends TreeTypeReader
 		return $this->readBackedEnumList($segment, $enumClass, $predicate);
 	}
 
-	/** @param (callable(array<array-key, mixed>): bool)|null $predicate */
+	/**
+	 * @param (callable(array<array-key, mixed>): bool)|null $predicate
+	 * @return array<array-key, mixed>
+	 */
 	public function Array(int|string $segment, ?callable $predicate = null): array
 	{
 		return $this->readArray($segment, $predicate);
@@ -184,28 +191,48 @@ class TreeGet extends TreeTypeReader
 		)->Exists;
 	}
 
+	/** @return TArrayReader 独自の型引数を指定する派生クラスは上書きする。 */
+	protected function createArrayReader(mixed $source): ArrayGet
+	{
+		/** @var TArrayReader $reader 型引数が既定値のときの生成処理。 */
+		$reader = new ArrayGet($source, $this->rulesSnapshot());
+		return $reader;
+	}
+
+	/** @return TObjectReader 独自の型引数を指定する派生クラスは上書きする。 */
+	protected function createObjectReader(mixed $source): ObjectGet
+	{
+		/** @var TObjectReader $reader 型引数が既定値のときの生成処理。 */
+		$reader = new ObjectGet($source, $this->rulesSnapshot());
+		return $reader;
+	}
+
+	/** @return TArrayReader|null */
 	public function AsArrayGet(): ?ArrayGet
 	{
 		return is_array($this->source)
-			? new ArrayGet($this->source, $this->rulesSnapshot())
+			? $this->createArrayReader($this->source)
 			: null;
 	}
 
+	/** @return TObjectReader|null */
 	public function AsObjectGet(): ?ObjectGet
 	{
 		return is_object($this->source)
-			? new ObjectGet($this->source, $this->rulesSnapshot())
+			? $this->createObjectReader($this->source)
 			: null;
 	}
 
+	/** @return TArrayReader */
 	public function NestedArray(int|string $segment): ArrayGet
 	{
-		return new ArrayGet($this->value($segment), $this->rulesSnapshot());
+		return $this->createArrayReader($this->value($segment));
 	}
 
+	/** @return TObjectReader */
 	public function NestedObject(int|string $segment): ObjectGet
 	{
-		return new ObjectGet($this->value($segment), $this->rulesSnapshot());
+		return $this->createObjectReader($this->value($segment));
 	}
 
 	/** @return list<static> */
@@ -222,7 +249,7 @@ class TreeGet extends TreeTypeReader
 		return $items;
 	}
 
-	/** @return list<ArrayGet> */
+	/** @return list<TArrayReader> */
 	public function NestedArrayList(int|string $segment): array
 	{
 		$items = [];
@@ -230,13 +257,13 @@ class TreeGet extends TreeTypeReader
 			if (! is_array($value))
 			{continue;}
 
-			$items[] = new ArrayGet($value, $this->rulesSnapshot());
+			$items[] = $this->createArrayReader($value);
 		}
 
 		return $items;
 	}
 
-	/** @return list<ObjectGet> */
+	/** @return list<TObjectReader> */
 	public function NestedObjectList(int|string $segment): array
 	{
 		$items = [];
@@ -244,7 +271,7 @@ class TreeGet extends TreeTypeReader
 			if (! is_object($value))
 			{continue;}
 
-			$items[] = new ObjectGet($value, $this->rulesSnapshot());
+			$items[] = $this->createObjectReader($value);
 		}
 
 		return $items;

@@ -8,7 +8,10 @@ use WpTypeSafety\Internal\TreeTypeReader\Data\NumericMode;
 use WpTypeSafety\Internal\TreeTypeReader\Data\ResolvedValue;
 use WpTypeSafety\Internal\TreeTypeReader\Internal\ValueResolver;
 
-/** @internal 連想配列からキーを指定して値を取得する汎用実装です。 */
+/**
+ * @internal 連想配列からキーを指定して値を取得する汎用実装です。
+ * @template-covariant TObjectReader of ObjectGet = ObjectGet
+ */
 class ArrayGet extends TreeTypeReader
 {
 	/** @var array<array-key, mixed> */
@@ -149,7 +152,10 @@ class ArrayGet extends TreeTypeReader
 		return $this->readBackedEnumList($key, $enumClass, $predicate);
 	}
 
-	/** @param (callable(array<array-key, mixed>): bool)|null $predicate */
+	/**
+	 * @param (callable(array<array-key, mixed>): bool)|null $predicate
+	 * @return array<array-key, mixed>
+	 */
 	public function Array(int|string $key, ?callable $predicate = null): array
 	{
 		return $this->readArray($key, $predicate);
@@ -174,9 +180,21 @@ class ArrayGet extends TreeTypeReader
 		)->Exists;
 	}
 
+	/**
+	 * 別種類のReaderを生成する拡張点。独自の型引数を指定する派生クラスは上書きする。
+	 * @return TObjectReader
+	 */
+	protected function createObjectReader(mixed $source): ObjectGet
+	{
+		/** @var TObjectReader $reader 型引数が既定値のときの生成処理。 */
+		$reader = new ObjectGet($source, $this->rulesSnapshot());
+		return $reader;
+	}
+
+	/** @return TObjectReader */
 	public function NestedObject(int|string $key): ObjectGet
 	{
-		return new ObjectGet($this->value($key), $this->rulesSnapshot());
+		return $this->createObjectReader($this->value($key));
 	}
 
 	/** @return list<static> */
@@ -192,7 +210,7 @@ class ArrayGet extends TreeTypeReader
 		return $items;
 	}
 
-	/** @return list<ObjectGet> */
+	/** @return list<TObjectReader> */
 	public function NestedObjectList(int|string $key): array
 	{
 		$items = [];
@@ -200,7 +218,7 @@ class ArrayGet extends TreeTypeReader
 			if (! is_object($value))
 			{continue;}
 
-			$items[] = new ObjectGet($value, $this->rulesSnapshot());
+			$items[] = $this->createObjectReader($value);
 		}
 
 		return $items;

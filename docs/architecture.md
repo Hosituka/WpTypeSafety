@@ -19,6 +19,8 @@
 
 ## FactoryとQuery
 
+投稿タイプ・タクソノミーの登録定義には`PostTypeFactory`・`TaxonomyFactory`を使用します。両Factoryは`DefinitionAdapter`へ委譲し、`PostTypeMembers`・`TaxonomyMembers`または対応するDataを返します。名前からの検索は`FromName()`、取得済みのWordPress定義オブジェクトからの変換は`From()`・`Members()`です。投稿タイプに紐づく分類名の取得だけはDataへResolverとして注入し、他の定義情報は生成時のスナップショットとして保持します。
+
 各対象別Factoryは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または対象別Adapterへ処理を委譲します。`PostFactory`・`CommentFactory`・`UserFactory`・`TermFactory`・`MenuNodeFactory`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Members()`を提供します。関連Dataを返すDataとMembersはその関連型をジェネリクスとして保持し、FactoryからData内の遅延Resolverまで案件固有型を失わずに接続します。
 
 対象別Queryも`Wp/Get/`の公開入口ですが、クエリビルダーの責務は持ちません。`Get()`はWordPressネイティブの引数配列をクエリクラスへ渡し、`From()`は生成済みのネイティブクエリを受け取ります。実行とData変換は`Wp/Internal/*QueryAdapter.php`へ委譲し、結果は`Wp/Data/*QueryData.php`へまとめます。`TermQueryData`はWordPress側に共通のページ総数プロパティがないため、タームのリストだけを保持します。取得手段を表す`Query`はクラス名で区別し、`Wp/Get/Query/`のような取得層内の追加階層は設けません。
@@ -35,6 +37,8 @@ autoload.php
 ```
 
 ## GetとAdapter
+
+汎用Readerが別種類のReaderへ切り替える際は、`createArrayReader()`・`createObjectReader()`を経由します。汎用側が型判定・リスト走査を担当し、Coreの公開Facadeは生成先と公開戻り値型を指定します。切替先は`TArrayReader`・`TObjectReader`として汎用側からFacadeへ引き継ぎ、案件側の`@extends`と生成フックを揃えることで単数・リスト・`As*()`の静的型を維持します。公開Facadeの`publicRulesSnapshot()`はprotectedで、案件側の派生Readerも規則を引き継いだ生成に使用できます。同型の子取得口は従来どおり`createChild()`による複製で維持します。
 
 公開Get系は対応するAdapterへ直接委譲し、staticなClosure登録や登録順への依存を持ちません。`AcfGet`は`AcfAdapter`をインスタンスに1個保持し、投稿・ユーザー・ターム・ACF参照先ID・取得済み配列を共通の取得元として扱います。ユーザーとタームは同じAdapterでACFの参照先IDへ正規化します。`Nested()`・`Repeater()`・`Flexible()`・`PostGet()`・`UserGet()`・`TermGet()`と、その複数形メソッドが作る子取得口は、呼び出し元の派生型と同じAdapterを引き継ぎます。投稿等から作る入れ子の子取得口は、時間系とIcon Pickerのフィールド型判定に必要な未整形値・子フィールド定義も引き継ぎます。Wpのstatic取得口は、対応するInternal Adapterのstaticメソッドへ直接委譲します。
 
