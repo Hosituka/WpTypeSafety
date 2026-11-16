@@ -22,12 +22,14 @@ final class PostMembers
 	 * @param null|\Closure(): (TRelatedPost|null) $PreviousPostResolver
 	 * @param null|\Closure(): (TRelatedPost|null) $NextPostResolver
 	 * @param null|\Closure(): string $TemplateSlugResolver
+	 * @param null|\Closure(string): string $RenderedContentResolver
+	 * @param null|\Closure(string, (\Closure(\WP_Term): TermData)|null): list<TermData> $TermsResolver
 	 */
 	public function __construct(
 		public int $Id,
 		public string $Url,
 		public string $Title,
-		public string $Content,
+		public string $RawContent,
 		public ?\DateTimeImmutable $PublishedAt = null,
 		public ?\DateTimeImmutable $ModifiedAt = null,
 		public ?\Closure $AuthorResolver = null,
@@ -43,6 +45,8 @@ final class PostMembers
 		public string $Slug = '',
 		public bool $IsPasswordProtected = false,
 		public bool $IsPubliclyViewable = false,
+		public ?\Closure $RenderedContentResolver = null,
+		public ?\Closure $TermsResolver = null,
 	) {
 	}
 }

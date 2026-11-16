@@ -119,7 +119,7 @@ $direct = new PostData(
 		Id: 1,
 		Url: '/',
 		Title: 'title',
-		Content: '',
+		RawContent: '',
 		TemplateSlugResolver: static function () use (&$calls): string {
 			$calls++;
 			return 'templates/custom-service-subpage.php';

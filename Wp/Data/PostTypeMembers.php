@@ -16,7 +16,7 @@ final class PostTypeMembers
 		public bool $IsPubliclyQueryable = false,
 		public bool $IsHierarchical = false,
 		public bool $HasArchive = false,
-		public ?string $ArchiveUrl = null,
+		public string $ArchiveUrl = '',
 		public ?\Closure $TaxonomyNamesResolver = null,
 	) {}
 }

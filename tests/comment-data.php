@@ -151,7 +151,7 @@ $plain = new CommentData(
 		ParentId: 0,
 		AuthorUserId: 0,
 		AuthorName: '匿名ユーザー',
-		AuthorUrl: '',
+		WebsiteUrl: '',
 		Url: '/#comment-1',
 		Content: 'コメント',
 		Type: 'comment',
@@ -171,7 +171,7 @@ $direct = new CommentData(
 		ParentId: 1,
 		AuthorUserId: 7,
 		AuthorName: '登録ユーザー',
-		AuthorUrl: 'https://example.com/',
+		WebsiteUrl: 'https://example.com/',
 		Url: '/#comment-2',
 		Content: '',
 		Type: 'comment',
@@ -217,7 +217,7 @@ $check($commentMembers instanceof CommentMembers && $commentMembers->Id === 8, '
 $data = CommentFactory::From($comment, 80);
 $check($data->Id === 8 && $data->PostId === 12 && $data->ParentId === 4, 'IDを整数へ正規化する');
 $check($data->AuthorUserId === 7 && $data->AuthorName === '登録ユーザー', '投稿者情報を保持する');
-$check($data->AuthorUrl === 'https://example.com/profile/', 'HTTPの投稿者URLを保持する');
+$check($data->WebsiteUrl === 'https://example.com/profile/', 'HTTPの投稿者URLを保持する');
 $check($data->Type === 'comment' && $data->Status === 'approved', '旧コメント種別と承認状態を正規化する');
 $check($data->CreatedAt?->format('Y-m-d H:i:s P') === '2026-11-08 12:34:56 +09:00', 'サイトのタイムゾーンで日時を生成する');
 $check($data->GetUser()?->Id === 7, '登録ユーザーを遅延取得する');
@@ -255,7 +255,7 @@ $invalid = CommentFactory::From(new WP_Comment(
 	comment_author_url: 'javascript:alert(1)',
 	comment_date: 'invalid',
 ));
-$check($invalid->Url === '' && $invalid->AuthorUrl === '', '不正なURLを空文字へ正規化する');
+$check($invalid->Url === '' && $invalid->WebsiteUrl === '', '不正なURLを空文字へ正規化する');
 $check($invalid->CreatedAt === null, '不正な日時をnullへ正規化する');
 $check($invalid->GetUser() === null && $invalid->GetParent() === null, '匿名・親なしは問い合わせない');
 
@@ -266,7 +266,7 @@ $invalidChildren = new CommentData(
 		ParentId: 0,
 		AuthorUserId: 0,
 		AuthorName: '',
-		AuthorUrl: '',
+		WebsiteUrl: '',
 		Url: '',
 		Content: '',
 		Type: 'comment',

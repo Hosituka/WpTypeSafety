@@ -2,6 +2,10 @@
 
 ## データクラスと取得契約
 
+URLプロパティは`string`で保持し、未設定・取得できないURLは空文字で表します。Data自体の取得失敗による`null`とは区別します。URL形式の許容範囲は用途別で、メニューの相対パスやアンカーまでHTTP(S)に限定するものではありません。
+
+URL名の移行：旧`WpUserData::AuthorUrl`・`UserMembers::AuthorUrl`は`ArchiveUrl`へ、旧`CommentData::AuthorUrl`・`CommentMembers::AuthorUrl`は`WebsiteUrl`へ改名しています。旧名は残していません。`PostTypeData::ArchiveUrl`・`PostTypeMembers::ArchiveUrl`は`?string`から`string`へ変更し、欠損判定は`=== null`ではなく`=== ''`を使います。直接渡すMembersの名前付き引数も更新してください。
+
 このライブラリの`Data`は、純粋な値だけを保持するDTOに限定しません。利用側のコードで、ひとまとまりとして扱う基本単位を表します。正規化済みの値を保持するデータクラスだけでなく、注入済みのResolverを通じて関連データを取得するクラスや、その単位を操作するための`Get`を構成要素として保持するクラスも含みます。
 
 `Get`は、外部から得た値の取得・型確認・正規化を担当し、用途に対応する`Data`またはPHPの固定型を返します。`Data`自身がWordPress・ACFのグローバル関数を直接呼ぶことは原則として避けますが、概念を一単位として扱うために、注入済みのResolverや`Get`を保持することは許容します。
@@ -23,7 +27,9 @@ final readonly class FlexibleNode
 
 `WpUserData->Description` はWP標準の「プロフィール情報」（自己紹介文）です。Factoryが生成時に `WP_User->description` から取得します。未設定・文字列以外は空文字です。直接構築時は`UserMembers`の`Description:`で指定でき、省略時は空文字です。HTML出力やエスケープは利用側で行い、Dataは値をそのまま保持します。
 
-`WpUserData->AuthorUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。直接構築する場合は`UserMembers`の`AuthorUrl:`で指定でき、省略時は空文字です。コンストラクターはURL形式を検証しないため、直接渡す値は呼び出し元で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
+`WpUserData->ArchiveUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。直接構築する場合は`UserMembers`の`ArchiveUrl:`で指定でき、省略時は空文字です。コンストラクターはURL形式を検証しないため、直接渡す値は呼び出し元で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
+
+`WpUserData->WebsiteUrl` はユーザーに登録されたWebサイト（`WP_User->user_url`）です。FactoryではHTTP(S) URLを検証し、不正・未設定・文字列以外は空文字にします。著者一覧の`ArchiveUrl`とは独立した値です。直接構築時は`UserMembers`の`WebsiteUrl:`で指定できます。
 
 公開Dataは、扱う概念によって次の領域に分かれます。
 
@@ -81,6 +87,8 @@ $image = new ImgData(
 | `PostData` | `GetChildren()` | `ChildrenResolver` | 空配列 |
 | `PostData` | `GetPreviousPost()`・`GetNextPost()` | `PreviousPostResolver`・`NextPostResolver` | `null` |
 | `PostData` | `GetTemplateSlug()` | `TemplateSlugResolver` | 空文字 |
+| `PostData` | `GetRenderedContent()` | `RenderedContentResolver` | 空文字 |
+| `PostData` | `GetTerms()` | `TermsResolver` | 空配列 |
 | `CommentData` | `GetUser()`・`GetAvatar()`・`GetPost()` | `UserResolver`・`AvatarResolver`・`PostResolver` | `null` |
 | `CommentData` | `GetParent()` | `ParentResolver` | `null` |
 | `CommentData` | `GetChildren()` | `ChildrenResolver` | 空配列 |
@@ -101,7 +109,7 @@ $data = new PostData(
 		Id: $post->ID,
 		Url: (string) get_permalink($post),
 		Title: get_the_title($post),
-		Content: $post->post_content,
+		RawContent: $post->post_content,
 		Status: $post->post_status,
 		PostType: $post->post_type,
 		Slug: $post->post_name,
@@ -183,7 +191,7 @@ $members = new PostMembers(
 	Id: 123,
 	Url: '/sample/',
 	Title: '任意のタイトル',
-	Content: '任意の本文',
+	RawContent: '任意の本文',
 	ExcerptResolver: static fn (): string => '任意の抜粋',
 );
 

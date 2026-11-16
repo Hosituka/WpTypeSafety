@@ -71,7 +71,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	{
 		$id = $this->GetRaw($fieldName, $source);
 		return is_int($id) && $id > 0
-			? new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: ''))
+			? new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''))
 			: null;
 	}
 
@@ -81,7 +81,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, Content: ''));
+				$result[] = new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''));
 			}
 		}
 		return $result;

@@ -93,7 +93,7 @@ $postData = new ProjectPostTypeData($postMembers, '追加値');
 $postMembers->Label = '変更後';
 $check($postData->Label === '実績' && $postData->Extra === '追加値', '派生Dataと値のコピー');
 $check($postData->GetTaxonomyNames() === [], 'Resolver省略時は空配列');
-$check($postData->ArchiveUrl === null && ! $postData->HasArchive && ! $postData->IsPublic, '既定値');
+$check($postData->ArchiveUrl === '' && ! $postData->HasArchive && ! $postData->IsPublic, '既定値');
 $taxMembers = new TaxonomyMembers('area', '地域', '地域', ObjectTypes: ['cases']);
 $taxonomyData = new ProjectTaxonomyData($taxMembers, '追加分類');
 $taxMembers->ObjectTypes[] = 'post';
@@ -165,7 +165,7 @@ foreach ([false, true, 'works'] as $archiveFlag) {
 foreach ([false, '', 'javascript:alert(1)', '/works/', 123] as $url) {
 	$GLOBALS['archives']['cases'] = $url;
 	$data = PostTypeFactory::From($nativePost);
-	$check($data->ArchiveUrl === null, '不正・取得失敗のURLはnull');
+	$check($data->ArchiveUrl === '', '不正・取得失敗のURLは空文字');
 }
 $standardPost = new WP_Post_Type('post');
 $standardPost->has_archive = false;

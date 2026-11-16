@@ -17,7 +17,7 @@ readonly class CommentData
 	public int $ParentId;
 	public int $AuthorUserId;
 	public string $AuthorName;
-	public string $AuthorUrl;
+	public string $WebsiteUrl;
 	public string $Url;
 	public string $Content;
 	public string $Type;
@@ -42,7 +42,7 @@ readonly class CommentData
 		$this->ParentId = $members->ParentId;
 		$this->AuthorUserId = $members->AuthorUserId;
 		$this->AuthorName = $members->AuthorName;
-		$this->AuthorUrl = $members->AuthorUrl;
+		$this->WebsiteUrl = $members->WebsiteUrl;
 		$this->Url = $members->Url;
 		$this->Content = $members->Content;
 		$this->Type = $members->Type;

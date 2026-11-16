@@ -110,7 +110,7 @@ $postFactory = static fn (WP_Post $post): ProjectAcfPostData => new ProjectAcfPo
 		Id: $post->ID,
 		Url: '/post/' . $post->ID,
 		Title: '投稿' . $post->ID,
-		Content: '',
+		RawContent: '',
 	),
 );
 $termFactory = static fn (WP_Term $term): ProjectAcfTermData => new ProjectAcfTermData(

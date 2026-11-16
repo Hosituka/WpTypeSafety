@@ -250,7 +250,7 @@ $derivedPostResult = PostQuery::Get(
 			Id: $post->ID,
 			Url: 'https://example.com/project/' . $post->ID . '/',
 			Title: '案件投稿' . $post->ID,
-			Content: '',
+			RawContent: '',
 		),
 	),
 );
@@ -338,7 +338,7 @@ $derivedCommentResult = CommentQuery::Get(
 				ParentId: $comment->comment_parent,
 				AuthorUserId: $comment->user_id,
 				AuthorName: $comment->comment_author,
-				AuthorUrl: '',
+				WebsiteUrl: '',
 				Url: 'https://example.com/#comment-' . $comment->comment_ID,
 				Content: $comment->comment_content,
 				Type: 'comment',

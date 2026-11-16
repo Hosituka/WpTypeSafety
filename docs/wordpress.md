@@ -1,5 +1,28 @@
 # WordPressの取得API
 
+## 投稿の本文とターム
+
+`PostData::RawContent`は未加工の`post_content`です。旧`PostData::Content`・`PostMembers::Content`は`RawContent`へ改名しており、名前付き引数も`RawContent:`へ変更してください。`HasContent()`はこの未加工本文の空白以外の有無を判定します。コメントの`Content`は変更していません。
+
+```php
+use WpTypeSafety\Wp\Get\PostFactory;
+
+$postData = PostFactory::From($post);
+$rawContent = $postData->RawContent;
+echo $postData->GetRenderedContent();
+$terms = $postData->GetTerms('category');
+```
+
+`GetRenderedContent(): string`は、Factoryが注入したResolverで`get_the_content()`・`the_content`フィルター・`]]>`の置換を行い、描画用HTMLを返します。Data自身は出力せず、キャッシュもしません。`PostMembers::RenderedContentResolver`は現在の`RawContent`を引数で受け取るため、Membersで調整した本文も描画へ反映されます。直接構築してResolverを省略した場合は空文字です。
+
+標準Resolverは元の`WP_Post`を複製して未加工本文を設定し、対象投稿へ`$post`と投稿用グローバル変数を一時的に切り替えます。正常終了・例外発生のどちらでも既存値と未定義状態を復元します。WordPressのクエリ初期化後に利用してください。`setup_postdata()`に失敗する場合は`LogicException`、フィルターが文字列以外を返す場合は`UnexpectedValueException`、プラグイン等の例外はそのまま伝播します。
+
+これは任意の投稿に対してメインクエリ全体を再現するAPIではありません。`is_singular()`等のクエリ条件・閲覧権限は変更せず、`the_post`や描画フィルターが起こす任意の副作用も巻き戻しません。パスワード保護・ページ分割等はWordPressの本文取得処理に従います。通常のテンプレートと同じく、本文描画時に登録されるブロックのCSS等の配信タイミングにも注意してください。生成HTMLの一括エスケープはせず、出力するかの判断はテンプレートで行います。
+
+`GetTerms(string $taxonomy, ?Closure $termFactory = null): array`は、既存の`WpGetTerm::FromPost()`と同じ内部処理で`list<TermData>`を返します。呼び出すたびに取得し、空タクソノミー・タームなし・取得エラー・Resolver省略時は空配列です。案件固有の`Closure(WP_Term): TTerm`を渡すと、その呼び出しの戻り値は`list<TTerm>`になります。クラスの型パラメーターは増やしていません。
+
+直接構築時は`PostMembers::TermsResolver`へ、タクソノミー名と任意のTerm Factoryを受け取るResolverを指定できます。戻り値が`list<TermData>`でなければ`UnexpectedValueException`です。HTML出力用の`RenderContent()`は設けていません。
+
 ## 投稿タイプ・タクソノミーの登録定義
 
 `PostTypeData`は投稿タイプの定義、`TaxonomyData`はタクソノミーの定義を表します。投稿1件を表す`PostData`、ターム1件を表す`TermData`とは別の型です。
@@ -27,7 +50,7 @@ $isCasesTaxonomy = $taxonomyData?->HasObjectType('cases') ?? false;
 
 共通プロパティは`Name`・`Label`・`SingularLabel`・`Description`・`IsPublic`・`IsPubliclyQueryable`・`IsHierarchical`です。文字列以外の表示名・説明は空文字、欠損または空の単数形ラベルは`Label`へフォールバックします。公開設定は登録上のbool値であり、現在の閲覧者の権限や記事単位の閲覧可否を保証しません。
 
-`PostTypeData`は追加で`HasArchive: bool`・`ArchiveUrl: ?string`を保持します。`HasArchive`は登録設定`has_archive`をboolへ変換した値です。URLは生成時に`get_post_type_archive_link()`から取得し、HTTP(S)絶対URL以外・取得失敗は`null`です。標準投稿`post`は`HasArchive`がfalseでも投稿一覧URLを持つ場合があるため、URLの有無は`ArchiveUrl`で判断してください。
+`PostTypeData`は追加で`HasArchive: bool`・`ArchiveUrl: string`を保持します。`HasArchive`は登録設定`has_archive`をboolへ変換した値です。URLは生成時に`get_post_type_archive_link()`から取得し、HTTP(S)絶対URL以外・取得失敗は空文字です。標準投稿`post`は`HasArchive`がfalseでも投稿一覧URLを持つ場合があるため、URLの有無は`ArchiveUrl !== ''`で判断してください。
 
 `GetTaxonomyNames(): list<string>`は、注入されたResolverから呼び出しごとに関連タクソノミーの登録名を取得します。Factoryは`get_object_taxonomies()`へ接続するResolverを注入し、文字列以外・空文字の要素を除外して連番化します。Resolver省略時は`[]`です。直接注入したResolverが`list<string>`以外を返す場合は`UnexpectedValueException`、内部の例外はそのまま伝播します。
 
@@ -408,7 +431,7 @@ SVG添付画像は、ローカルファイルの単位なし・`px`の`width`と
 
 ## WordPressのコメント
 
-`CommentData`は匿名コメントと登録ユーザーのコメントを同じ型で表します。`AuthorName`・`AuthorUrl`はどちらでも参照でき、`AuthorUserId`が0より大きい場合だけ`HasUser()`がtrueになります。`GetUser()`は対応する`WpUserData`を返し、匿名コメント・ユーザー取得失敗では`null`です。投稿者メールアドレスは公開プロパティに保持しません。
+`CommentData`は匿名コメントと登録ユーザーのコメントを同じ型で表します。`AuthorName`・`WebsiteUrl`（コメント投稿者のWebサイト）はどちらでも参照でき、`AuthorUserId`が0より大きい場合だけ`HasUser()`がtrueになります。`GetUser()`は対応する`WpUserData`を返し、匿名コメント・ユーザー取得失敗では`null`です。投稿者メールアドレスは公開プロパティに保持しません。
 
 ```php
 <?php

@@ -15,7 +15,7 @@ readonly class PostData
 	public int $Id;
 	public string $Url;
 	public string $Title;
-	public string $Content;
+	public string $RawContent;
 	public ?\DateTimeImmutable $PublishedAt;
 	public ?\DateTimeImmutable $ModifiedAt;
 	/** @var null|\Closure(): (TAuthor|null) */
@@ -30,6 +30,10 @@ readonly class PostData
 	/** @var null|\Closure(): (TRelatedPost|null) */
 	private ?\Closure $nextPostResolver;
 	private ?\Closure $templateSlugResolver;
+	/** @var null|\Closure(string): string */
+	private ?\Closure $renderedContentResolver;
+	/** @var null|\Closure(string, (\Closure(\WP_Term): TermData)|null): list<TermData> */
+	private ?\Closure $termsResolver;
 	public string $Status;
 	public string $PostType;
 	public string $Slug;
@@ -42,7 +46,7 @@ readonly class PostData
 		$this->Id = $members->Id;
 		$this->Url = $members->Url;
 		$this->Title = $members->Title;
-		$this->Content = $members->Content;
+		$this->RawContent = $members->RawContent;
 		$this->PublishedAt = $members->PublishedAt;
 		$this->ModifiedAt = $members->ModifiedAt;
 		$this->authorResolver = $members->AuthorResolver;
@@ -53,6 +57,8 @@ readonly class PostData
 		$this->previousPostResolver = $members->PreviousPostResolver;
 		$this->nextPostResolver = $members->NextPostResolver;
 		$this->templateSlugResolver = $members->TemplateSlugResolver;
+		$this->renderedContentResolver = $members->RenderedContentResolver;
+		$this->termsResolver = $members->TermsResolver;
 		$this->Status = $members->Status;
 		$this->PostType = $members->PostType;
 		$this->Slug = $members->Slug;
@@ -74,7 +80,37 @@ readonly class PostData
 
 	public function HasContent(): bool
 	{
-		return trim($this->Content) !== '';
+		return trim($this->RawContent) !== '';
+	}
+
+	/** 描画用HTML。Resolver省略時は空文字。出力・キャッシュは行わない。 */
+	public function GetRenderedContent(): string
+	{
+		return $this->renderedContentResolver !== null
+			? ($this->renderedContentResolver)($this->RawContent)
+			: '';
+	}
+
+	/**
+	 * @template TTerm of TermData
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 */
+	public function GetTerms(string $taxonomy, ?\Closure $termFactory = null): array
+	{
+		if ($this->termsResolver === null || $taxonomy === '') {
+			return [];
+		}
+		$terms = ($this->termsResolver)($taxonomy, $termFactory);
+		if (! is_array($terms) || ! array_is_list($terms)) {
+			throw new \UnexpectedValueException('GetTerms must return a list of TermData.');
+		}
+		foreach ($terms as $term) {
+			if (! $term instanceof TermData) {
+				throw new \UnexpectedValueException('GetTerms must return a list of TermData.');
+			}
+		}
+		return $terms;
 	}
 
 	/** WordPressの投稿状態がpublishかを返す。投稿タイプの公開可否は判定しない。 */

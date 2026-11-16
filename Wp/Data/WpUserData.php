@@ -11,7 +11,8 @@ readonly class WpUserData
 	public string $DisplayName;
 	private ?int $avatarSize;
 	private ?\Closure $avatarResolver;
-	public string $AuthorUrl;
+	public string $ArchiveUrl;
+	public string $WebsiteUrl;
 	public string $Description;
 
 	public function __construct(UserMembers $members)
@@ -20,7 +21,8 @@ readonly class WpUserData
 		$this->DisplayName = $members->DisplayName;
 		$this->avatarSize = $members->AvatarSize;
 		$this->avatarResolver = $members->AvatarResolver;
-		$this->AuthorUrl = $members->AuthorUrl;
+		$this->ArchiveUrl = $members->ArchiveUrl;
+		$this->WebsiteUrl = $members->WebsiteUrl;
 		$this->Description = $members->Description;
 	}
 

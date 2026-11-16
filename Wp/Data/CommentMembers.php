@@ -27,7 +27,7 @@ final class CommentMembers
 		public int $ParentId,
 		public int $AuthorUserId,
 		public string $AuthorName,
-		public string $AuthorUrl,
+		public string $WebsiteUrl,
 		public string $Url,
 		public string $Content,
 		public string $Type,

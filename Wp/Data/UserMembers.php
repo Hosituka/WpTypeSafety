@@ -14,8 +14,9 @@ final class UserMembers
 		public string $DisplayName,
 		public ?int $AvatarSize = null,
 		public ?\Closure $AvatarResolver = null,
-		public string $AuthorUrl = '',
+		public string $ArchiveUrl = '',
 		public string $Description = '',
+		public string $WebsiteUrl = '',
 	) {
 	}
 }

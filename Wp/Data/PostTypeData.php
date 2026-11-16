@@ -14,7 +14,7 @@ readonly class PostTypeData
 	public bool $IsPubliclyQueryable;
 	public bool $IsHierarchical;
 	public bool $HasArchive;
-	public ?string $ArchiveUrl;
+	public string $ArchiveUrl;
 	/** @var null|\Closure(): list<string> */
 	private ?\Closure $taxonomyNamesResolver;
 

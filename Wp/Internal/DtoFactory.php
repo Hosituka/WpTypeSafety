@@ -74,7 +74,7 @@ final class DtoFactory
 			ParentId: $parentId,
 			AuthorUserId: $authorUserId,
 			AuthorName: (string) $comment->comment_author,
-			AuthorUrl: UrlCheck::IsHttpUrl($comment->comment_author_url) ? $comment->comment_author_url : '',
+			WebsiteUrl: UrlCheck::IsHttpUrl($comment->comment_author_url) ? $comment->comment_author_url : '',
 			Url: is_string($url) ? $url : '',
 			Content: (string) $comment->comment_content,
 			Type: self::commentType((string) $comment->comment_type),
@@ -241,7 +241,7 @@ final class DtoFactory
 			Id: $postId,
 			Url: is_string($url) ? $url : '',
 			Title: (string) \get_the_title($post),
-			Content: (string) $post->post_content,
+			RawContent: (string) $post->post_content,
 			PublishedAt: $publishedAt instanceof \DateTimeImmutable ? $publishedAt : null,
 			ModifiedAt: $modifiedAt instanceof \DateTimeImmutable ? $modifiedAt : null,
 			Status: (string) $post->post_status,
@@ -282,6 +282,10 @@ final class DtoFactory
 				$slug = \get_page_template_slug($postId);
 				return is_string($slug) ? $slug : '';
 			},
+			RenderedContentResolver: static fn (string $rawContent): string =>
+				PostContentRenderer::Render($post, $rawContent),
+			TermsResolver: static fn (string $taxonomy, ?\Closure $termFactory): array =>
+				TermAdapter::FromPost($postId, $taxonomy, $termFactory),
 		);
 	}
 
@@ -439,12 +443,14 @@ final class DtoFactory
 			return null;
 		}
 		$userId = (int) $user->ID;
-		$authorUrl = \get_author_posts_url($userId);
+		$archiveUrl = \get_author_posts_url($userId);
+		$websiteUrl = $user->user_url ?? '';
 		$description = $user->description ?? '';
 		return new UserMembers(
 			Id: $userId,
 			DisplayName: (string) $user->display_name,
-			AuthorUrl: UrlCheck::IsHttpUrl($authorUrl) ? $authorUrl : '',
+			ArchiveUrl: UrlCheck::IsHttpUrl($archiveUrl) ? $archiveUrl : '',
+			WebsiteUrl: UrlCheck::IsHttpUrl($websiteUrl) ? $websiteUrl : '',
 			Description: is_string($description) ? $description : '',
 			AvatarSize: $avatarSize,
 			AvatarResolver: static function (int $size) use ($userId): ?ImgData {

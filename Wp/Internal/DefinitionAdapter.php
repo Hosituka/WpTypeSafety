@@ -58,7 +58,7 @@ final class DefinitionAdapter
 			IsPubliclyQueryable: (bool) $postType->publicly_queryable,
 			IsHierarchical: (bool) $postType->hierarchical,
 			HasArchive: (bool) $postType->has_archive,
-			ArchiveUrl: UrlCheck::IsHttpUrl($archive) ? $archive : null,
+			ArchiveUrl: UrlCheck::IsHttpUrl($archive) ? $archive : '',
 			TaxonomyNamesResolver: static fn (): array => self::names(\get_object_taxonomies($name, 'names')),
 		);
 	}
