@@ -1,17 +1,11 @@
 # ACFの取得API
 
-## 参照先のフィールド取得口
-
-ACFの参照先を新しい`AcfGet`として読むメソッドは、`PostFields()`・`PostsFields()`・`TermFields()`・`TermsFields()`・`UserFields()`・`UsersFields()`です。旧`PostGet()`・`PostGets()`・`TermGet()`・`TermGets()`・`UserGet()`・`UserGets()`から順に改名し、旧名は残していません。
-
-WordPressネイティブオブジェクトを取得する`WpPost()`・`WpTerm()`・`WpUser()`とは用途が異なります。WordPress層の`PostGet`等のクラスは、WordPress値の取得・Dataへの変換を担います。
-
 ## 目次
 
 目的から探す場合は、次の入口を参照してください。
 
 - 文字列・数値を取得したい：[標準取得口の一覧](#標準取得口の一覧)・[数値フィールドの取得](#数値フィールドの取得)
-- 画像・ファイル・Icon Pickerを取得したい：[ACF画像・ファイルの取得](#acf画像ファイルの取得)・[Icon Pickerの取得](#icon-pickerの取得)
+- 画像・ファイル・Icon Pickerを取得したい：[ACF画像・ファイルの取得](#acf画像ファイルの取得)・[Icon Pickerの取得](#icon-pickerの取得)・[添付IDをWordPressの描画APIへ渡す](#添付idをwordpressの描画apiへ渡す)
 - Group・Repeater・Flexible Contentをたどりたい：[生配列の取得](#生配列の取得)・[リピーター行の取得](#リピーター行の取得)・[フレキシブルコンテンツの取得](#フレキシブルコンテンツの取得)
 - 投稿・ユーザー・ターム参照を扱いたい：[ACFの取得先の指定](#acfの取得先の指定)・[投稿・ターム・ユーザーの複数取得](#投稿タームユーザーの複数取得)
 - 選択系フィールドを扱いたい：[ラジオ・ボタングループ・チェックボックスの取得口](#ラジオボタングループチェックボックスの取得口)・[セレクトの取得口](#セレクトの取得口)
@@ -62,27 +56,6 @@ WordPressネイティブオブジェクトを取得する`WpPost()`・`WpTerm()`
 | `Flexible()` | `list<FlexibleNode>` | レイアウト名と行の取得口 |
 
 ラジオ・ボタングループ・チェックボックス・セレクトは、ACFの返り値設定に対応する専用取得口を使います。詳細は各節を参照してください。
-
-## 添付IDをWordPressの描画APIへ渡す
-
-`ImgId()`・`FileId()`は正の整数・数字だけの文字列・配列の`ID`または`id`を`?int`へ正規化します。先頭の0は許可しますが、PHPの整数範囲を超える値、0・負数・float・真偽値・URLだけの値は`null`です。配列では`ID`を優先し、欠損または`null`の場合だけ`id`を使用します。
-
-`GalleryIds()`は同じ規則で各要素を変換し、不正な要素を除外して入力順と重複を維持した連番リストを返します。未入力・配列以外・全件不一致は`[]`です。いずれもURLからのID逆引き、添付の実在・メディア種類・ファイルの存在確認は行いません。`ImgId()`でIDが取得できても、画像として描画できる保証ではありません。
-
-```php
-<?php
-$postGet = new AcfGet($post);
-$photoId = $postGet->ImgId('photo');
-
-if ($photoId !== null) {
-	echo wp_get_attachment_image($photoId, 'medium_large', false, ['class' => 'photo']);
-}
-
-$galleryIds = $postGet->GalleryIds('gallery');
-$fileId = $postGet->FileId('document');
-```
-
-HTML生成は利用側で行います。IDだけを取得する際に`ImgData`・`FileData`の生成や寸法取得は行いません。URL返却形式のフィールドからもIDを必要とする場合は、ACFの返却形式をIDまたは配列に設定してください。
 
 ## ACF文字列の未入力時の扱い
 
@@ -332,6 +305,27 @@ $iconUrl = $postGet->IconUrl('menu_icon');
 外部で取得済みの配列を`AcfGet`へ渡す場合は、`['type' => 'dashicons|media_library|url', 'value' => ...]`というIcon Pickerの配列形式を維持してください。文字列だけの場合はDashiconクラス名とHTTP(S) URLを判別できますが、Media Library由来のURL文字列から添付画像IDや元のタブを復元することはできません。
 
 ACFのフィルターで追加した独自タブは、標準の3取得口では推測して変換しません。`Native()`で値を取得し、案件固有の派生`AcfGet`で型確認・正規化してください。
+
+## 添付IDをWordPressの描画APIへ渡す
+
+`ImgId()`・`FileId()`は正の整数・数字だけの文字列・配列の`ID`または`id`を`?int`へ正規化します。先頭の0は許可しますが、PHPの整数範囲を超える値、0・負数・float・真偽値・URLだけの値は`null`です。配列では`ID`を優先し、欠損または`null`の場合だけ`id`を使用します。
+
+`GalleryIds()`は同じ規則で各要素を変換し、不正な要素を除外して入力順と重複を維持した連番リストを返します。未入力・配列以外・全件不一致は`[]`です。いずれもURLからのID逆引き、添付の実在・メディア種類・ファイルの存在確認は行いません。`ImgId()`でIDが取得できても、画像として描画できる保証ではありません。
+
+```php
+<?php
+$postGet = new AcfGet($post);
+$photoId = $postGet->ImgId('photo');
+
+if ($photoId !== null) {
+	echo wp_get_attachment_image($photoId, 'medium_large', false, ['class' => 'photo']);
+}
+
+$galleryIds = $postGet->GalleryIds('gallery');
+$fileId = $postGet->FileId('document');
+```
+
+HTML生成は利用側で行います。IDだけを取得する際に`ImgData`・`FileData`の生成や寸法取得は行いません。URL返却形式のフィールドからもIDを必要とする場合は、ACFの返却形式をIDまたは配列に設定してください。
 
 ## 日付・日時・時刻の取得
 

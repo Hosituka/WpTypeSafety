@@ -38,7 +38,7 @@ autoload.php
 
 ## GetとAdapter
 
-汎用Readerが別種類のReaderへ切り替える際は、`createArrayReader()`・`createObjectReader()`を経由します。汎用側が型判定・リスト走査を担当し、Coreの公開Facadeは生成先と公開戻り値型を指定します。切替先は`TArrayReader`・`TObjectReader`として汎用側からFacadeへ引き継ぎ、案件側の`@extends`と生成フックを揃えることで単数・リスト・`As*()`の静的型を維持します。公開Facadeの`publicRulesSnapshot()`はprotectedで、案件側の派生Readerも規則を引き継いだ生成に使用できます。同型の子取得口は従来どおり`createChild()`による複製で維持します。
+汎用Readerが別種類のReaderへ切り替える際は、`createArrayReader()`・`createObjectReader()`を経由します。汎用側が型判定・リスト走査を担当し、Coreの公開Facadeは生成先と公開戻り値型を指定します。切替先は`TArrayReader`・`TObjectReader`として汎用側からFacadeへ引き継ぎ、案件側の`@extends`と生成フックを揃えることで単数・リスト・`As*()`の静的型を維持します。公開Facadeの`publicRulesSnapshot()`はprotectedで、案件側の派生Readerも規則を引き継いだ生成に使用できます。同型の子取得口は`createChild()`による複製で維持します。
 
 公開Get系は対応するAdapterへ直接委譲し、staticなClosure登録や登録順への依存を持ちません。`AcfGet`は`AcfAdapter`をインスタンスに1個保持し、投稿・ユーザー・ターム・ACF参照先ID・取得済み配列を共通の取得元として扱います。ユーザーとタームは同じAdapterでACFの参照先IDへ正規化します。`Nested()`・`Repeater()`・`Flexible()`・`PostFields()`・`UserFields()`・`TermFields()`と、その複数形メソッドが作る子取得口は、呼び出し元の派生型と同じAdapterを引き継ぎます。投稿等から作る入れ子の子取得口は、時間系とIcon Pickerのフィールド型判定に必要な未整形値・子フィールド定義も引き継ぎます。Wpのstatic取得口は、対応するInternal Adapterのstaticメソッドへ直接委譲します。
 

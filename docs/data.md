@@ -2,10 +2,6 @@
 
 ## データクラスと取得契約
 
-URLプロパティは`string`で保持し、未設定・取得できないURLは空文字で表します。Data自体の取得失敗による`null`とは区別します。URL形式の許容範囲は用途別で、メニューの相対パスやアンカーまでHTTP(S)に限定するものではありません。
-
-URL名の移行：旧`WpUserData::AuthorUrl`・`UserMembers::AuthorUrl`は`ArchiveUrl`へ、旧`CommentData::AuthorUrl`・`CommentMembers::AuthorUrl`は`WebsiteUrl`へ改名しています。旧名は残していません。`PostTypeData::ArchiveUrl`・`PostTypeMembers::ArchiveUrl`は`?string`から`string`へ変更し、欠損判定は`=== null`ではなく`=== ''`を使います。直接渡すMembersの名前付き引数も更新してください。
-
 このライブラリの`Data`は、純粋な値だけを保持するDTOに限定しません。利用側のコードで、ひとまとまりとして扱う基本単位を表します。正規化済みの値を保持するデータクラスだけでなく、注入済みのResolverを通じて関連データを取得するクラスや、その単位を操作するための`Get`を構成要素として保持するクラスも含みます。
 
 `Get`は、外部から得た値の取得・型確認・正規化を担当し、用途に対応する`Data`またはPHPの固定型を返します。`Data`自身がWordPress・ACFのグローバル関数を直接呼ぶことは原則として避けますが、概念を一単位として扱うために、注入済みのResolverや`Get`を保持することは許容します。
@@ -24,6 +20,15 @@ final readonly class FlexibleNode
 ```
 
 この構成では、`FlexibleNode`を単なる転送用DTOとはみなしません。`Data`が扱う単位を表し、`Get`がその単位から安全に値を取得する、という役割分担です。
+
+URLプロパティは`string`で保持し、未設定・取得できないURLは空文字で表します。Data自体の取得失敗による`null`とは区別します。URL形式の許容範囲は用途別で、メニューの相対パスやアンカーまでHTTP(S)に限定するものではありません。
+
+| Data | URLプロパティ | 内容 | 取得できない場合 |
+|---|---|---|---|
+| `WpUserData` | `ArchiveUrl` | 投稿者一覧 | 空文字 |
+| `WpUserData` | `WebsiteUrl` | ユーザーが登録したWebサイト | 空文字 |
+| `CommentData` | `WebsiteUrl` | コメント投稿者のWebサイト | 空文字 |
+| `PostTypeData` | `ArchiveUrl` | 投稿タイプのアーカイブ | 空文字 |
 
 `WpUserData->Description` はWP標準の「プロフィール情報」（自己紹介文）です。Factoryが生成時に `WP_User->description` から取得します。未設定・文字列以外は空文字です。直接構築時は`UserMembers`の`Description:`で指定でき、省略時は空文字です。HTML出力やエスケープは利用側で行い、Dataは値をそのまま保持します。
 
