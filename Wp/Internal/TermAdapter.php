@@ -15,6 +15,17 @@ final class TermAdapter
 	/**
 	 * @template TTerm of TermData
 	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? TermData|null : TTerm|null)
+	 */
+	public static function Current(?\Closure $termFactory = null): ?TermData
+	{
+		$term = MainQueryAdapter::QueriedObject();
+		return $term instanceof \WP_Term ? self::termData($term, $termFactory) : null;
+	}
+
+	/**
+	 * @template TTerm of TermData
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
 	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
 	 */
 	public static function FromPost(
@@ -140,7 +151,7 @@ final class TermAdapter
 
 		$data = $termFactory($term);
 		if (! $data instanceof TermData) {
-			throw new \UnexpectedValueException('WpGetTermのtermFactoryはTermDataを返す必要があります。');
+			throw new \UnexpectedValueException('TermGetのtermFactoryはTermDataを返す必要があります。');
 		}
 
 		return $data;

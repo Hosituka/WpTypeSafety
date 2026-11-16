@@ -1,5 +1,11 @@
 # ACFの取得API
 
+## 参照先のフィールド取得口
+
+ACFの参照先を新しい`AcfGet`として読むメソッドは、`PostFields()`・`PostsFields()`・`TermFields()`・`TermsFields()`・`UserFields()`・`UsersFields()`です。旧`PostGet()`・`PostGets()`・`TermGet()`・`TermGets()`・`UserGet()`・`UserGets()`から順に改名し、旧名は残していません。
+
+WordPressネイティブオブジェクトを取得する`WpPost()`・`WpTerm()`・`WpUser()`とは用途が異なります。WordPress層の`PostGet`等のクラスは、WordPress値の取得・Dataへの変換を担います。
+
 ## 目次
 
 目的から探す場合は、次の入口を参照してください。
@@ -46,8 +52,8 @@
 | `WpPost()`・`WpPosts()` | `?WP_Post`・`list<WP_Post>` | 投稿参照をWordPressネイティブ型で取得 |
 | `WpTerm()`・`WpTerms()` | `?WP_Term`・`list<WP_Term>` | ターム参照をWordPressネイティブ型で取得 |
 | `WpUser()`・`WpUsers()` | `?WP_User`・`list<WP_User>` | ユーザー参照をWordPressネイティブ型で取得 |
-| `PostGet()`・`UserGet()`・`TermGet()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
-| `PostGets()`・`UserGets()`・`TermGets()` | `list<呼び出し元と同じAcfGet派生型>` | 複数参照先それぞれのACFフィールド取得口を返す |
+| `PostFields()`・`UserFields()`・`TermFields()` | 呼び出し元と同じ`AcfGet`派生型 | 単一参照先のACFフィールド取得口へ切り替える |
+| `PostsFields()`・`UsersFields()`・`TermsFields()` | `list<呼び出し元と同じAcfGet派生型>` | 複数参照先それぞれのACFフィールド取得口を返す |
 | `Native()` | `mixed` | 通常のACF戻り値をWpTypeSafetyで変換せず返す |
 | `Nested()` | `AcfGet` | グループなどの子配列へ進む |
 | `NestedPath()` | `AcfGet` | Groupだけで構成された複数階層をまとめて進む |
@@ -132,18 +138,18 @@ $title = $postGet->NestedPath('outer', 'inner')->Text('title');
 
 `Nested()`と`NestedPath()`は呼び出した時点の`Array()`の結果を保持します。未設定・配列以外の値は空の取得元になり、続く`Text()`は空文字、`Img()`はnullを返します。投稿・オプションページ・ユーザー・タームを取得元にしたACFグループでは、整形済み配列に加えて未整形値と子フィールド定義も保持するため、グループ内でも`Date()`・`DateTime()`・`Time()`を利用できます。戻り値は呼び出し元と同じ`AcfGet`派生型です。
 
-単一選択のACF投稿オブジェクト・関連・ユーザー・タクソノミーフィールドが参照する先のACF値を読むときは、`PostGet()`・`UserGet()`・`TermGet()`を使えます。内部では既存の`Post()`・`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserGet()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
+単一選択のACF投稿オブジェクト・関連・ユーザー・タクソノミーフィールドが参照する先のACF値を読むときは、`PostFields()`・`UserFields()`・`TermFields()`を使えます。内部では既存の`Post()`・`User()`・`Term()`で対象を取得し、同じ派生型の子取得口へ取得元だけを差し替えます。未選択・型違い・取得失敗なら、空の取得元を返します。`UserFields()`はアバター画像を取得しません。アバター画像のサイズは、`User()`などで得た`WpUserData`の`GetAvatar()`を呼ぶときに決まります。
 
 ```php
 <?php
 $postGet = new AcfGet($post);
-$relatedSubtitle = $postGet->PostGet('related_post')->Text('subtitle');
-$authorName = $postGet->UserGet('author')->Text('profile_name');
-$termColor = $postGet->TermGet('category')->Text('display_color');
-$groupAuthorName = $postGet->Nested('settings')->UserGet('author')->Text('profile_name');
+$relatedSubtitle = $postGet->PostFields('related_post')->Text('subtitle');
+$authorName = $postGet->UserFields('author')->Text('profile_name');
+$termColor = $postGet->TermFields('category')->Text('display_color');
+$groupAuthorName = $postGet->Nested('settings')->UserFields('author')->Text('profile_name');
 ```
 
-`Nested()`は同じ取得結果内の配列へ進み、`PostGet()`・`UserGet()`・`TermGet()`は参照先の投稿・ユーザー・タームへ取得対象を切り替えます。これらは単一値用です。ACFフィールドで複数選択を許可した場合の配列は対象にせず、空の取得元になります。投稿の標準投稿者や通常のタクソノミー割り当てを読むメソッドでもありません。
+`Nested()`は同じ取得結果内の配列へ進み、`PostFields()`・`UserFields()`・`TermFields()`は参照先の投稿・ユーザー・タームへ取得対象を切り替えます。これらは単一値用です。ACFフィールドで複数選択を許可した場合の配列は対象にせず、空の取得元になります。投稿の標準投稿者や通常のタクソノミー割り当てを読むメソッドでもありません。
 
 ## 投稿・ターム・ユーザーの複数取得
 
@@ -153,7 +159,7 @@ $groupAuthorName = $postGet->Nested('settings')->UserGet('author')->Text('profil
 |---|---|---|---|
 | WpTypeSafetyのDataへ変換する | `Post()` | `Posts()` | `?PostData`・`list<PostData>` |
 | WordPressネイティブ型へ変換する | `WpPost()` | `WpPosts()` | `?WP_Post`・`list<WP_Post>` |
-| 参照先のACFを読む | `PostGet()` | `PostGets()` | `AcfGet`・`list<AcfGet>` |
+| 参照先のACFを読む | `PostFields()` | `PostsFields()` | `AcfGet`・`list<AcfGet>` |
 | ACFの値を変換せず取得する | `Native()` | — | `mixed` |
 
 複数選択を許可した投稿オブジェクト・関連・タクソノミー・ユーザーフィールドには、`Posts()`・`Terms()`・`Users()`を使います。`AcfGet`および`Nested()`で利用できます。
@@ -203,11 +209,11 @@ $wpUser = $postGet->WpUser('member');             // ?WP_User
 
 これらはACFの返却形式がIDまたは対応するWPオブジェクトのどちらでも、記載したネイティブ型へ正規化します。`Native()`はACFの値を変換せず返すため、返却形式によって型が変わります。固定されたWP型が必要な場合は`WpPost()`等を使用してください。
 
-各参照先のACFフィールドへ進む場合は、`PostGets()`・`TermGets()`・`UserGets()`を使います。戻り値は`list<AcfGet>`で、派生`AcfGet`から呼んだ場合はリスト内でも同じ派生型とAdapterを維持します。既存の複数取得メソッドで変換できた対象だけを子取得口にするため、入力順・重複・不正要素除外の契約も同じです。
+各参照先のACFフィールドへ進む場合は、`PostsFields()`・`TermsFields()`・`UsersFields()`を使います。戻り値は`list<AcfGet>`で、派生`AcfGet`から呼んだ場合はリスト内でも同じ派生型とAdapterを維持します。既存の複数取得メソッドで変換できた対象だけを子取得口にするため、入力順・重複・不正要素除外の契約も同じです。
 
 ```php
 <?php
-$relatedPostGets = $postGet->PostGets('related_posts');
+$relatedPostGets = $postGet->PostsFields('related_posts');
 
 foreach ($relatedPostGets as $relatedPostGet) {
 	$subtitle = $relatedPostGet->Text('subtitle');
@@ -437,7 +443,7 @@ if ($url !== null) {
 
 ## 参照先未選択時
 
-`PostGet()`・`UserGet()`・`TermGet()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。`PostGets()`・`UserGets()`・`TermGets()`の場合は空のリストを返します。
+`PostFields()`・`UserFields()`・`TermFields()`で参照フィールドが未選択・型違い・取得失敗の場合は、空配列を子取得口の取得元として使います。`PostsFields()`・`UsersFields()`・`TermsFields()`の場合は空のリストを返します。
 対象IDの組み立てやACFの取得関数を呼ばず、既存の取得口ごとの空値を返します。
 `Text()`は空文字、`Array()`・`Repeater()`・複数選択は空配列、
 画像・URL・単一選択などは`null`です。`Nested()`も空の取得元を引き継ぎます。

@@ -80,13 +80,13 @@ $content = $get->Nested('content');
 
 ## 案件固有Dataを作る
 
-共通の投稿情報は`PostFactory::Members()`から受け取り、案件固有値だけを追加できます。完全な継承契約は[Dataと派生クラス](data.md)を参照してください。
+共通の投稿情報は`PostGet::Members()`から受け取り、案件固有値だけを追加できます。完全な継承契約は[Dataと派生クラス](data.md)を参照してください。
 
 ```php
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
-use WpTypeSafety\Wp\Get\PostFactory;
+use WpTypeSafety\Wp\Get\PostGet;
 
 final readonly class ArticleData extends PostData
 {
@@ -102,7 +102,7 @@ final readonly class ArticleData extends PostData
 		$postGet = new AcfGet($post);
 
 		return new self(
-			members: PostFactory::Members($post),
+			members: PostGet::Members($post),
 			Subtitle: $postGet->Text('subtitle'),
 		);
 	}

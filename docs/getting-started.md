@@ -33,10 +33,10 @@ WpTypeSafetyが行うのは、取得時の型確認と正規化です。HTMLへ�
 | ACFのフィールド | `AcfGet` | `$postGet->Text('heading')` |
 | 投稿などのmeta | `MetaGet` | `$metaGet->Int('view_count')` |
 | `$args`や任意のPHP配列 | `ArrayGet` | `$argsGet->String('heading')` |
-| `WP_Post`などのWordPressオブジェクト | 対象別`Factory` | `PostFactory::From($post)` |
+| `WP_Post`などのWordPressオブジェクト | 対象別`Get` | `PostGet::From($post)` |
 | WordPressの検索結果 | 対象別`Query` | `PostQuery::Get($args)` |
 
-迷った場合は、テーマでACFを使っているなら`AcfGet`、使っていないなら現在の`get_post_meta()`を`MetaGet`へ置き換えるところから始めるのがおすすめです。`Factory`や`Query`は、取得した投稿全体を同じデータ形式で扱いたくなってから導入できます。
+迷った場合は、テーマでACFを使っているなら`AcfGet`、使っていないなら現在の`get_post_meta()`を`MetaGet`へ置き換えるところから始めるのがおすすめです。`Get`や`Query`は、取得した投稿全体を同じデータ形式で扱いたくなってから導入できます。
 
 ## 1. インストールする
 
@@ -140,13 +140,13 @@ $itemIds = $argsGet->IntList('item_ids');
 
 ## 3. 必要になったらDataを使う
 
-フィールド単位ではなく、投稿のタイトル、URL、日時、サムネイルなどをひとまとまりで扱いたい場合は`PostFactory`を使います。
+フィールド単位ではなく、投稿のタイトル、URL、日時、サムネイルなどをひとまとまりで扱いたい場合は`PostGet`を使います。
 
 ```php
 <?php
-use WpTypeSafety\Wp\Get\PostFactory;
+use WpTypeSafety\Wp\Get\PostGet;
 
-$postData = PostFactory::From($post);
+$postData = PostGet::From($post);
 if ($postData === null)
 {return;}
 
@@ -170,7 +170,7 @@ foreach ($result->Posts as $postData) {
 }
 ```
 
-ユーザー、ターム、コメントにも対応する`Factory`と`Query`があります。ページング情報や派生Dataが必要になったら[WordPressの取得API](wordpress.md)と[Data](data.md)を参照してください。
+ユーザー、ターム、コメントにも対応する`Get`と`Query`があります。ページング情報や派生Dataが必要になったら[WordPressの取得API](wordpress.md)と[Data](data.md)を参照してください。
 
 ## よくある迷いどころ
 

@@ -13,13 +13,13 @@ require_once __DIR__ . '/../Wp/Data/WpUserData.php';
 require_once __DIR__ . '/../Wp/Data/UserMembers.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
-require_once __DIR__ . '/../Wp/Get/PostFactory.php';
+require_once __DIR__ . '/../Wp/Get/PostGet.php';
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
 use WpTypeSafety\Wp\Data\UserMembers;
 use WpTypeSafety\Wp\Data\WpUserData;
-use WpTypeSafety\Wp\Get\PostFactory;
+use WpTypeSafety\Wp\Get\PostGet;
 
 class WP_Post
 {
@@ -88,7 +88,7 @@ readonly class ProjectPostData extends PostData
 	public static function FromWpPost(WP_Post $post): self
 	{
 		$relatedPostFactory = static fn (WP_Post $related): self => self::FromWpPost($related);
-		return new self(PostFactory::Members($post, $relatedPostFactory), '派生投稿' . $post->ID);
+		return new self(PostGet::Members($post, $relatedPostFactory), '派生投稿' . $post->ID);
 	}
 }
 
@@ -145,28 +145,28 @@ $GLOBALS['templateValues'] = [
 	5 => 123,
 	6 => [],
 ];
-$factoryMembers = PostFactory::Members(new WP_Post(20));
+$factoryMembers = PostGet::Members(new WP_Post(20));
 $check($factoryMembers instanceof PostMembers && $factoryMembers->Id === 20, '公開FactoryからPostMembersを生成する');
 $GLOBALS['postCalls'] = [];
 $GLOBALS['postValues'] = [21 => new WP_Post(21)];
-$check(PostFactory::FromId(21)?->Id === 21, '投稿IDからPostDataを生成する');
+$check(PostGet::FromId(21)?->Id === 21, '投稿IDからPostDataを生成する');
 $check($GLOBALS['postCalls'] === [21], '投稿IDをget_postへ渡す');
-$check(PostFactory::FromId(22) === null, '存在しない投稿IDはnull');
+$check(PostGet::FromId(22) === null, '存在しない投稿IDはnull');
 $check($GLOBALS['postCalls'] === [21, 22], '存在しない投稿も1回だけ取得する');
-$check(PostFactory::FromId(0) === null && PostFactory::FromId(-1) === null, '0以下の投稿IDはnull');
+$check(PostGet::FromId(0) === null && PostGet::FromId(-1) === null, '0以下の投稿IDはnull');
 $check($GLOBALS['postCalls'] === [21, 22], '0以下の投稿IDは問い合わせない');
 foreach ($GLOBALS['templateValues'] as $id => $value) {
 	$before = count($GLOBALS['templateCalls']);
-	$data = PostFactory::From(new WP_Post($id));
+	$data = PostGet::From(new WP_Post($id));
 	$check(count($GLOBALS['templateCalls']) === $before, 'Factory構築時は未取得');
 	$check($data->GetTemplateSlug() === (is_string($value) ? $value : ''), 'Factoryの取得・正規化');
 	$check(end($GLOBALS['templateCalls']) === $id, '投稿IDを渡す');
 }
 $GLOBALS['templateValues'][1] = 'changed-template.php';
-$check(PostFactory::From(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
-$check(PostFactory::From(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
+$check(PostGet::From(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
+$check(PostGet::From(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
 
-$published = PostFactory::From(new WP_Post(
+$published = PostGet::From(new WP_Post(
 	ID: 10,
 	post_status: 'publish',
 	post_type: 'page',
@@ -176,7 +176,7 @@ $check($published->Status === 'publish' && $published->IsPublished(), '公開状
 $check($published->PostType === 'page' && $published->Slug === 'published-page', '投稿タイプとスラッグを保持する');
 $check(! $published->IsPasswordProtected && $published->IsPubliclyViewable, '公開閲覧可能な投稿を判定する');
 
-$private = PostFactory::From(new WP_Post(
+$private = PostGet::From(new WP_Post(
 	ID: 11,
 	post_status: 'private',
 	post_type: 'page',
@@ -193,7 +193,7 @@ $GLOBALS['nextPost'] = new WP_Post(32, post_type: 'page');
 $derivedPost = ProjectPostData::FromWpPost($rootPost);
 $check($derivedPost->GetChildren()[0]->Label === '派生投稿31', '関連Factoryで子投稿の派生型を維持する');
 $check($derivedPost->GetNextPost()?->Label === '派生投稿32', '関連Factoryで隣接投稿の派生型を維持する');
-$baseRelations = new ProjectPostData(PostFactory::Members($rootPost), '基底関連');
+$baseRelations = new ProjectPostData(PostGet::Members($rootPost), '基底関連');
 $check(
 	$baseRelations->GetChildren()[0] instanceof PostData
 	&& ! $baseRelations->GetChildren()[0] instanceof ProjectPostData,
@@ -205,9 +205,9 @@ $authorFactory = static fn (WP_User $user): ProjectUserData => new ProjectUserDa
 	new UserMembers($user->ID, $user->display_name),
 	'派生投稿者',
 );
-$customAuthorPost = PostFactory::From($postWithAuthor, authorFactory: $authorFactory);
+$customAuthorPost = PostGet::From($postWithAuthor, authorFactory: $authorFactory);
 $check($customAuthorPost->GetAuthor() instanceof ProjectUserData, 'Author Factoryで投稿者の派生型を返す');
-$baseAuthorPost = PostFactory::From($postWithAuthor);
+$baseAuthorPost = PostGet::From($postWithAuthor);
 $check(
 	$baseAuthorPost->GetAuthor() instanceof WpUserData
 	&& ! $baseAuthorPost->GetAuthor() instanceof ProjectUserData,

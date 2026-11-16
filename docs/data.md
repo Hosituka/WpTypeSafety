@@ -85,6 +85,7 @@ $image = new ImgData(
 | `PostData` | `HasExcerpt()` | `ExcerptPresenceResolver` | `false` |
 | `PostData` | `GetThumbnail()` | `ThumbnailResolver` | `null` |
 | `PostData` | `GetChildren()` | `ChildrenResolver` | 空配列 |
+| `PostData` | `GetParent()` | `ParentResolver` | `null` |
 | `PostData` | `GetPreviousPost()`・`GetNextPost()` | `PreviousPostResolver`・`NextPostResolver` | `null` |
 | `PostData` | `GetTemplateSlug()` | `TemplateSlugResolver` | 空文字 |
 | `PostData` | `GetRenderedContent()` | `RenderedContentResolver` | 空文字 |
@@ -154,7 +155,7 @@ $template = $postData->GetTemplateSlug();
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
 use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Wp\Get\PostFactory;
+use WpTypeSafety\Wp\Get\PostGet;
 
 final readonly class ArticlePostData extends PostData
 {
@@ -168,7 +169,7 @@ final readonly class ArticlePostData extends PostData
 	public static function FromWpPost(\WP_Post $post): self
 	{
 		$relatedPostFactory = static fn (\WP_Post $related): self => self::FromWpPost($related);
-		$members = PostFactory::Members($post, $relatedPostFactory);
+		$members = PostGet::Members($post, $relatedPostFactory);
 		$postGet = new AcfGet($post->ID);
 
 		return new self(
@@ -179,9 +180,9 @@ final readonly class ArticlePostData extends PostData
 }
 ```
 
-`PostFactory::Members()`が返す`PostMembers`には、共通値とResolverがすべて含まれます。案件側で親の値を変更する場合は、Dataへ渡す前にMembersの型付きプロパティを変更します。元のMembersを再利用したい場合は、変更前に`clone`してください。
+`PostGet::Members()`が返す`PostMembers`には、共通値とResolverがすべて含まれます。案件側で親の値を変更する場合は、Dataへ渡す前にMembersの型付きプロパティを変更します。元のMembersを再利用したい場合は、変更前に`clone`してください。
 
-上の`relatedPostFactory`は、`GetChildren()`・`GetPreviousPost()`・`GetNextPost()`が返す関連投稿にも同じ派生Dataを使用するための任意指定です。コールバックは関連する`WP_Post`を受け取り、`PostData`の派生型または`null`を返します。各派生Dataの生成処理でも同じ指定を行うことで、後続の関連取得にも派生型が維持されます。
+上の`relatedPostFactory`は、`GetParent()`・`GetChildren()`・`GetPreviousPost()`・`GetNextPost()`が返す関連投稿にも同じ派生Dataを使用するための任意指定です。コールバックは関連する`WP_Post`を受け取り、`PostData`の派生型または`null`を返します。各派生Dataの生成処理でも同じ指定を行うことで、後続の関連取得にも派生型が維持されます。
 
 `relatedPostFactory`を省略した場合、関連取得は純粋な`PostData`を返します。派生Dataの追加フィールドが不要で、共通のタイトルやURLだけを軽量に扱いたい場合はこちらを使用します。
 
@@ -201,11 +202,11 @@ $data = new ArticlePostData(
 );
 ```
 
-`GetAuthor()`から派生した投稿者Dataを返す場合は、`PostFactory::Members()`の`authorFactory`へ生成処理を指定します。省略時は純粋な`WpUserData`を返します。
+`GetAuthor()`から派生した投稿者Dataを返す場合は、`PostGet::Members()`の`authorFactory`へ生成処理を指定します。省略時は純粋な`WpUserData`を返します。
 
 ```php
 <?php
-$members = PostFactory::Members(
+$members = PostGet::Members(
 	$post,
 	authorFactory: static fn (\WP_User $author): ?AuthorProfileData =>
 		AuthorProfileData::FromWpUser($author),
@@ -221,7 +222,7 @@ $members = PostFactory::Members(
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Data\UserMembers;
 use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Wp\Get\UserFactory;
+use WpTypeSafety\Wp\Get\UserGet;
 
 final readonly class AuthorProfileData extends WpUserData
 {
@@ -234,7 +235,7 @@ final readonly class AuthorProfileData extends WpUserData
 
 	public static function FromWpUser(\WP_User $user, int $avatarSize = 96): ?self
 	{
-		$members = UserFactory::Members($user, $avatarSize);
+		$members = UserGet::Members($user, $avatarSize);
 		$userGet = new AcfGet($user);
 
 		return $members === null ? null : new self(
@@ -247,15 +248,15 @@ final readonly class AuthorProfileData extends WpUserData
 
 `CommentData`・`TermData`・`MenuNodeData`を拡張する場合も、対応する`CommentMembers`・`TermMembers`・`MenuNodeMembers`を子で受け取り、親へそのまま渡します。さらに下のサブクラスを作る場合も、同じMembersを受け渡します。上の`final`クラスをさらに継承する場合は、`final`を外し、生成メソッドの戻り値・生成先も見直してください。
 
-`CommentFactory::Members()`には`relatedCommentFactory`、`TermFactory::Members()`には`relatedTermFactory`を指定できます。コメントでは親と子、タームでは親と子へ適用されます。省略時はそれぞれ`CommentData`・`TermData`を返します。
+`CommentGet::Members()`には`relatedCommentFactory`、`TermGet::Members()`には`relatedTermFactory`を指定できます。コメントでは親と子、タームでは親と子へ適用されます。省略時はそれぞれ`CommentData`・`TermData`を返します。
 
-異なる種類のDataを返す関係にも個別のFactoryを指定できます。`PostFactory`の`authorFactory`は`GetAuthor()`、`CommentFactory`の`userFactory`は`GetUser()`、`postFactory`は`GetPost()`へ適用されます。すべて任意指定で、省略時は純粋な`WpUserData`または`PostData`です。
+異なる種類のDataを返す関係にも個別のFactoryを指定できます。`PostGet`の`authorFactory`は`GetAuthor()`、`CommentGet`の`userFactory`は`GetUser()`、`postFactory`は`GetPost()`へ適用されます。すべて任意指定で、省略時は純粋な`WpUserData`または`PostData`です。
 
 ## タームの親取得
 
 `TermData::GetParent(): ?TermData`は、直接の親を`parentResolver`から取得します。`ParentId`が0・Resolver省略・親の取得失敗の場合はnullです。`HasParent()`は親IDの有無だけを判定し、親が取得できるかどうかまでは確認しません。取得結果はキャッシュせず、呼び出すたびにResolverを実行します。
 
-`TermFactory::From()`・`TermFactory::Members()`のInternal生成処理は、同じタクソノミーと親IDで`get_term()`を呼ぶクロージャーを注入します。親のURLを取得できずDataに変換できない場合もnullです。利用側から`TermMembers::$ParentResolver`へ直接注入することもできます。
+`TermGet::From()`・`TermGet::Members()`のInternal生成処理は、同じタクソノミーと親IDで`get_term()`を呼ぶクロージャーを注入します。親のURLを取得できずDataに変換できない場合もnullです。利用側から`TermMembers::$ParentResolver`へ直接注入することもできます。
 
 ```php
 <?php
@@ -264,3 +265,20 @@ if ($birthplace?->Taxonomy === 'area' && $parent?->Slug === 'kanagawa') {
 	// 神奈川県直下の地域を選択している場合。
 }
 ```
+
+## 投稿の直接の親
+
+`PostData::ParentId`は`post_parent`に対応するreadonlyプロパティです。`HasParent()`は正の親IDが保存されているかだけを判定し、親投稿の存在確認・取得はしません。
+
+`GetParent(): ?PostData`は注入された`ParentResolver`から直接の親を取得します。親なし・取得失敗・Resolver省略時は`null`です。結果はキャッシュせず、呼び出しごとに取得します。`PostMembers`を直接構築する場合、`ParentId`と`ParentResolver`は任意で指定できます。既定値は`0`・`null`です。
+
+```php
+$postData = PostGet::From($post);
+if ($postData->HasParent()) {
+	$parent = $postData->GetParent();
+}
+```
+
+`PostGet::Members()`・`From()`等で生成した場合は、親取得にも既存の`relatedPostFactory`が適用されます。戻り値のPHPDocは`TRelatedPost|null`です。未指定時は共通`PostData`を返し、`authorFactory`は標準の親Data生成にも引き継ぎます。関連Factoryの既存契約どおり`null`を許可し、別の型を返す場合は`UnexpectedValueException`です。Resolverの例外は捕捉しません。
+
+親取得を階層型投稿タイプだけに制限しないため、添付ファイルの親投稿も取得できます。権限・公開状態による除外や再帰的な祖先一覧の取得は、このAPIでは行いません。

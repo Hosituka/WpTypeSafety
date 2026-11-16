@@ -8,7 +8,7 @@ if (PHP_SAPI !== 'cli') {
 
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Data\UserMembers;
-use WpTypeSafety\Wp\Get\UserFactory;
+use WpTypeSafety\Wp\Get\UserGet;
 
 class WP_User
 {
@@ -31,7 +31,7 @@ require_once __DIR__ . '/../Wp/Data/WpUserData.php';
 require_once __DIR__ . '/../Wp/Data/UserMembers.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
-require_once __DIR__ . '/../Wp/Get/UserFactory.php';
+require_once __DIR__ . '/../Wp/Get/UserGet.php';
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -65,7 +65,7 @@ foreach ([
 ] as [$value, $expected]) {
 	$GLOBALS['authorCalls'] = [];
 	$GLOBALS['authorResult'] = $value;
-	$user = UserFactory::From(new WP_User(7));
+	$user = UserGet::From(new WP_User(7));
 	$check($GLOBALS['authorCalls'] === [7], 'URL acquired once at construction');
 	$check($user->ArchiveUrl === $expected, 'factory URL normalization');
 	$check($user->Id === 7 && $user->DisplayName === '名前', 'existing fields preserved');
@@ -73,10 +73,10 @@ foreach ([
 	$check($GLOBALS['authorCalls'] === [7], 'reading does not reacquire URL');
 }
 $GLOBALS['authorResult'] = 'https://example.com/author/7/';
-$members = UserFactory::Members(new WP_User(7));
+$members = UserGet::Members(new WP_User(7));
 $check($members instanceof UserMembers && $members->Id === 7, 'public factory creates UserMembers');
 $GLOBALS['authorCalls'] = [];
-$check(UserFactory::From(new WP_User(0)) === null, 'nonexistent user');
+$check(UserGet::From(new WP_User(0)) === null, 'nonexistent user');
 $check($GLOBALS['authorCalls'] === [], 'nonexistent user does not acquire URL');
 $check((new ReflectionProperty(WpUserData::class, 'ArchiveUrl'))->isReadOnly(), 'readonly URL');
 $check((new WpUserData(new UserMembers(1, '名前')))->Description === '', 'description defaults to empty');
@@ -84,7 +84,7 @@ $direct = new WpUserData(new UserMembers(1, '名前', Description: "自己紹介
 $check($direct->Description === "自己紹介\n2行目", 'description direct construction');
 $check((new ReflectionProperty(WpUserData::class, 'Description'))->isReadOnly(), 'readonly description');
 foreach (["自己紹介\n2行目", '<strong>紹介文</strong>', '', '0', null, false, 123, []] as $value) {
-	$user = UserFactory::From(new WP_User(7, '名前', $value));
+	$user = UserGet::From(new WP_User(7, '名前', $value));
 	$check($user->Description === (is_string($value) ? $value : ''), 'factory description normalization');
 }
 foreach ([
@@ -101,7 +101,7 @@ foreach ([
 	[123, ''],
 	[[], ''],
 ] as [$value, $expected]) {
-	$user = UserFactory::From(new WP_User(7, user_url: $value));
+	$user = UserGet::From(new WP_User(7, user_url: $value));
 	$check($user->WebsiteUrl === $expected, 'factory website normalization');
 	$check($user->ArchiveUrl === $GLOBALS['authorResult'], 'website does not replace archive');
 }

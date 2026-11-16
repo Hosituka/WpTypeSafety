@@ -8,7 +8,7 @@ use WpTypeSafety\Wp\Data\PostTypeMembers;
 use WpTypeSafety\Wp\Internal\DefinitionAdapter;
 
 /** 投稿タイプの登録定義を取得・変換する公開入口。 */
-final class PostTypeFactory
+final class PostTypeGet
 {
 	private function __construct() {}
 

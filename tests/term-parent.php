@@ -10,11 +10,11 @@ if (PHP_SAPI !== 'cli') {
 require_once __DIR__ . '/../Wp/Data/TermData.php';
 require_once __DIR__ . '/../Wp/Data/TermMembers.php';
 require_once __DIR__ . '/../Wp/Internal/TermAdapter.php';
-require_once __DIR__ . '/../Wp/Get/TermFactory.php';
+require_once __DIR__ . '/../Wp/Get/TermGet.php';
 
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\TermMembers;
-use WpTypeSafety\Wp\Get\TermFactory;
+use WpTypeSafety\Wp\Get\TermGet;
 
 class WP_Term
 {
@@ -61,7 +61,7 @@ readonly class ProjectTermData extends TermData
 		/** @var \Closure(WP_Term): (ProjectTermData<ProjectTermData>|null) $relatedTermFactory */
 		$relatedTermFactory = static fn (WP_Term $related): ?self => self::FromWpTerm($related);
 		/** @var TermMembers<ProjectTermData>|null $members */
-		$members = TermFactory::Members($term, $relatedTermFactory);
+		$members = TermGet::Members($term, $relatedTermFactory);
 		return $members !== null ? new self($members, '派生ターム' . $term->term_id) : null;
 	}
 }
@@ -108,9 +108,9 @@ $GLOBALS['termValues'] = [
 	1 => new WP_Term(1, '神奈川県', 'kanagawa'),
 ];
 $wpChild = new WP_Term(2, '海老名市', 'ebina', parent: 1);
-$termMembers = TermFactory::Members($wpChild);
+$termMembers = TermGet::Members($wpChild);
 $check($termMembers instanceof TermMembers && $termMembers->Id === 2, '公開FactoryからTermMembersを生成する');
-$data = TermFactory::From($wpChild);
+$data = TermGet::From($wpChild);
 $check($data instanceof TermData && $GLOBALS['termCalls'] === [], '公開Factoryも親の取得は遅延する');
 $result = $data->GetParent();
 $check($result?->Id === 1 && $result->Slug === 'kanagawa', '公開Factory経由で親を取得する');
@@ -130,11 +130,11 @@ foreach ([new WP_Error(), false, []] as $url) {
 }
 unset($GLOBALS['termLinks'][1]);
 $check($data->GetParent()?->Slug === 'kanagawa', '再取得で親を取得できる');
-$rootData = TermFactory::From(new WP_Term(1, '神奈川県', 'kanagawa'));
+$rootData = TermGet::From(new WP_Term(1, '神奈川県', 'kanagawa'));
 $before = count($GLOBALS['termCalls']);
 $check($rootData->GetParent() === null && count($GLOBALS['termCalls']) === $before, 'Factoryで作ったルートも親を問い合わせない');
 $GLOBALS['termLinks'][2] = new WP_Error();
-$check(TermFactory::From($wpChild) === null, '元のターム変換失敗の契約を維持する');
+$check(TermGet::From($wpChild) === null, '元のターム変換失敗の契約を維持する');
 unset($GLOBALS['termLinks'][2]);
 $GLOBALS['termValues'][1] = new WP_Term(1, '神奈川県', 'kanagawa');
 $GLOBALS['termValues'][2] = $wpChild;
@@ -142,7 +142,7 @@ $GLOBALS['termChildren'] = [new WP_Term(3, '綾瀬市', 'ayase', parent: 2)];
 $derivedTerm = ProjectTermData::FromWpTerm($wpChild);
 $check($derivedTerm?->GetParent()?->Label === '派生ターム1', '関連Factoryで親タームの派生型を維持する');
 $check($derivedTerm?->GetChildren()[0]->Label === '派生ターム3', '関連Factoryで子タームの派生型を維持する');
-$baseRelations = new ProjectTermData(TermFactory::Members($wpChild), '基底関連');
+$baseRelations = new ProjectTermData(TermGet::Members($wpChild), '基底関連');
 $check(
 	$baseRelations->GetParent() instanceof TermData
 	&& ! $baseRelations->GetParent() instanceof ProjectTermData,

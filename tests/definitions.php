@@ -11,8 +11,8 @@ use WpTypeSafety\Wp\Data\PostTypeData;
 use WpTypeSafety\Wp\Data\PostTypeMembers;
 use WpTypeSafety\Wp\Data\TaxonomyData;
 use WpTypeSafety\Wp\Data\TaxonomyMembers;
-use WpTypeSafety\Wp\Get\PostTypeFactory;
-use WpTypeSafety\Wp\Get\TaxonomyFactory;
+use WpTypeSafety\Wp\Get\PostTypeGet;
+use WpTypeSafety\Wp\Get\TaxonomyGet;
 
 class WP_Post_Type
 {
@@ -138,7 +138,7 @@ $GLOBALS['taxonomies'] = ['area' => $nativeTax];
 $GLOBALS['archives'] = ['cases' => 'https://example.com/works/'];
 $GLOBALS['taxonomyNames'] = ['cases' => ['area']];
 $GLOBALS['taxonomyNameRequests'] = [];
-$fromPost = PostTypeFactory::FromName('cases');
+$fromPost = PostTypeGet::FromName('cases');
 $check($fromPost?->Name === 'cases' && $fromPost->SingularLabel === '制作実績1件', '投稿タイプの名前検索');
 $check($fromPost->Description === '投稿タイプの説明' && $fromPost->Label === '制作実績', '投稿タイプの表示値');
 $check($fromPost->IsPublic && ! $fromPost->IsPubliclyQueryable && ! $fromPost->IsHierarchical, '投稿タイプ設定');
@@ -152,55 +152,55 @@ $GLOBALS['taxonomyNames']['cases'] = false;
 $check($fromPost->GetTaxonomyNames() === [], '関連取得の型違いは空配列');
 $nativePost->label = '変更後';
 $check($fromPost->Label === '制作実績', '元WPオブジェクトの変更から独立');
-$factoryPostMembers = PostTypeFactory::Members($nativePost);
+$factoryPostMembers = PostTypeGet::Members($nativePost);
 $factoryPostMembers->Label = '案件表示名';
 $derivedPost = new ProjectPostTypeData($factoryPostMembers, '派生');
 $check($derivedPost->Label === '案件表示名', 'Factory Membersの調整');
 
 foreach ([false, true, 'works'] as $archiveFlag) {
 	$nativePost->has_archive = $archiveFlag;
-	$data = PostTypeFactory::From($nativePost);
+	$data = PostTypeGet::From($nativePost);
 	$check($data->HasArchive === (bool) $archiveFlag, 'has_archiveのbool化');
 }
 foreach ([false, '', 'javascript:alert(1)', '/works/', 123] as $url) {
 	$GLOBALS['archives']['cases'] = $url;
-	$data = PostTypeFactory::From($nativePost);
+	$data = PostTypeGet::From($nativePost);
 	$check($data->ArchiveUrl === '', '不正・取得失敗のURLは空文字');
 }
 $standardPost = new WP_Post_Type('post');
 $standardPost->has_archive = false;
 $GLOBALS['archives']['post'] = 'https://example.com/news/';
-$data = PostTypeFactory::From($standardPost);
+$data = PostTypeGet::From($standardPost);
 $check(! $data->HasArchive && $data->ArchiveUrl === 'https://example.com/news/', '標準投稿の一覧URLはhas_archiveと独立');
 $nativePost->labels = null;
 $nativePost->description = false;
-$data = PostTypeFactory::From($nativePost);
+$data = PostTypeGet::From($nativePost);
 $check($data->SingularLabel === '変更後' && $data->Description === '', 'ラベル欠損と説明型違い');
 
-$fromTax = TaxonomyFactory::FromName('area');
+$fromTax = TaxonomyGet::FromName('area');
 $check($fromTax?->Name === 'area' && $fromTax->Label === '地域' && $fromTax->SingularLabel === '地域1件', 'タクソノミー名前検索');
 $check($fromTax->Description === '分類の説明' && $fromTax->ObjectTypes === ['cases', 'post'], 'タクソノミー値の正規化');
 $check(! $fromTax->IsPublic && $fromTax->IsPubliclyQueryable && $fromTax->IsHierarchical, 'タクソノミー設定');
 $nativeTax->object_type = [4 => 'cases', 9 => false, 11 => '', 12 => 'post'];
 $nativeTax->labels = (object) [];
 $nativeTax->description = [];
-$members = TaxonomyFactory::Members($nativeTax);
+$members = TaxonomyGet::Members($nativeTax);
 $check($members->ObjectTypes === ['cases', 'post'] && $members->Description === '' && $members->SingularLabel === '地域', '分類欠損値・要素型違い');
 $members->Label = '案件分類';
 $derivedTax = new ProjectTaxonomyData($members, '派生');
 $check($derivedTax->Label === '案件分類' && $derivedTax->HasObjectType('cases'), '分類Factoryから派生Data');
 $nativeTax->object_type = null;
-$data = TaxonomyFactory::From($nativeTax);
+$data = TaxonomyGet::From($nativeTax);
 $check($data->ObjectTypes === [] && ! $data->HasObjectType('cases'), '対象投稿タイプの型違い');
 
 foreach ([null, false, new stdClass()] as $missing) {
 	$GLOBALS['postTypes']['missing'] = $missing;
 	$GLOBALS['taxonomies']['missing'] = $missing;
-	$check(PostTypeFactory::FromName('missing') === null, '投稿タイプ未登録・型違い');
-	$check(TaxonomyFactory::FromName('missing') === null, 'タクソノミー未登録・型違い');
+	$check(PostTypeGet::FromName('missing') === null, '投稿タイプ未登録・型違い');
+	$check(TaxonomyGet::FromName('missing') === null, 'タクソノミー未登録・型違い');
 }
 $before = count($GLOBALS['postTypeRequests']) + count($GLOBALS['taxonomyRequests']);
-$check(PostTypeFactory::FromName('') === null && TaxonomyFactory::FromName('') === null, '空名はnull');
+$check(PostTypeGet::FromName('') === null && TaxonomyGet::FromName('') === null, '空名はnull');
 $check(count($GLOBALS['postTypeRequests']) + count($GLOBALS['taxonomyRequests']) === $before, '空名は検索しない');
 
 echo "Definitions: {$checks} checks passed.\n";

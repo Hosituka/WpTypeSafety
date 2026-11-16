@@ -148,7 +148,7 @@ class AcfGet
 	}
 
 	/** 単一選択の投稿を参照先として、そのACFフィールドを取得する。 */
-	public function PostGet(string $fieldName): static
+	public function PostFields(string $fieldName): static
 	{
 		return $this->createChild($this->Post($fieldName) ?? []);
 	}
@@ -183,7 +183,7 @@ class AcfGet
 	}
 
 	/** @return list<static> */
-	public function PostGets(string $fieldName): array
+	public function PostsFields(string $fieldName): array
 	{
 		return $this->createChildren($this->Posts($fieldName));
 	}
@@ -247,13 +247,13 @@ class AcfGet
 	}
 
 	/** 単一選択のタームを参照先として、そのACFフィールドを取得する。 */
-	public function TermGet(string $fieldName): static
+	public function TermFields(string $fieldName): static
 	{
 		return $this->createChild($this->Term($fieldName) ?? []);
 	}
 
 	/** @return list<static> */
-	public function TermGets(string $fieldName): array
+	public function TermsFields(string $fieldName): array
 	{
 		return $this->createChildren($this->Terms($fieldName));
 	}
@@ -325,13 +325,13 @@ class AcfGet
 	}
 
 	/** 単一選択のユーザーを参照先として、そのACFフィールドを取得する。 */
-	public function UserGet(string $fieldName): static
+	public function UserFields(string $fieldName): static
 	{
 		return $this->createChild($this->User($fieldName) ?? []);
 	}
 
 	/** @return list<static> */
-	public function UserGets(string $fieldName): array
+	public function UsersFields(string $fieldName): array
 	{
 		return $this->createChildren($this->Users($fieldName));
 	}

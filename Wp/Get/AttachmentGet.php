@@ -8,7 +8,7 @@ use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Wp\Internal\DtoFactory;
 
 /** WordPressの添付ファイルIDからCoreのDataを生成します。 */
-final class AttachmentFactory
+final class AttachmentGet
 {
 	private function __construct() {}
 

@@ -93,9 +93,11 @@ $mainImg = $postGet->Img('main_img');
 
 Continue to escape HTML for its output context with functions such as `esc_html()` and `esc_url()`. WpTypeSafety does not escape rendered HTML automatically.
 
-Core, WordPress metadata, Factory, and Query entry points are also available. Use the [getting-started guide](docs/getting-started.md#どこから始めるか) to choose one for your data source.
+Core, WordPress metadata, subject-specific Get, and Query entry points are also available. Use the [getting-started guide](docs/getting-started.md#どこから始めるか) to choose one for your data source.
 
-Registered post type and taxonomy definitions are available through `PostTypeFactory` and `TaxonomyFactory`. See the [definition APIs](docs/wordpress.md#投稿タイプタクソノミーの登録定義).
+Read the displayed post or term with `PostGet::Current()` or `TermGet::Current()`, the loop post with `PostGet::Loop()`, and the logged-in user with `UserGet::LoggedIn()`. See [context-based access](docs/wordpress.md#現在の表示対象ループ投稿ログインユーザー).
+
+Registered post type and taxonomy definitions are available through `PostTypeGet` and `TaxonomyGet`. See the [definition APIs](docs/wordpress.md#投稿タイプタクソノミーの登録定義).
 
 ## Choose between WpTypeSafety Data and native WordPress types
 
@@ -168,7 +170,7 @@ The detailed documentation is currently available in Japanese.
 |---|---|
 | First setup, choosing an entry point, and minimal examples (Japanese) | [Getting started](docs/getting-started.md) |
 | ACF accessors, groups, repeaters, references, and blocks | [ACF](docs/acf.md) |
-| WordPress accessors, metadata, Factory, and Query | [WordPress](docs/wordpress.md) |
+| WordPress accessors, metadata, subject-specific Get, and Query | [WordPress](docs/wordpress.md) |
 | Type checks, normalization, arrays, objects, and mixed trees | [Core](docs/core.md) |
 | Generic typed-tree engine and extension contracts | [TreeTypeReader](Internal/TreeTypeReader/README.md) |
 | Data, Resolvers, and derived classes | [Data](docs/data.md) |

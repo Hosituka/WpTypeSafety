@@ -93,9 +93,11 @@ $mainImg = $postGet->Img('main_img');
 
 HTMLへ出力するときは、これまでどおり`esc_html()`・`esc_url()`等を出力先に合わせて使用してください。WpTypeSafetyはHTMLを自動エスケープしません。
 
-Core、WordPress meta、Factory、Queryの入口も利用できます。[導入ガイド](docs/getting-started.md#どこから始めるか)で取得元に合うものを選んでください。
+Core、WordPress meta、対象別Get、Queryの入口も利用できます。[導入ガイド](docs/getting-started.md#どこから始めるか)で取得元に合うものを選んでください。
 
-投稿タイプ・タクソノミーの登録定義は、`PostTypeFactory`・`TaxonomyFactory`から取得できます。[定義情報の取得API](docs/wordpress.md#投稿タイプタクソノミーの登録定義)を参照してください。
+現在の表示対象は`PostGet::Current()`・`TermGet::Current()`、ループ中の投稿は`PostGet::Loop()`、ログインユーザーは`UserGet::LoggedIn()`からDataとして取得できます。[コンテキストからの取得](docs/wordpress.md#現在の表示対象ループ投稿ログインユーザー)も参照してください。
+
+投稿タイプ・タクソノミーの登録定義は、`PostTypeGet`・`TaxonomyGet`から取得できます。[定義情報の取得API](docs/wordpress.md#投稿タイプタクソノミーの登録定義)を参照してください。
 
 ## WpTypeSafety DataとWordPressネイティブ型を選ぶ
 
@@ -166,7 +168,7 @@ Coreは厳密な型確認を既定値とします。`NumericMode`・`BoolMode`�
 |---|---|
 | 初めての導入、入口の選び方、最小構成の実例 | [はじめてのWpTypeSafety](docs/getting-started.md) |
 | ACFの取得口、グループ、リピーター、参照先、ブロック | [ACF](docs/acf.md) |
-| WordPressの取得口、meta、Factory、Query | [WordPress](docs/wordpress.md) |
+| WordPressの取得口、meta、対象別Get、Query | [WordPress](docs/wordpress.md) |
 | 型確認、値正規化、配列・オブジェクト・混在ツリー | [Core](docs/core.md) |
 | 汎用型付きツリーエンジンと拡張契約 | [TreeTypeReader](Internal/TreeTypeReader/README.md) |
 | Data、Resolver、派生クラス | [Data](docs/data.md) |

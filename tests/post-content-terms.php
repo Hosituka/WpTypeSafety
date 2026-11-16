@@ -10,8 +10,8 @@ require_once __DIR__ . '/../autoload.php';
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Get\PostFactory;
-use WpTypeSafety\Wp\Get\TermFactory;
+use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Wp\Get\TermGet;
 
 class WP_Post
 {
@@ -101,7 +101,7 @@ $GLOBALS['filterCalls'] = 0;
 $GLOBALS['termCalls'] = [];
 $GLOBALS['contentFilter'] = static fn (string $raw): string => '<p>' . $GLOBALS['post']->ID . ':' . $raw . ']]></p>';
 $sourcePost = new WP_Post(7, 'original');
-$members = PostFactory::Members($sourcePost);
+$members = PostGet::Members($sourcePost);
 $members->RawContent = 'adjusted';
 $data = new PostData($members);
 $check($GLOBALS['setupCalls'] === 0 && $GLOBALS['termCalls'] === [], '構築時は遅延処理しない');
@@ -158,7 +158,7 @@ $GLOBALS['termsResult'] = [5 => new WP_Term(2), 8 => 'invalid', 9 => new WP_Term
 $terms = $data->GetTerms('category');
 $check(array_is_list($terms) && count($terms) === 2 && $terms[0]->Id === 2, '型フィルタリングと連番化');
 $check($GLOBALS['termCalls'] === [[7, 'category']], '対象IDとタクソノミー');
-$factory = static fn (WP_Term $term): ProjectTerm => new ProjectTerm(TermFactory::Members($term));
+$factory = static fn (WP_Term $term): ProjectTerm => new ProjectTerm(TermGet::Members($term));
 $derived = $data->GetTerms('category', $factory);
 $check($derived[0] instanceof ProjectTerm && $derived[1] instanceof ProjectTerm, '案件固有Term Factory');
 $beforeCalls = count($GLOBALS['termCalls']);

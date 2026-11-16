@@ -13,14 +13,12 @@ require_once __DIR__ . '/../Wp/Data/MenuItemType.php';
 require_once __DIR__ . '/../Wp/Data/MenuNodeMembers.php';
 require_once __DIR__ . '/../Wp/Data/MenuNodeData.php';
 require_once __DIR__ . '/../Wp/Internal/MenuAdapter.php';
-require_once __DIR__ . '/../Wp/Get/MenuNodeFactory.php';
-require_once __DIR__ . '/../Wp/Get/WpGetMenuNode.php';
+require_once __DIR__ . '/../Wp/Get/MenuNodeGet.php';
 
 use WpTypeSafety\Wp\Data\MenuItemType;
 use WpTypeSafety\Wp\Data\MenuNodeData;
 use WpTypeSafety\Wp\Data\MenuNodeMembers;
-use WpTypeSafety\Wp\Get\MenuNodeFactory;
-use WpTypeSafety\Wp\Get\WpGetMenuNode;
+use WpTypeSafety\Wp\Get\MenuNodeGet;
 
 class WP_Post
 {
@@ -108,7 +106,7 @@ $check($data->GetThumbnail() === null, 'Resolver省略時は画像なし');
 
 /** @var list<ProjectMenuNodeData> $projectChildren */
 $projectChildren = [];
-$projectMembers = MenuNodeFactory::Members(new WP_Post(3, title: '派生タイトル'), $projectChildren);
+$projectMembers = MenuNodeGet::Members(new WP_Post(3, title: '派生タイトル'), $projectChildren);
 $derived = new ProjectMenuNodeData($projectMembers, '案件固有');
 $check($derived->Title === '派生タイトル' && $derived->Label === '案件固有', 'Membersを派生Dataへ渡せる');
 
@@ -127,7 +125,7 @@ $item = new WP_Post(
 	object: 'page',
 	object_id: '30',
 );
-$factoryMembers = MenuNodeFactory::Members($item, [$child]);
+$factoryMembers = MenuNodeGet::Members($item, [$child]);
 $check($factoryMembers->Id === 20 && $factoryMembers->ParentId === 5, 'FactoryがIDを正規化する');
 $check($factoryMembers->Classes === ['menu-item', 'about'], 'Factoryが文字列クラスだけを保持する');
 $check($factoryMembers->Type === MenuItemType::PostType, 'Factoryがメニュー種別をenumへ変換する');
@@ -139,11 +137,11 @@ $check(
 	'Factoryがリンク属性を保持する',
 );
 
-$factoryData = MenuNodeFactory::From($item, [$child]);
+$factoryData = MenuNodeGet::From($item, [$child]);
 $check($factoryData->Title === '会社案内' && $factoryData->Children === [$child], '公開FactoryからMenuNodeDataを生成する');
 $check($factoryData->IsNewTab() && $factoryData->GetLink()->Target === '_blank', '新規タブ判定とLinkDataへTargetを引き継ぐ');
 
-$invalidLinkAttributes = MenuNodeFactory::Members(new WP_Post(
+$invalidLinkAttributes = MenuNodeGet::Members(new WP_Post(
 	ID: 21,
 	target: [],
 	attr_title: false,
@@ -156,34 +154,34 @@ $check(
 	'Factoryが文字列以外のリンク属性を空文字へ正規化する',
 );
 
-$check(WpGetMenuNode::FindById([$data], 2) === $child, 'メニュー項目IDから深い子ノードを検索する');
-$check(WpGetMenuNode::FindById([$data], 0) === null, '0以下のメニュー項目IDは検索しない');
-$check(WpGetMenuNode::FindById([$data], 999) === null, '存在しないメニュー項目IDはnullを返す');
+$check(MenuNodeGet::FindById([$data], 2) === $child, 'メニュー項目IDから深い子ノードを検索する');
+$check(MenuNodeGet::FindById([$data], 0) === null, '0以下のメニュー項目IDは検索しない');
+$check(MenuNodeGet::FindById([$data], 999) === null, '存在しないメニュー項目IDはnullを返す');
 
 $check(
-	WpGetMenuNode::FindByObject([$data], MenuItemType::PostType, 'page', 10) === $data,
+	MenuNodeGet::FindByObject([$data], MenuItemType::PostType, 'page', 10) === $data,
 	'リンク先オブジェクトからノードを検索する',
 );
 $check(
-	WpGetMenuNode::FindByObject([$data], MenuItemType::Taxonomy, 'page', 10) === null,
+	MenuNodeGet::FindByObject([$data], MenuItemType::Taxonomy, 'page', 10) === null,
 	'ObjectIdが同じでも種別が異なるノードを返さない',
 );
-$check(WpGetMenuNode::FindByPageId([$data], 10) === $data, '固定ページ検索を汎用検索へ委譲する');
+$check(MenuNodeGet::FindByPageId([$data], 10) === $data, '固定ページ検索を汎用検索へ委譲する');
 
-$foundByUrl = WpGetMenuNode::FindByUrl([$data], '/child/');
+$foundByUrl = MenuNodeGet::FindByUrl([$data], '/child/');
 $check($foundByUrl === $child, 'URLから深い子ノードを検索する');
-$check(WpGetMenuNode::FindByUrl([$data], '') === null, '空URLは検索しない');
-$check(WpGetMenuNode::FindByUrl([$data], '/missing/') === null, '存在しないURLはnullを返す');
+$check(MenuNodeGet::FindByUrl([$data], '') === null, '空URLは検索しない');
+$check(MenuNodeGet::FindByUrl([$data], '/missing/') === null, '存在しないURLはnullを返す');
 
-$pathToUrl = WpGetMenuNode::PathToUrl([$data], '/child/');
+$pathToUrl = MenuNodeGet::PathToUrl([$data], '/child/');
 $check($pathToUrl === [$data, $child], 'URLまでのパスをルートから対象自身の順で返す');
-$check(WpGetMenuNode::PathToUrl([$data], '/parent/') === [$data], 'ルート自身へのパスは1件を返す');
-$check(WpGetMenuNode::PathToUrl([$data], '/missing/') === [], '存在しないURLのパスは空配列を返す');
+$check(MenuNodeGet::PathToUrl([$data], '/parent/') === [$data], 'ルート自身へのパスは1件を返す');
+$check(MenuNodeGet::PathToUrl([$data], '/missing/') === [], '存在しないURLのパスは空配列を返す');
 
-$check(WpGetMenuNode::PathToId([$data], 2) === [$data, $child], 'メニュー項目IDまでのパスを返す');
-$check(WpGetMenuNode::PathToId([$data], 0) === [], '0以下のメニュー項目IDのパスは空配列を返す');
+$check(MenuNodeGet::PathToId([$data], 2) === [$data, $child], 'メニュー項目IDまでのパスを返す');
+$check(MenuNodeGet::PathToId([$data], 0) === [], '0以下のメニュー項目IDのパスは空配列を返す');
 $check(
-	WpGetMenuNode::PathToObject([$data], MenuItemType::Custom, 'custom', 0) === [$data, $child],
+	MenuNodeGet::PathToObject([$data], MenuItemType::Custom, 'custom', 0) === [$data, $child],
 	'リンク先オブジェクトまでのパスを返す',
 );
 
@@ -194,25 +192,25 @@ $GLOBALS['menuItems'] = [
 $nodeFactory = static function (WP_Post $menuItem, array $children): ProjectMenuNodeData {
 	/** @var list<ProjectMenuNodeData> $children */
 	return new ProjectMenuNodeData(
-		MenuNodeFactory::Members($menuItem, $children),
+		MenuNodeGet::Members($menuItem, $children),
 		'派生メニュー' . $menuItem->ID,
 	);
 };
-$derivedTree = WpGetMenuNode::TreeFromLocation('primary', $nodeFactory);
+$derivedTree = MenuNodeGet::TreeFromLocation('primary', $nodeFactory);
 $check($derivedTree[0] instanceof ProjectMenuNodeData, '指定Factoryでルートの派生型を生成する');
 $check($derivedTree[0]->Children[0]->Label === '派生メニュー101', '指定Factoryを子ノードへ引き継ぐ');
 $check(
-	WpGetMenuNode::FindById($derivedTree, 101) instanceof ProjectMenuNodeData,
+	MenuNodeGet::FindById($derivedTree, 101) instanceof ProjectMenuNodeData,
 	'派生ツリーの検索結果も派生型を維持する',
 );
-$derivedPath = WpGetMenuNode::PathToId($derivedTree, 101);
+$derivedPath = MenuNodeGet::PathToId($derivedTree, 101);
 $check(
 	count($derivedPath) === 2
 	&& $derivedPath[0] instanceof ProjectMenuNodeData
 	&& $derivedPath[1] instanceof ProjectMenuNodeData,
 	'派生ツリーのパスも全階層で派生型を維持する',
 );
-$baseTree = WpGetMenuNode::TreeFromLocation('primary');
+$baseTree = MenuNodeGet::TreeFromLocation('primary');
 $check(
 	$baseTree[0] instanceof MenuNodeData
 	&& ! $baseTree[0] instanceof ProjectMenuNodeData,

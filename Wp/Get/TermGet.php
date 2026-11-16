@@ -5,12 +5,44 @@ namespace WpTypeSafety\Wp\Get;
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
+use WpTypeSafety\Wp\Data\TermMembers;
 use WpTypeSafety\Wp\Internal\TermAdapter;
 
-/** 投稿のターム取得と、ターム群の階層による選別。 */
-final class WpGetTerm
+/** タームの取得・Data生成・階層による選別の公開入口。 */
+final class TermGet
 {
 	private function __construct() {}
+
+	/**
+	 * クエリ確定後、現在のタームアーカイブを取得する。投稿の割り当てタームは選ばない。
+	 * @template TTerm of TermData
+	 * @param null|\Closure(\WP_Term): TTerm $termFactory
+	 * @return ($termFactory is null ? TermData|null : TTerm|null)
+	 */
+	public static function Current(?\Closure $termFactory = null): ?TermData
+	{
+		return TermAdapter::Current($termFactory);
+	}
+
+	/**
+	 * @template TRelatedTerm of TermData = TermData
+	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
+	 * @return TermMembers<TRelatedTerm>|null
+	 */
+	public static function Members(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermMembers
+	{
+		return TermAdapter::MembersFromWpTerm($term, $relatedTermFactory);
+	}
+
+	/**
+	 * @template TRelatedTerm of TermData = TermData
+	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
+	 * @return TermData<TRelatedTerm>|null
+	 */
+	public static function From(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermData
+	{
+		return TermAdapter::FromWpTerm($term, $relatedTermFactory);
+	}
 
 	/**
 	 * @template TTerm of TermData

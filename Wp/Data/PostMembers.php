@@ -24,6 +24,7 @@ final class PostMembers
 	 * @param null|\Closure(): string $TemplateSlugResolver
 	 * @param null|\Closure(string): string $RenderedContentResolver
 	 * @param null|\Closure(string, (\Closure(\WP_Term): TermData)|null): list<TermData> $TermsResolver
+	 * @param null|\Closure(): (TRelatedPost|null) $ParentResolver
 	 */
 	public function __construct(
 		public int $Id,
@@ -47,6 +48,8 @@ final class PostMembers
 		public bool $IsPubliclyViewable = false,
 		public ?\Closure $RenderedContentResolver = null,
 		public ?\Closure $TermsResolver = null,
+		public int $ParentId = 0,
+		public ?\Closure $ParentResolver = null,
 	) {
 	}
 }

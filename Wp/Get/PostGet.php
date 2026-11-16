@@ -9,9 +9,31 @@ use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Internal\DtoFactory;
 
 /** WP_Postから投稿のMembersまたはDataを生成します。 */
-final class PostFactory
+final class PostGet
 {
 	private function __construct() {}
+
+	/**
+	 * メインクエリの表示対象を取得する。ループ中の投稿とは独立する。
+	 * @template TPost of PostData
+	 * @param null|\Closure(\WP_Post): TPost $postFactory
+	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 */
+	public static function Current(?\Closure $postFactory = null): ?PostData
+	{
+		return DtoFactory::CurrentPost($postFactory);
+	}
+
+	/**
+	 * グローバル$postの現在値を取得する。ループ外での有効性は保証しない。
+	 * @template TPost of PostData
+	 * @param null|\Closure(\WP_Post): TPost $postFactory
+	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 */
+	public static function Loop(?\Closure $postFactory = null): ?PostData
+	{
+		return DtoFactory::LoopPost($postFactory);
+	}
 
 	/**
 	 * @template TRelatedPost of PostData = PostData

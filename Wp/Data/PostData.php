@@ -13,6 +13,9 @@ use WpTypeSafety\Core\Data\LinkData;
 readonly class PostData
 {
 	public int $Id;
+	public int $ParentId;
+	/** @var null|\Closure(): (TRelatedPost|null) */
+	private ?\Closure $parentResolver;
 	public string $Url;
 	public string $Title;
 	public string $RawContent;
@@ -44,6 +47,8 @@ readonly class PostData
 	public function __construct(PostMembers $members)
 	{
 		$this->Id = $members->Id;
+		$this->ParentId = $members->ParentId;
+		$this->parentResolver = $members->ParentResolver;
 		$this->Url = $members->Url;
 		$this->Title = $members->Title;
 		$this->RawContent = $members->RawContent;
@@ -167,6 +172,23 @@ readonly class PostData
 	public function GetPreviousPost(): ?PostData
 	{
 		return $this->previousPostResolver !== null ? ($this->previousPostResolver)() : null;
+	}
+
+	/** 保存済みの親IDの有無。親投稿の存在確認は行わない。 */
+	public function HasParent(): bool
+	{
+		return $this->ParentId > 0;
+	}
+
+	/**
+	 * 直接の親を取得する。親なし・取得失敗・Resolver省略時はnull。
+	 * @return TRelatedPost|null
+	 */
+	public function GetParent(): ?PostData
+	{
+		return $this->HasParent() && $this->parentResolver !== null
+			? ($this->parentResolver)()
+			: null;
 	}
 
 	/** @return TRelatedPost|null */

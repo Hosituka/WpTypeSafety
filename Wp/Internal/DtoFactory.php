@@ -20,6 +20,63 @@ final class DtoFactory
 	private function __construct() {}
 
 	/**
+	 * @template TPost of PostData
+	 * @param null|\Closure(\WP_Post): TPost $postFactory
+	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 */
+	public static function CurrentPost(?\Closure $postFactory = null): ?PostData
+	{
+		return self::contextPost(MainQueryAdapter::QueriedObject(), $postFactory);
+	}
+
+	/**
+	 * @template TPost of PostData
+	 * @param null|\Closure(\WP_Post): TPost $postFactory
+	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 */
+	public static function LoopPost(?\Closure $postFactory = null): ?PostData
+	{
+		global $post;
+
+		return self::contextPost($post ?? null, $postFactory);
+	}
+
+	/**
+	 * @template TPost of PostData
+	 * @param null|\Closure(\WP_Post): TPost $postFactory
+	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 */
+	private static function contextPost(mixed $post, ?\Closure $postFactory): ?PostData
+	{
+		if (! $post instanceof \WP_Post)
+		{return null;}
+
+		$data = $postFactory !== null ? $postFactory($post) : self::PostFromWpPost($post);
+		if (! $data instanceof PostData)
+		{throw new \UnexpectedValueException('PostGetのpostFactoryはPostDataを返す必要があります。');}
+
+		return $data;
+	}
+
+	/**
+	 * @template TUser of WpUserData
+	 * @param null|\Closure(\WP_User, int): TUser $userFactory
+	 * @return ($userFactory is null ? WpUserData|null : TUser|null)
+	 */
+	public static function LoggedInUser(int $avatarSize = 96, ?\Closure $userFactory = null): ?WpUserData
+	{
+		$user = \wp_get_current_user();
+		if (! $user->exists())
+		{return null;}
+
+		$data = $userFactory !== null ? $userFactory($user, $avatarSize) : self::UserFromWpUser($user, $avatarSize);
+		if (! $data instanceof WpUserData)
+		{throw new \UnexpectedValueException('UserGetのuserFactoryはWpUserDataを返す必要があります。');}
+
+		return $data;
+	}
+
+	/**
 	 * @template TRelatedComment of CommentData = CommentData
 	 * @template TUser of WpUserData = WpUserData
 	 * @template TPost of PostData = PostData
@@ -233,6 +290,7 @@ final class DtoFactory
 	{
 		$postId = (int) $post->ID;
 		$authorId = (int) $post->post_author;
+		$parentId = max(0, (int) ($post->post_parent ?? 0));
 		$url = \get_permalink($post);
 		$publishedAt = \get_post_datetime($post);
 		$modifiedAt = \get_post_datetime($post, 'modified');
@@ -286,6 +344,16 @@ final class DtoFactory
 				PostContentRenderer::Render($post, $rawContent),
 			TermsResolver: static fn (string $taxonomy, ?\Closure $termFactory): array =>
 				TermAdapter::FromPost($postId, $taxonomy, $termFactory),
+			ParentId: $parentId,
+			ParentResolver: static function () use ($parentId, $relatedPostFactory, $authorFactory): ?PostData {
+				if ($parentId <= 0)
+				{return null;}
+
+				$parent = \get_post($parentId);
+				return $parent instanceof \WP_Post
+					? self::relatedPost($parent, $relatedPostFactory, $authorFactory)
+					: null;
+			},
 		);
 	}
 

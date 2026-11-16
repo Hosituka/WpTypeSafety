@@ -5,12 +5,33 @@ namespace WpTypeSafety\Wp\Get;
 
 use WpTypeSafety\Wp\Data\MenuItemType;
 use WpTypeSafety\Wp\Data\MenuNodeData;
+use WpTypeSafety\Wp\Data\MenuNodeMembers;
 use WpTypeSafety\Wp\Internal\MenuAdapter;
 
-/** メニューツリー取得・検索の公開クラス。 */
-final class WpGetMenuNode
+/** メニュー項目のData生成・ツリー取得・検索の公開入口。 */
+final class MenuNodeGet
 {
 	private function __construct() {}
+
+	/**
+	 * @template TChild of MenuNodeData
+	 * @param list<TChild> $children
+	 * @return MenuNodeMembers<TChild>
+	 */
+	public static function Members(\WP_Post $item, array $children = []): MenuNodeMembers
+	{
+		return MenuAdapter::MembersFromWpPost($item, $children);
+	}
+
+	/**
+	 * @template TChild of MenuNodeData
+	 * @param list<TChild> $children
+	 * @return MenuNodeData<TChild>
+	 */
+	public static function From(\WP_Post $item, array $children = []): MenuNodeData
+	{
+		return MenuAdapter::FromWpPost($item, $children);
+	}
 
 	/**
 	 * @template TNode of MenuNodeData

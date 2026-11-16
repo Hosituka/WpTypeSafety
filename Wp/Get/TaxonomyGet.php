@@ -8,7 +8,7 @@ use WpTypeSafety\Wp\Data\TaxonomyMembers;
 use WpTypeSafety\Wp\Internal\DefinitionAdapter;
 
 /** タクソノミーの登録定義を取得・変換する公開入口。 */
-final class TaxonomyFactory
+final class TaxonomyGet
 {
 	private function __construct() {}
 

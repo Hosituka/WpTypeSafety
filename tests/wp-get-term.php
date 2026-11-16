@@ -55,7 +55,7 @@ require_once __DIR__ . '/../autoload.php';
 
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\TermMembers;
-use WpTypeSafety\Wp\Get\WpGetTerm;
+use WpTypeSafety\Wp\Get\TermGet;
 
 readonly class ProjectPostTermData extends TermData {}
 
@@ -87,25 +87,25 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-$baseTerms = WpGetTerm::FromPost(10, 'area');
+$baseTerms = TermGet::FromPost(10, 'area');
 $check(count($baseTerms) === 2 && $baseTerms[0] instanceof TermData, 'Factory省略時は共通TermDataを返す');
 
-$terms = WpGetTerm::FromPost(10, 'area', $termFactory);
+$terms = TermGet::FromPost(10, 'area', $termFactory);
 $check(count($terms) === 2 && $terms[0] instanceof ProjectPostTermData, '投稿タームを派生Dataへ変換する');
-$check(WpGetTerm::Deepest($terms) === [$terms[1]], '最深タームで派生Dataと同じインスタンスを維持する');
-$check(WpGetTerm::Shallowest($terms) === [$terms[0]], '最浅タームで派生Dataと同じインスタンスを維持する');
+$check(TermGet::Deepest($terms) === [$terms[1]], '最深タームで派生Dataと同じインスタンスを維持する');
+$check(TermGet::Shallowest($terms) === [$terms[0]], '最浅タームで派生Dataと同じインスタンスを維持する');
 
-$roots = WpGetTerm::Roots($terms, $termFactory);
+$roots = TermGet::Roots($terms, $termFactory);
 $check(count($roots) === 1 && $roots[0] instanceof ProjectPostTermData, 'ルート解決後も派生Dataを維持する');
 $check($roots[0]->Id === 1, '祖先の最上位タームを返す');
 
 foreach ([
-	static fn () => WpGetTerm::FromPost(
+	static fn () => TermGet::FromPost(
 		10,
 		'area',
 		static fn (WP_Term $term): mixed => null,
 	),
-	static fn () => WpGetTerm::Roots(
+	static fn () => TermGet::Roots(
 		$terms,
 		static fn (WP_Term $term): mixed => null,
 	),
@@ -118,4 +118,4 @@ foreach ([
 	}
 }
 
-echo "WpGetTerm: {$checks} checks passed.\n";
+echo "TermGet: {$checks} checks passed.\n";

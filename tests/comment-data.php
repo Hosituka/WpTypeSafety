@@ -85,7 +85,7 @@ require_once __DIR__ . '/../Wp/Data/PostMembers.php';
 require_once __DIR__ . '/../Wp/Data/CommentData.php';
 require_once __DIR__ . '/../Wp/Data/CommentMembers.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
-require_once __DIR__ . '/../Wp/Get/CommentFactory.php';
+require_once __DIR__ . '/../Wp/Get/CommentGet.php';
 
 use WpTypeSafety\Wp\Data\CommentData;
 use WpTypeSafety\Wp\Data\CommentMembers;
@@ -93,7 +93,7 @@ use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostMembers;
 use WpTypeSafety\Wp\Data\UserMembers;
 use WpTypeSafety\Wp\Data\WpUserData;
-use WpTypeSafety\Wp\Get\CommentFactory;
+use WpTypeSafety\Wp\Get\CommentGet;
 
 /**
  * @template TRelatedComment of CommentData = CommentData
@@ -114,7 +114,7 @@ readonly class ProjectCommentData extends CommentData
 	{
 		$relatedCommentFactory = static fn (WP_Comment $related): self => self::FromWpComment($related);
 		return new self(
-			CommentFactory::Members($comment, relatedCommentFactory: $relatedCommentFactory),
+			CommentGet::Members($comment, relatedCommentFactory: $relatedCommentFactory),
 			'派生コメント' . $comment->comment_ID,
 		);
 	}
@@ -212,9 +212,9 @@ $comment = new WP_Comment(
 	comment_parent: '4',
 	user_id: '7',
 );
-$commentMembers = CommentFactory::Members($comment, 80);
+$commentMembers = CommentGet::Members($comment, 80);
 $check($commentMembers instanceof CommentMembers && $commentMembers->Id === 8, '公開FactoryからCommentMembersを生成する');
-$data = CommentFactory::From($comment, 80);
+$data = CommentGet::From($comment, 80);
 $check($data->Id === 8 && $data->PostId === 12 && $data->ParentId === 4, 'IDを整数へ正規化する');
 $check($data->AuthorUserId === 7 && $data->AuthorName === '登録ユーザー', '投稿者情報を保持する');
 $check($data->WebsiteUrl === 'https://example.com/profile/', 'HTTPの投稿者URLを保持する');
@@ -245,12 +245,12 @@ foreach ([
 	['spam', 'spam', false],
 	['trash', 'trash', false],
 ] as [$rawStatus, $expectedStatus, $approved]) {
-	$value = CommentFactory::From(new WP_Comment(20, comment_approved: $rawStatus));
+	$value = CommentGet::From(new WP_Comment(20, comment_approved: $rawStatus));
 	$check($value->Status === $expectedStatus && $value->IsApproved() === $approved, 'コメント状態を正規化する');
 }
 
 $GLOBALS['commentLinks'][30] = false;
-$invalid = CommentFactory::From(new WP_Comment(
+$invalid = CommentGet::From(new WP_Comment(
 	comment_ID: 30,
 	comment_author_url: 'javascript:alert(1)',
 	comment_date: 'invalid',
@@ -285,7 +285,7 @@ $GLOBALS['children'] = [new WP_Comment(9, 12, '返信者', comment_parent: 8)];
 $derivedComment = ProjectCommentData::FromWpComment($comment);
 $check($derivedComment->GetParent()?->Label === '派生コメント4', '関連Factoryで親コメントの派生型を維持する');
 $check($derivedComment->GetChildren()[0]->Label === '派生コメント9', '関連Factoryで子コメントの派生型を維持する');
-$baseRelations = new ProjectCommentData(CommentFactory::Members($comment), '基底関連');
+$baseRelations = new ProjectCommentData(CommentGet::Members($comment), '基底関連');
 $check(
 	$baseRelations->GetParent() instanceof CommentData
 	&& ! $baseRelations->GetParent() instanceof ProjectCommentData,
@@ -301,7 +301,7 @@ $postFactory = static fn (WP_Post $post): ProjectCommentPostData => new ProjectC
 	new PostMembers($post->ID, '/post/' . $post->ID . '/', '投稿' . $post->ID, ''),
 	'派生投稿',
 );
-$crossData = CommentFactory::From(
+$crossData = CommentGet::From(
 	$comment,
 	userFactory: $userFactory,
 	postFactory: $postFactory,

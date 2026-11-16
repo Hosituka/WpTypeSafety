@@ -10,7 +10,7 @@ use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Internal\DtoFactory;
 
 /** WP_CommentからコメントのMembersまたはDataを生成します。 */
-final class CommentFactory
+final class CommentGet
 {
 	private function __construct() {}
 
