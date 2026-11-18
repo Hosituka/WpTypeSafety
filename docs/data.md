@@ -1,12 +1,31 @@
 # Dataと派生クラス
 
+WordPress Dataをそのまま使う場合は`PostGet::From($post)`などの対象別Getで取得します。案件固有の値や動作が必要になったら、次の順に拡張します。
+
+1. `*Get::Props()`で構築用の値を取得し、必要なら変更する。
+2. `*Data`を継承し、Propsと案件固有の値からインスタンスを作る。
+3. 標準の取得動作を変えるときだけGetterや関連Dataの生成フックを上書きする。
+4. `Current()`・`Loop()`・Queryなどの取得口へ派生Dataの生成メソッドを渡す。
+
+```php
+use WpTypeSafety\Wp\Data\PostData;
+use WpTypeSafety\Wp\Get\PostGet;
+
+$postData = PostGet::From($post); // 共通Data
+$props = PostGet::Props($post);
+$props->Title = '表示用：' . $props->Title;
+$customData = new PostData($props); // 調整した値から構築
+```
+
+`From()`は共通Dataを直接返します。`Props()`はDataを生成する前に値を調整する入口です。派生クラスと型付きの関連Dataを扱う例は[案件用Dataの生成と継承](#案件用dataの生成と継承)を参照してください。各GetとQueryの取得元は[WordPressの取得API](wordpress.md)にまとめています。
+
 ## データクラスと取得契約
 
-WordPress Dataは、値だけのPropsから構築します。値の調整はProps、動作変更はGetter・生成フックのオーバーライドで行います。旧*Members・PostProperty・Members()/Property()は廃止しました。
+WordPress Dataは値だけのPropsから構築します。値の調整はProps、動作変更はGetter・生成フックのオーバーライドで行います。
 
-このライブラリの`Data`は、純粋な値だけを保持するDTOに限定しません。利用側のコードで、ひとまとまりとして扱う基本単位を表します。正規化済みの値を保持するデータクラスだけでなく、注入済みのResolverを通じて関連データを取得するクラスや、その単位を操作するための`Get`を構成要素として保持するクラスも含みます。
+このライブラリの`Data`は、利用側のコードでひとまとまりとして扱う対象を表します。WordPress Dataは共通値を保持し、関連情報の標準取得を内部Adapterへ委譲します。`Get`は外部から得た値の取得・型確認・正規化を担当します。
 
-`Get`は、外部から得た値の取得・型確認・正規化を担当し、用途に対応する`Data`またはPHPの固定型を返します。`Data`自身がWordPress・ACFのグローバル関数を直接呼ぶことは原則として避けますが、概念を一単位として扱うために、注入済みのResolverや`Get`を保持することは許容します。
+領域によってDataの構成は異なります。たとえばACFの`FlexibleNode`は、その行のフィールドを読む`AcfGet`を保持します。WordPress DataのProps方式や生成フックを、ACFのDataへそのまま当てはめる必要はありません。
 
 たとえば`FlexibleNode`は、フレキシブルコンテンツの1レイアウトを表す基本単位です。レイアウト名を`Layout`、その行のフィールドを型付きで取得する入口を`Get`として保持します。
 
@@ -95,13 +114,13 @@ $image = new ImgData(
 | PostTypeData | PostTypeProps | PostTypeGet::Props(WP_Post_Type) |
 | TaxonomyData | TaxonomyProps | TaxonomyGet::Props(WP_Taxonomy) |
 
-Propsは変更可能な値の集合です。Resolver・Factoryは持たず、Dataは構築時の値をreadonlyプロパティへコピーします。元のPropsの後続変更は反映しません。Propsを再利用したい場合は変更前にcloneしてください。コンストラクターではWordPress・ACFへ問い合わせません。
+Propsは変更可能な値の集合です。Dataは構築時の値をreadonlyプロパティへコピーします。元のPropsの後続変更は反映しません。Propsを再利用したい場合は変更前にcloneしてください。コンストラクターではWordPress・ACFへ問い合わせません。
 
 継承可能な7種類のWordPress Dataは、クラス全体ではなく共通プロパティへ個別にreadonlyを指定します。サブクラスの追加状態まで不変とは保証しません。案件側は追加プロパティをreadonlyにするか、編集状態・キャッシュ等として変更可能にするかを選べます。配列プロパティ自体の変更はできませんが、保持するオブジェクトの内部状態まで固定する深い不変性は保証しません。
 
-PHPでは非readonlyクラスをreadonlyクラスで継承できません。案件側も通常のclassで継承し、固定したい追加プロパティへreadonlyを付けてください。親のId・Title等のreadonlyは解除できません。編集用の追加状態を保存する処理は案件側の責務であり、保存後に共通値を更新したい場合はDataを再取得します。この変更自体はORM・保存APIを提供するものではありません。Coreのfinal値型、finalなQuery結果・ACF Dataは引き続きクラス全体をreadonlyにします。
+PHPでは非readonlyクラスをreadonlyクラスで継承できません。案件側も通常のclassで継承し、固定したい追加プロパティへreadonlyを付けてください。親のId・Title等のreadonlyは解除できません。編集用の追加状態を保存する処理は案件側の責務であり、保存後に共通値を更新したい場合はDataを再取得します。保存APIは提供しません。Coreのfinal値型、finalなQuery結果・ACF Dataはクラス全体をreadonlyにします。
 
-TermGet::Props()/From()は従来どおりURLの取得失敗でもnullを返します。UserGet::Props()/From()は存在しないユーザーならnullです。直接構築するPropsの値の妥当性は呼び出し側の責任です。
+TermGet::Props()/From()はURLの取得失敗時にnullを返します。UserGet::Props()/From()は存在しないユーザーならnullです。直接構築するPropsの値の妥当性は呼び出し側の責任です。
 
 ```php
 use WpTypeSafety\Wp\Get\PostGet;
@@ -147,6 +166,12 @@ final class ArticlePostData extends PostData
 }
 ```
 
+```php
+$article = ArticlePostData::FromWpPost($post);
+$loopArticle = PostGet::Loop(ArticlePostData::FromWpPost(...)); // ?ArticlePostData
+$children = $article->GetChildren(); // list<ArticlePostData>
+```
+
 複数のGetterで共通する関連Data生成は、次のprotectedフックを上書きします。
 
 | Data | 生成フック | 適用先 |
@@ -179,7 +204,7 @@ final class ArticlePostData extends PostData
 
 外部取得は呼び出しごとに実行し、Dataは結果をキャッシュしません。元のWordPressオブジェクトは保持しません。PropsのId等を変更した場合も変更後の保持値を使用します。
 
-値の参照・GetLink・HasContent・HasExcerpt・HasParent・IsPublished・IsApproved・HasObjectTypeなどはWordPressなしで利用できます。標準のGetExcerptのタグ除去や外部取得・描画にはWordPressが必要です。直接newしたDataでも標準取得を実行し、Resolver省略による無効化はありません。オーバーライド内でparent::を呼べば、親処理のWordPress依存も残ります。
+値の参照・GetLink・HasContent・HasExcerpt・HasParent・IsPublished・IsApproved・HasObjectTypeなどはWordPressなしで利用できます。標準のGetExcerptのタグ除去や外部取得・描画にはWordPressが必要です。直接newしたDataでも標準の取得処理を実行します。オーバーライド内でparent::を呼べば、親処理のWordPress依存も残ります。
 
 ### PostData
 
@@ -187,7 +212,7 @@ RawExcerptは手入力抜粋の原文です。GetExcerptはwp_strip_all_tags()�
 
 Status・PostTypeName・Slug・IsPasswordProtected・IsPubliclyViewableは構築時の値です。IsPublished()はStatus === 'publish'だけを判定します。パスワード文字列自体は保持しません。
 
-GetTemplateSlug()は選択済みテンプレートの相対パスです。デフォルト・取得失敗・不正な値は空文字で、実際に適用されるPHPファイルの判定ではありません。GetParent()は添付ファイルの親も対象とし、GetChildren()は従来どおり階層型投稿タイプのみ対象です。
+GetTemplateSlug()は選択済みテンプレートの相対パスです。デフォルト・取得失敗・不正な値は空文字で、実際に適用されるPHPファイルの判定ではありません。GetParent()は添付ファイルの親も対象とし、GetChildren()は階層型投稿タイプのみ対象です。
 
 ### TermData・登録定義
 
@@ -203,18 +228,18 @@ CommentData::GetAvatar()は保持したIdで現在のWP_Commentを取得し、�
 
 ### メニュー
 
-MenuNodeProps<TChild>・MenuNodeData<TChild>のChildrenは構築済みのlist<TChild>です。新たに取得・再生成するフックは設けません。TreeFromLocation()のnodeFactoryは木を構築する入口として維持し、既存の木キャッシュの扱いも変更しません。
+MenuNodeProps<TChild>・MenuNodeData<TChild>のChildrenは構築済みのlist<TChild>です。Childrenを取得・再生成するフックはありません。TreeFromLocation()のnodeFactoryは木を構築する入口です。木のキャッシュはTreeFromLocation()側で扱います。
 
-GetThumbnail()は従来どおり固定ページを参照するメニュー項目（TypeがPostType、Objectがpage）だけを対象とします。リンク・判定メソッドは保持値から動作します。
+GetThumbnail()は固定ページを参照するメニュー項目（TypeがPostType、Objectがpage）だけを対象とします。リンク・判定メソッドは保持値から動作します。
 
 ## ジェネリクス・取得入口のFactory
 
-PostData<TRelatedPost, TAuthor>、TermData<TRelatedTerm>、CommentData<TRelatedComment, TUser, TPost>、MenuNodeData<TChild>を維持します。MenuNodeProps以外のPropsは値だけなので関連型のパラメーターを持ちません。
+関連Dataの型はPostData<TRelatedPost, TAuthor>、TermData<TRelatedTerm>、CommentData<TRelatedComment, TUser, TPost>、MenuNodeData<TChild>で表します。MenuNodeProps以外のPropsは値だけなので関連型のパラメーターを持ちません。
 
 型パラメーターの宣言だけでは実行時の生成型は変わりません。@extendsと生成フック・Getterの実装を一致させてください。既定実装は基底型を返すため、その2つを静的解析だけで完全には保証できません。PHPStanの回帰テストと実行時テストを併用します。
 
-Current/Loop、Query、ACF、TreeFromLocationやGetTerms()等の取得入口・呼び出し単位のFactoryは維持します。Data構築に動作を注入するrelatedPostFactory・authorFactory・relatedTermFactory・relatedCommentFactory・CommentGetのuserFactory/postFactoryは廃止しました。
+`Current()`・`Loop()`・Query・ACF・`TreeFromLocation()`・`GetTerms()`などの取得入口は、呼び出しごとに派生DataのFactoryを受け取れます。一方、DataのコンストラクターはPropsだけを受け取り、関連Dataの生成方法は派生クラス側のフックやGetterで定義します。
 
-AcfBlockDataの描画用wrapperAttributesResolver、FlexibleNodeのGet、Core DataとQuery結果Dataの責務は変更していません。
+ACFブロックの描画情報やCore DataはこのWordPress Dataの継承方式とは別の契約です。
 
 静的型の回帰テストはtests/phpstan/posts.neonとdata-props.neonです。PHPStan導入済み環境でphpstan analyse -c tests/phpstan/data-props.neon等を実行してください。WordPress・DBの起動は不要です。

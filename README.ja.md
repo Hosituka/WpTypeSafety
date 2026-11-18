@@ -91,11 +91,13 @@ $mainImg = $postGet->Img('main_img');
 
 `Text()`は必ず`string`、`Img()`は`?ImgData`を返します。欠損・型違い時の規則はメソッドごとに固定です。
 
-HTMLへ出力するときは、これまでどおり`esc_html()`・`esc_url()`等を出力先に合わせて使用してください。WpTypeSafetyはHTMLを自動エスケープしません。
+HTMLへ出力するときは、`esc_html()`・`esc_url()`等を出力先に合わせて使用してください。WpTypeSafetyはHTMLを自動エスケープしません。
 
 Core、WordPress meta、対象別Get、Queryの入口も利用できます。[導入ガイド](docs/getting-started.md#どこから始めるか)で取得元に合うものを選んでください。
 
 現在の表示対象は`PostGet::Current()`・`TermGet::Current()`、ループ中の投稿は`PostGet::Loop()`、ログインユーザーは`UserGet::LoggedIn()`からDataとして取得できます。[コンテキストからの取得](docs/wordpress.md#現在の表示対象ループ投稿ログインユーザー)も参照してください。
+
+案件固有のDataは`PostGet::Props($post)`などで共通値を受け取り、派生クラスで追加の値やメソッドを定義できます。共通値は`readonly`で保持され、派生クラスの追加状態は必要に応じて変更できます。関連投稿・ターム・コメントの生成方法はprotectedフック、個別の取得方法はGetterの上書きで変更します。[Dataと派生クラス](docs/data.md)に手順と型の契約をまとめています。
 
 投稿タイプ・タクソノミーの登録定義は、`PostTypeGet`・`TaxonomyGet`から取得できます。[定義情報の取得API](docs/wordpress.md#投稿タイプタクソノミーの登録定義)を参照してください。
 

@@ -113,11 +113,11 @@ class SiteArrayGet extends ArrayGet
 
 `SiteObjectGet`は案件側が定義する`ObjectGet`の派生クラスです。フックには対象の値が渡され、`publicRulesSnapshot()`で現在の規則のコピーを取得できます。フックはReaderの生成だけを担当し、要素の型判定・リスト走査・連番化は親側で行います。単数の`Nested*()`は欠損・型違いでもフックを呼び、既定のReaderが空の取得口へ正規化します。リストは適合要素ごとに1回だけ呼び、`As*()`は元のコンテナ型が一致するときだけ呼びます。案件側も空Readerへのフォールバックと規則の引き継ぎを維持してください。
 
-同じ種類への`Nested()`・`NestedList()`等は`createChild()`を使い、別種類のReader生成フックは使いません。`MetaGet`も公開`TreeGet`の生成処理を継承します。メタ取得の解決と子へ進んだときのメタ状態解除は`MetaGet`が担当します。
+同じ種類への`Nested()`・`NestedList()`等は`createChild()`を使います。別種類のReaderへの切り替えは`createArrayReader()`・`createObjectReader()`を使います。`MetaGet`は公開`TreeGet`の生成処理を継承し、メタ取得の解決と子に進んだときのメタ状態解除を行います。
 
 ### 切替先の静的型を指定する
 
-汎用実装で宣言した型パラメーターを、公開Facadeも引き継ぎます。`ArrayGet<TObjectReader>`・`ObjectGet<TArrayReader>`・`TreeGet<TArrayReader, TObjectReader>`で切替先を指定できます。型引数の既定値は各領域の標準readerなので、通常利用で指定する必要はありません。同型への`Nested()`等は引き続き`static`で派生型を維持します。
+汎用実装で宣言した型パラメーターを、公開Facadeも引き継ぎます。`ArrayGet<TObjectReader>`・`ObjectGet<TArrayReader>`・`TreeGet<TArrayReader, TObjectReader>`で切替先を指定できます。型引数の既定値は各領域の標準readerなので、通常利用で指定する必要はありません。同型への`Nested()`等は`static`で派生型を維持します。
 
 ```php
 /** @extends ArrayGet<SiteObjectGet> */

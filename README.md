@@ -97,6 +97,8 @@ Core, WordPress metadata, subject-specific Get, and Query entry points are also 
 
 Read the displayed post or term with `PostGet::Current()` or `TermGet::Current()`, the loop post with `PostGet::Loop()`, and the logged-in user with `UserGet::LoggedIn()`. See [context-based access](docs/wordpress.md#現在の表示対象ループ投稿ログインユーザー).
 
+To create project-specific Data, start with `PostGet::Props($post)` or the matching `Props()` method, then extend the Data class with your own values and methods. Shared values remain `readonly`; added state can be mutable. Override a protected hook to create related posts, terms, or comments, and override a Getter to change one retrieval method. See [Data and derived classes](docs/data.md) for the extension contract.
+
 Registered post type and taxonomy definitions are available through `PostTypeGet` and `TaxonomyGet`. See the [definition APIs](docs/wordpress.md#投稿タイプタクソノミーの登録定義).
 
 ## Choose between WpTypeSafety Data and native WordPress types

@@ -18,7 +18,7 @@ $heading = $postGet->Text('heading');
 
 この例では、`$heading`は常に`string`です。テンプレート側で毎回`is_string()`を書く必要がなくなります。
 
-WpTypeSafetyが行うのは、取得時の型確認と正規化です。HTMLへ出力するときのエスケープは引き続き必要です。
+WpTypeSafetyが行うのは、取得時の型確認と正規化です。HTMLへ出力するときはエスケープが必要です。
 
 ```php
 <h1><?= esc_html($heading) ?></h1>
@@ -147,12 +147,13 @@ $itemIds = $argsGet->IntList('item_ids');
 use WpTypeSafety\Wp\Get\PostGet;
 
 $postData = PostGet::From($post);
-if ($postData === null)
-{return;}
-
 echo esc_html($postData->Title);
 echo esc_url($postData->Url);
 ```
+
+`From()`は取得済みの`WP_Post`を受け取って`PostData`を返します。投稿IDから探す場合は`PostGet::FromId($postId)`を使用し、取得できないときの`null`を確認してください。
+
+共通Dataに案件固有の値を足す場合は`PostGet::Props($post)`で構築用の値を受け取り、`PostData`の派生クラスへ渡します。値の調整、取得メソッドの上書き、関連投稿の型の指定は[Dataと派生クラス](data.md)を参照してください。
 
 投稿一覧を取得する処理では`PostQuery`を使うと、クエリ結果が最初から`PostData`のリストになります。
 

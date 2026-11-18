@@ -2,7 +2,7 @@
 
 ## 動作条件と読み込み
 
-PHP 8.2以上。データクラスに`readonly class`を使用します。Composerは不要です。
+PHP 8.2以上が必要です。Coreの値型やQuery結果には`readonly class`を使用します。継承可能なWordPress Dataは共通プロパティを個別に`readonly`にしており、派生クラスには可変の追加状態も持たせられます。Composerは不要です。
 
 ```php
 <?php

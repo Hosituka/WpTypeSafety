@@ -42,19 +42,11 @@ $loopPostData = PostGet::Loop();
 $loggedInUser = UserGet::LoggedIn(avatarSize: 64);
 $archiveAuthor = UserGet::Current(avatarSize: 64);
 
-// 案件固有Dataを返す生成クロージャーも指定できる。
-$projectPost = PostGet::Current(
-	postFactory: static fn (WP_Post $post): ProjectPostData =>
-		new ProjectPostData(PostGet::Props($post)),
-);
-$projectUser = UserGet::LoggedIn(
-	avatarSize: 64,
-	userFactory: static fn (WP_User $user, int $avatarSize): ProjectUserData =>
-		new ProjectUserData(UserGet::Props($user, $avatarSize)),
-);
+// ProjectPostData::FromWpPost(WP_Post): ProjectPostDataを定義した場合。
+$projectPost = PostGet::Current(postFactory: ProjectPostData::FromWpPost(...));
 ```
 
-生成クロージャーの戻り値は投稿では`PostData`、タームでは`TermData`、ユーザーでは`WpUserData`またはその派生型です。PHPDocのジェネリクスで派生型を維持します。対象がない場合はクロージャーを呼びません。対象がある場合は一度だけ呼び、`null`や別の型を返すと`UnexpectedValueException`、クロージャー内部の例外はそのまま伝播します。`userFactory`にはユーザーと指定済みのアバターサイズを渡します。
+呼び出し単位のFactoryには、投稿では`WP_Post`から`PostData`、タームでは`WP_Term`から`TermData`、ユーザーでは`WP_User`とアバターサイズから`WpUserData`を返す処理を指定します。派生型も返せます。対象がない場合はFactoryを呼びません。対象がある場合は一度だけ呼び、`null`や別の型を返すと`UnexpectedValueException`、内部の例外はそのまま伝播します。派生クラスの作り方は[Dataと派生クラス](data.md)を参照してください。
 
 これらはWordPressの値をDataへ取り込むAPIで、ログイン処理・権限判定・投稿の公開可否による除外・HTML生成は行いません。グローバルな投稿やクエリの置き換え、ループの進行、結果の独自キャッシュも行いません。変換時のURL等の取得やWordPress自身のログインユーザー初期化は通常どおり発生します。
 
@@ -135,7 +127,7 @@ $file = AttachmentGet::FileFromId($attachmentId);
 
 `PostGet::Props()`は値専用の`PostProps`を返します。`CommentGet`・`UserGet`・`TermGet`・`MenuNodeGet`・`PostTypeGet`・`TaxonomyGet`も対応するPropsを返します。Propsは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。`MenuNodeGet`は`wp_get_nav_menu_items()`等でセットアップ済みのメニュー項目`WP_Post`を対象とし、必要なら構築済みの子ノードを第2引数で受け取ります。
 
-PostDataはprotectedなcreateRelatedPost()を上書きすると、親・子・前後投稿に案件固有の派生型を使用できます。著者はGetAuthor()を直接上書きします。PostDataのコンストラクターとPostGet::From()/FromId()からrelatedPostFactory・authorFactoryを廃止しています。TermDataはcreateRelatedTerm()、CommentDataはcreateRelatedComment()を上書きします。CommentDataのGetUser()/GetPost()も直接上書きします。構築用の関連FactoryとResolverは廃止しました。
+`PostData`では`createRelatedPost()`を上書きすると、親・子・前後投稿に案件固有の派生型を使用できます。著者は`GetAuthor()`を直接上書きします。`TermData`の親・子には`createRelatedTerm()`、`CommentData`の親・子には`createRelatedComment()`を使います。`CommentData`のユーザーと投稿は`GetUser()`・`GetPost()`を直接上書きします。これらはData内部の関連取得に使う拡張点で、上の呼び出し単位のFactoryとは役割が異なります。
 
 `PostData`・`TermData`・`CommentData`・`MenuNodeData`は関連Data型をジェネリクスとして保持します（PostPropsは値だけで型パラメーターを持ちません）。そのため、案件固有Dataの`@extends`へ関連型を指定すると、子・親・前後投稿・投稿者などを取得した後もPHPStanで派生型を維持できます。
 
@@ -165,7 +157,7 @@ $child = $article->GetChildren()[0]; // ArticleData
 $author = $article->GetAuthor();     // ProjectUserData|null
 ```
 
-生成フックを上書きしなければ関連投稿は基底PostDataです。@extendsには実際の関連型を指定してください。構築時にFactoryを渡す必要はありません。
+生成フックを上書きしなければ関連投稿は基底`PostData`です。`@extends`には実際の関連型を指定してください。DataのコンストラクターはPropsを受け取り、関連投稿の生成方法はフック側で決めます。
 
 ```php
 <?php
@@ -501,7 +493,7 @@ $avatar = $commentData->GetAvatar(64);
 
 `GetPost()`・`GetParent()`・`GetChildren()`は関連する投稿・親コメント・直下の子コメントを呼び出し時に取得します。`GetChildren()`の第1引数はWordPressのコメントクエリへ渡す状態（既定値`approve`）、第2引数は並び順（既定値`ASC`）です。
 
-案件固有DataはCommentGet::Props($comment, $avatarSize)から構築します。親・子コメントはprotected createRelatedComment(WP_Comment): ?CommentData、ユーザーと投稿はGetUser()/GetPost()を直接上書きします。relatedCommentFactory・userFactory・postFactoryを構築時に渡す方式は廃止しました。
+案件固有Dataは`CommentGet::Props($comment, $avatarSize)`から構築します。親・子コメントは`createRelatedComment(WP_Comment): ?CommentData`、ユーザーと投稿は`GetUser()`・`GetPost()`を上書きします。
 
 GetAvatar()は現在のコメントを複製し、保持済み著者情報を反映して取得します。ゲストのメールアドレス等は現在のコメントを使い、削除済みならnullです。サイズ省略時はPropsのAvatarSizeまたは96、最小1です。詳細は[Dataと派生クラス](data.md)を参照してください。
 
