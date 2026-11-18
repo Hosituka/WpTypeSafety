@@ -140,7 +140,7 @@ use WpTypeSafety\Core\Check\Data\NumericMode;
 use WpTypeSafety\Core\Check\ValueRules;
 use WpTypeSafety\Core\Check\TreeGet;
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Get\MetaGet;
 
 enum MetaStatus: string
@@ -260,7 +260,7 @@ $check($postMetaGet->PostMeta('related_post_id')->String('subtitle') === '参照
 $wpPostGet = new MetaGet(new WP_Post(7));
 $check($wpPostGet->String('title') === '見出し', 'WP_Postから投稿IDを取得する');
 
-$postData = new PostData(new PostMembers(Id: 9, Url: '', Title: '', RawContent: ''));
+$postData = new PostData(new PostProps(Id: 9, Url: '', Title: '', RawContent: ''));
 $check((new MetaGet($postData))->String('title') === 'PostDataの投稿', 'PostDataから投稿IDを取得する');
 $check((new MetaGet(new WP_Term(40)))->String('color') === 'green', 'WP_Termからタームメタを取得する');
 $check((new MetaGet(new WP_User(30)))->String('nickname') === 'tester', 'WP_Userからユーザーメタを取得する');

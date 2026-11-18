@@ -23,7 +23,7 @@ foreach (['Post', 'Term', 'User', 'Comment', 'MenuNode', 'Attachment', 'PostType
 foreach (['WpGetTerm', 'WpGetMenuNode', 'WpGet'] as $name) {
 	$check(! class_exists('WpTypeSafety\\Wp\\Get\\' . $name), '旧WpGet入口を廃止');
 }
-foreach (['CurrentPageNumber', 'MaxPageCount', 'FoundPostCount'] as $name) {
+foreach (['Current', 'CurrentPageNumber', 'MaxPageCount', 'FoundPostCount'] as $name) {
 	$check(method_exists('WpTypeSafety\\Wp\\Get\\MainQueryGet', $name), 'メインクエリ取得API');
 }
 foreach (['PostQuery', 'TermQuery', 'UserQuery', 'CommentQuery', 'MetaGet'] as $name) {
@@ -35,15 +35,15 @@ foreach (['PostFields', 'PostsFields', 'TermFields', 'TermsFields', 'UserFields'
 foreach (['PostGet', 'PostGets', 'TermGet', 'TermGets', 'UserGet', 'UserGets'] as $name) {
 	$check(! method_exists(AcfGet::class, $name), '旧参照先Get APIは廃止');
 }
-foreach (['Members', 'From', 'Current', 'FromPost', 'Roots', 'Deepest', 'Shallowest'] as $name) {
+foreach (['Props', 'From', 'Current', 'FromPost', 'Roots', 'Deepest', 'Shallowest'] as $name) {
 	$check(method_exists('WpTypeSafety\\Wp\\Get\\TermGet', $name), 'TermGetへの統合');
 }
 foreach (['Current', 'Loop'] as $name) {
 	$check(method_exists('WpTypeSafety\\Wp\\Get\\PostGet', $name), '投稿コンテキスト取得API');
 }
 $check(method_exists('WpTypeSafety\\Wp\\Get\\UserGet', 'LoggedIn'), 'ログインユーザー取得API');
-$check(! method_exists('WpTypeSafety\\Wp\\Get\\UserGet', 'Current'), 'ログインを表示対象Currentと混同しない');
-foreach (['Members', 'From', 'TreeFromLocation', 'FindByPageId', 'FindById', 'FindByObject', 'FindByUrl', 'PathToId', 'PathToObject', 'PathToUrl'] as $name) {
+$check(method_exists('WpTypeSafety\\Wp\\Get\\UserGet', 'Current'), '著者アーカイブの表示対象取得API');
+foreach (['Props', 'From', 'TreeFromLocation', 'FindByPageId', 'FindById', 'FindByObject', 'FindByUrl', 'PathToId', 'PathToObject', 'PathToUrl'] as $name) {
 	$check(method_exists('WpTypeSafety\\Wp\\Get\\MenuNodeGet', $name), 'MenuNodeGetへの統合');
 }
 echo "Get entry points: {$checks} checks passed.\n";

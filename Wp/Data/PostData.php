@@ -5,82 +5,67 @@ namespace WpTypeSafety\Wp\Data;
 
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
+use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Wp\Internal\DefinitionAdapter;
+use WpTypeSafety\Wp\Internal\PostAdapter;
+use WpTypeSafety\Wp\Internal\TermAdapter;
 
 /**
  * @template TRelatedPost of PostData = PostData
  * @template TAuthor of WpUserData = WpUserData
  */
-readonly class PostData
+class PostData
 {
-	public int $Id;
-	public int $ParentId;
-	/** @var null|\Closure(): (TRelatedPost|null) */
-	private ?\Closure $parentResolver;
-	public string $Url;
-	public string $Title;
-	public string $RawContent;
-	public ?\DateTimeImmutable $PublishedAt;
-	public ?\DateTimeImmutable $ModifiedAt;
-	/** @var null|\Closure(): (TAuthor|null) */
-	private ?\Closure $authorResolver;
-	private ?\Closure $excerptResolver;
-	private ?\Closure $excerptPresenceResolver;
-	private ?\Closure $thumbnailResolver;
-	/** @var null|\Closure(string|array<array-key, string>, string): list<TRelatedPost> */
-	private ?\Closure $childrenResolver;
-	/** @var null|\Closure(): (TRelatedPost|null) */
-	private ?\Closure $previousPostResolver;
-	/** @var null|\Closure(): (TRelatedPost|null) */
-	private ?\Closure $nextPostResolver;
-	private ?\Closure $templateSlugResolver;
-	/** @var null|\Closure(string): string */
-	private ?\Closure $renderedContentResolver;
-	/** @var null|\Closure(string, (\Closure(\WP_Term): TermData)|null): list<TermData> */
-	private ?\Closure $termsResolver;
-	public string $Status;
-	public string $PostType;
-	public string $Slug;
-	public bool $IsPasswordProtected;
-	public bool $IsPubliclyViewable;
+	public readonly int $Id;
+	public readonly int $ParentId;
+	public readonly int $AuthorId;
+	public readonly string $Url;
+	public readonly string $Title;
+	public readonly string $RawContent;
+	public readonly string $RawExcerpt;
+	public readonly ?\DateTimeImmutable $PublishedAt;
+	public readonly ?\DateTimeImmutable $ModifiedAt;
+	public readonly string $Status;
+	public readonly string $PostTypeName;
+	public readonly string $Slug;
+	public readonly bool $IsPasswordProtected;
+	public readonly bool $IsPubliclyViewable;
 
-	/** @param PostMembers<TRelatedPost, TAuthor> $members */
-	public function __construct(PostMembers $members)
+	public function __construct(PostProps $props)
 	{
-		$this->Id = $members->Id;
-		$this->ParentId = $members->ParentId;
-		$this->parentResolver = $members->ParentResolver;
-		$this->Url = $members->Url;
-		$this->Title = $members->Title;
-		$this->RawContent = $members->RawContent;
-		$this->PublishedAt = $members->PublishedAt;
-		$this->ModifiedAt = $members->ModifiedAt;
-		$this->authorResolver = $members->AuthorResolver;
-		$this->excerptResolver = $members->ExcerptResolver;
-		$this->excerptPresenceResolver = $members->ExcerptPresenceResolver;
-		$this->thumbnailResolver = $members->ThumbnailResolver;
-		$this->childrenResolver = $members->ChildrenResolver;
-		$this->previousPostResolver = $members->PreviousPostResolver;
-		$this->nextPostResolver = $members->NextPostResolver;
-		$this->templateSlugResolver = $members->TemplateSlugResolver;
-		$this->renderedContentResolver = $members->RenderedContentResolver;
-		$this->termsResolver = $members->TermsResolver;
-		$this->Status = $members->Status;
-		$this->PostType = $members->PostType;
-		$this->Slug = $members->Slug;
-		$this->IsPasswordProtected = $members->IsPasswordProtected;
-		$this->IsPubliclyViewable = $members->IsPubliclyViewable;
+		$this->Id = $props->Id;
+		$this->ParentId = $props->ParentId;
+		$this->AuthorId = $props->AuthorId;
+		$this->Url = $props->Url;
+		$this->Title = $props->Title;
+		$this->RawContent = $props->RawContent;
+		$this->RawExcerpt = $props->RawExcerpt;
+		$this->PublishedAt = $props->PublishedAt;
+		$this->ModifiedAt = $props->ModifiedAt;
+		$this->Status = $props->Status;
+		$this->PostTypeName = $props->PostTypeName;
+		$this->Slug = $props->Slug;
+		$this->IsPasswordProtected = $props->IsPasswordProtected;
+		$this->IsPubliclyViewable = $props->IsPubliclyViewable;
+	}
+
+	/** 登録定義を遅延取得する。空の登録名・未登録時はnull。 */
+	public function GetPostType(): ?PostTypeData
+	{
+		return $this->PostTypeName !== '' ? DefinitionAdapter::PostTypeFromName($this->PostTypeName) : null;
 	}
 
 	/** 選択済みテンプレートの相対パス。デフォルト・取得失敗は空文字。実際の適用ファイルの判定ではありません。 */
 	public function GetTemplateSlug(): string
 	{
-		return $this->templateSlugResolver !== null ? ($this->templateSlugResolver)() : '';
+		return PostAdapter::TemplateSlug($this->Id);
 	}
 
 	/** @return TAuthor|null */
 	public function GetAuthor(): ?WpUserData
 	{
-		return $this->authorResolver !== null ? ($this->authorResolver)() : null;
+		// @phpstan-ignore return.type (既定型はWpUserData。別のTAuthorを宣言する派生クラスはこのメソッドを上書きする。)
+		return PostAdapter::Author($this->AuthorId);
 	}
 
 	public function HasContent(): bool
@@ -88,12 +73,10 @@ readonly class PostData
 		return trim($this->RawContent) !== '';
 	}
 
-	/** 描画用HTML。Resolver省略時は空文字。出力・キャッシュは行わない。 */
+	/** 保持済みRawContentから描画用HTMLを取得。投稿が存在しなければ空文字。出力・キャッシュは行わない。 */
 	public function GetRenderedContent(): string
 	{
-		return $this->renderedContentResolver !== null
-			? ($this->renderedContentResolver)($this->RawContent)
-			: '';
+		return PostAdapter::RenderedContent($this);
 	}
 
 	/**
@@ -103,11 +86,10 @@ readonly class PostData
 	 */
 	public function GetTerms(string $taxonomy, ?\Closure $termFactory = null): array
 	{
-		if ($this->termsResolver === null || $taxonomy === '') {
-			return [];
-		}
-		$terms = ($this->termsResolver)($taxonomy, $termFactory);
-		if (! is_array($terms) || ! array_is_list($terms)) {
+		if ($this->Id <= 0 || $taxonomy === '')
+		{return [];}
+		$terms = TermAdapter::FromPost($this->Id, $taxonomy, $termFactory);
+		if (! array_is_list($terms)) {
 			throw new \UnexpectedValueException('GetTerms must return a list of TermData.');
 		}
 		foreach ($terms as $term) {
@@ -129,20 +111,22 @@ readonly class PostData
 		return new LinkData(Url: $this->Url, Title: $this->Title);
 	}
 
+	/** 手入力の抜粋を保持値から取得する。本文からの自動生成はしない。 */
 	public function GetExcerpt(): string
 	{
-		return $this->excerptResolver !== null ? ($this->excerptResolver)() : '';
+		return PostAdapter::Excerpt($this->RawExcerpt);
 	}
 
+	/** 手入力の抜粋の有無。WordPressのhas_excerptフィルターは適用しない。 */
 	public function HasExcerpt(): bool
 	{
-		return $this->excerptPresenceResolver !== null ? ($this->excerptPresenceResolver)() : false;
+		return $this->RawExcerpt !== '';
 	}
 
 	/** @param string|array{0: int, 1: int} $size */
 	public function GetThumbnail(string|array $size = 'medium_large'): ?ImgData
 	{
-		return $this->thumbnailResolver !== null ? ($this->thumbnailResolver)($size) : null;
+		return PostAdapter::Thumbnail($this->Id, $size);
 	}
 
 	/**
@@ -151,12 +135,8 @@ readonly class PostData
 	 */
 	public function GetChildren(string|array $orderby = 'menu_order title ID', string $order = 'ASC'): array
 	{
-		if ($this->childrenResolver === null) {
-			return [];
-		}
-
-		$children = ($this->childrenResolver)($orderby, $order);
-		if (! is_array($children) || ! array_is_list($children)) {
+		$children = PostAdapter::Children($this->Id, $orderby, $order, $this->createRelatedPost(...));
+		if (! array_is_list($children)) {
 			throw new \UnexpectedValueException('GetChildren must return a list of PostData.');
 		}
 		foreach ($children as $child) {
@@ -171,7 +151,7 @@ readonly class PostData
 	/** @return TRelatedPost|null */
 	public function GetPreviousPost(): ?PostData
 	{
-		return $this->previousPostResolver !== null ? ($this->previousPostResolver)() : null;
+		return PostAdapter::Adjacent($this->Id, true, $this->createRelatedPost(...));
 	}
 
 	/** 保存済みの親IDの有無。親投稿の存在確認は行わない。 */
@@ -181,19 +161,27 @@ readonly class PostData
 	}
 
 	/**
-	 * 直接の親を取得する。親なし・取得失敗・Resolver省略時はnull。
+	 * 直接の親を取得する。親なし・取得失敗時はnull。
 	 * @return TRelatedPost|null
 	 */
 	public function GetParent(): ?PostData
 	{
-		return $this->HasParent() && $this->parentResolver !== null
-			? ($this->parentResolver)()
-			: null;
+		return PostAdapter::Related($this->ParentId, $this->createRelatedPost(...));
 	}
 
 	/** @return TRelatedPost|null */
 	public function GetNextPost(): ?PostData
 	{
-		return $this->nextPostResolver !== null ? ($this->nextPostResolver)() : null;
+		return PostAdapter::Adjacent($this->Id, false, $this->createRelatedPost(...));
+	}
+	/**
+	 * 親・子・前後投稿で共通の生成フック。nullを返すと対象を除外する。
+	 * 派生クラスはTRelatedPostに対応するDataを返すように上書きする。
+	 * @return TRelatedPost|null
+	 */
+	protected function createRelatedPost(\WP_Post $post): ?PostData
+	{
+		// @phpstan-ignore return.type (既定型はPostData。別のTRelatedPostを宣言する派生クラスはこのフックを上書きする。)
+		return PostGet::From($post);
 	}
 }

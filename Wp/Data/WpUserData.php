@@ -4,32 +4,29 @@ declare(strict_types=1);
 namespace WpTypeSafety\Wp\Data;
 
 use WpTypeSafety\Core\Data\ImgData;
+use WpTypeSafety\Wp\Internal\UserAdapter;
 
-readonly class WpUserData
+class WpUserData
 {
-	public int $Id;
-	public string $DisplayName;
-	private ?int $avatarSize;
-	private ?\Closure $avatarResolver;
-	public string $ArchiveUrl;
-	public string $WebsiteUrl;
-	public string $Description;
+	public readonly int $Id;
+	public readonly string $DisplayName;
+	private readonly ?int $avatarSize;
+	public readonly string $ArchiveUrl;
+	public readonly string $WebsiteUrl;
+	public readonly string $Description;
 
-	public function __construct(UserMembers $members)
+	public function __construct(UserProps $props)
 	{
-		$this->Id = $members->Id;
-		$this->DisplayName = $members->DisplayName;
-		$this->avatarSize = $members->AvatarSize;
-		$this->avatarResolver = $members->AvatarResolver;
-		$this->ArchiveUrl = $members->ArchiveUrl;
-		$this->WebsiteUrl = $members->WebsiteUrl;
-		$this->Description = $members->Description;
+		$this->Id = $props->Id;
+		$this->DisplayName = $props->DisplayName;
+		$this->avatarSize = $props->AvatarSize;
+		$this->ArchiveUrl = $props->ArchiveUrl;
+		$this->WebsiteUrl = $props->WebsiteUrl;
+		$this->Description = $props->Description;
 	}
 
 	public function GetAvatar(?int $size = null): ?ImgData
 	{
-		return $this->avatarResolver !== null
-			? ($this->avatarResolver)(max(1, $size ?? $this->avatarSize ?? 96))
-			: null;
+		return UserAdapter::Avatar($this->Id, max(1, $size ?? $this->avatarSize ?? 96));
 	}
 }

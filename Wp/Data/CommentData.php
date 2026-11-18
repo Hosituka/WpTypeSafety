@@ -4,56 +4,45 @@ declare(strict_types=1);
 namespace WpTypeSafety\Wp\Data;
 
 use WpTypeSafety\Core\Data\ImgData;
+use WpTypeSafety\Wp\Get\CommentGet;
+use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Wp\Internal\CommentAdapter;
+use WpTypeSafety\Wp\Internal\UserAdapter;
 
 /**
  * @template TRelatedComment of CommentData = CommentData
  * @template TUser of WpUserData = WpUserData
  * @template TPost of PostData = PostData
  */
-readonly class CommentData
+class CommentData
 {
-	public int $Id;
-	public int $PostId;
-	public int $ParentId;
-	public int $AuthorUserId;
-	public string $AuthorName;
-	public string $WebsiteUrl;
-	public string $Url;
-	public string $Content;
-	public string $Type;
-	public string $Status;
-	public ?\DateTimeImmutable $CreatedAt;
-	private ?int $avatarSize;
-	/** @var null|\Closure(): (TUser|null) */
-	private ?\Closure $userResolver;
-	private ?\Closure $avatarResolver;
-	/** @var null|\Closure(): (TPost|null) */
-	private ?\Closure $postResolver;
-	/** @var null|\Closure(): (TRelatedComment|null) */
-	private ?\Closure $parentResolver;
-	/** @var null|\Closure(string, string): list<TRelatedComment> */
-	private ?\Closure $childrenResolver;
+	public readonly int $Id;
+	public readonly int $PostId;
+	public readonly int $ParentId;
+	public readonly int $AuthorUserId;
+	public readonly string $AuthorName;
+	public readonly string $WebsiteUrl;
+	public readonly string $Url;
+	public readonly string $Content;
+	public readonly string $Type;
+	public readonly string $Status;
+	public readonly ?\DateTimeImmutable $CreatedAt;
+	private readonly ?int $avatarSize;
 
-	/** @param CommentMembers<TRelatedComment, TUser, TPost> $members */
-	public function __construct(CommentMembers $members)
+	public function __construct(CommentProps $props)
 	{
-		$this->Id = $members->Id;
-		$this->PostId = $members->PostId;
-		$this->ParentId = $members->ParentId;
-		$this->AuthorUserId = $members->AuthorUserId;
-		$this->AuthorName = $members->AuthorName;
-		$this->WebsiteUrl = $members->WebsiteUrl;
-		$this->Url = $members->Url;
-		$this->Content = $members->Content;
-		$this->Type = $members->Type;
-		$this->Status = $members->Status;
-		$this->CreatedAt = $members->CreatedAt;
-		$this->avatarSize = $members->AvatarSize;
-		$this->userResolver = $members->UserResolver;
-		$this->avatarResolver = $members->AvatarResolver;
-		$this->postResolver = $members->PostResolver;
-		$this->parentResolver = $members->ParentResolver;
-		$this->childrenResolver = $members->ChildrenResolver;
+		$this->Id = $props->Id;
+		$this->PostId = $props->PostId;
+		$this->ParentId = $props->ParentId;
+		$this->AuthorUserId = $props->AuthorUserId;
+		$this->AuthorName = $props->AuthorName;
+		$this->WebsiteUrl = $props->WebsiteUrl;
+		$this->Url = $props->Url;
+		$this->Content = $props->Content;
+		$this->Type = $props->Type;
+		$this->Status = $props->Status;
+		$this->CreatedAt = $props->CreatedAt;
+		$this->avatarSize = $props->AvatarSize;
 	}
 
 	public function HasUser(): bool
@@ -79,49 +68,37 @@ readonly class CommentData
 	/** @return TUser|null */
 	public function GetUser(): ?WpUserData
 	{
-		return $this->HasUser() && $this->userResolver !== null
-			? ($this->userResolver)()
-			: null;
+		// @phpstan-ignore return.type (既定型はWpUserData。別のTUserを宣言する派生クラスは上書きする。)
+		return UserAdapter::FromId($this->AuthorUserId);
 	}
 
 	public function GetAvatar(?int $size = null): ?ImgData
 	{
-		return $this->avatarResolver !== null
-			? ($this->avatarResolver)(max(1, $size ?? $this->avatarSize ?? 96))
-			: null;
+		return CommentAdapter::Avatar($this, max(1, $size ?? $this->avatarSize ?? 96));
 	}
 
 	/** @return TPost|null */
 	public function GetPost(): ?PostData
 	{
-		return $this->postResolver !== null ? ($this->postResolver)() : null;
+		// @phpstan-ignore return.type (既定型はPostData。別のTPostを宣言する派生クラスは上書きする。)
+		return PostGet::FromId($this->PostId);
 	}
 
 	/** @return TRelatedComment|null */
 	public function GetParent(): ?CommentData
 	{
-		return $this->HasParent() && $this->parentResolver !== null
-			? ($this->parentResolver)()
-			: null;
+		return CommentAdapter::Parent($this->ParentId, $this->createRelatedComment(...));
 	}
 
 	/** @return list<TRelatedComment> */
 	public function GetChildren(string $status = 'approve', string $order = 'ASC'): array
 	{
-		if ($this->childrenResolver === null) {
-			return [];
-		}
-
-		$children = ($this->childrenResolver)($status, $order);
-		if (! is_array($children) || ! array_is_list($children)) {
-			throw new \UnexpectedValueException('GetChildren must return a list of CommentData.');
-		}
-		foreach ($children as $child) {
-			if (! $child instanceof self) {
-				throw new \UnexpectedValueException('GetChildren must return a list of CommentData.');
-			}
-		}
-
-		return $children;
+		return CommentAdapter::Children($this->Id, $status, $order, $this->createRelatedComment(...));
+	}
+	/** @return TRelatedComment|null 親・子の共通生成フック。nullなら対象を除外する。 */
+	protected function createRelatedComment(\WP_Comment $comment): ?CommentData
+	{
+		// @phpstan-ignore return.type (既定型はCommentData。別のTRelatedCommentを宣言する派生クラスは上書きする。)
+		return CommentGet::From($comment, $this->avatarSize ?? 96);
 	}
 }

@@ -1,0 +1,15 @@
+parameters:
+	level: 8
+	treatPhpDocTypesAsCertain: false
+	bootstrapFiles:
+		- ../../autoload.php
+	scanFiles:
+		- post-stubs.php
+	paths:
+		- data-props-types.php
+		- ../../Wp/Data/TermData.php
+		- ../../Wp/Data/CommentData.php
+		- ../../Wp/Data/WpUserData.php
+		- ../../Wp/Data/MenuNodeData.php
+		- ../../Wp/Data/PostTypeData.php
+		- ../../Wp/Data/TaxonomyData.php

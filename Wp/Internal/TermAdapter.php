@@ -5,7 +5,8 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\TermMembers;
+use WpTypeSafety\Wp\Data\TermProps;
+use WpTypeSafety\Wp\Data\TaxonomyData;
 
 /** @internal WordPressのタームをCoreのTermDataへ変換する。 */
 final class TermAdapter
@@ -75,16 +76,16 @@ final class TermAdapter
 
 			$rootData = $term;
 			if ($term->HasParent()) {
-				$ancestors = \get_ancestors($term->Id, $term->Taxonomy, 'taxonomy');
+				$ancestors = \get_ancestors($term->Id, $term->TaxonomyName, 'taxonomy');
 				if ($ancestors !== []) {
-					$root = \get_term((int) end($ancestors), $term->Taxonomy);
+					$root = \get_term((int) end($ancestors), $term->TaxonomyName);
 					if ($root instanceof \WP_Term) {
 						$rootData = self::termData($root, $termFactory) ?? $term;
 					}
 				}
 			}
 
-			$key = $rootData->Taxonomy . ':' . $rootData->Id;
+			$key = $rootData->TaxonomyName . ':' . $rootData->Id;
 			$roots[$key] ??= $rootData;
 		}
 		return array_values($roots);
@@ -103,7 +104,7 @@ final class TermAdapter
 			if (! $term instanceof TermData) {
 				continue;
 			}
-			$level = count(\get_ancestors($term->Id, $term->Taxonomy, 'taxonomy'));
+			$level = count(\get_ancestors($term->Id, $term->TaxonomyName, 'taxonomy'));
 			if ($level > $deepestLevel) {
 				$selected = [$term];
 				$deepestLevel = $level;
@@ -127,7 +128,7 @@ final class TermAdapter
 			if (! $term instanceof TermData) {
 				continue;
 			}
-			$level = count(\get_ancestors($term->Id, $term->Taxonomy, 'taxonomy'));
+			$level = count(\get_ancestors($term->Id, $term->TaxonomyName, 'taxonomy'));
 			if ($shallowestLevel === null || $level < $shallowestLevel) {
 				$selected = [$term];
 				$shallowestLevel = $level;
@@ -157,73 +158,56 @@ final class TermAdapter
 		return $data;
 	}
 
-	/**
-	 * @template TRelatedTerm of TermData = TermData
-	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
-	 * @return TermData<TRelatedTerm>|null
-	 */
-	public static function FromWpTerm(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermData
+	/** @return TermData<TermData>|null */
+	public static function FromWpTerm(\WP_Term $term): ?TermData
 	{
-		$members = self::MembersFromWpTerm($term, $relatedTermFactory);
-		return $members !== null ? new TermData($members) : null;
+		$props = self::PropsFromWpTerm($term);
+		return $props !== null ? new TermData($props) : null;
 	}
 
-	/**
-	 * @template TRelatedTerm of TermData = TermData
-	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
-	 * @return TermMembers<TRelatedTerm>|null
-	 */
-	public static function MembersFromWpTerm(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermMembers
+	public static function PropsFromWpTerm(\WP_Term $term): ?TermProps
 	{
 		$url = \get_term_link($term);
-		if (\is_wp_error($url) || ! is_string($url)) {
-			return null;
-		}
+		if (\is_wp_error($url) || ! is_string($url))
+		{return null;}
 
-		$parentId = (int) $term->parent;
-		$taxonomy = (string) $term->taxonomy;
-
-		return new TermMembers(
+		return new TermProps(
 			Id: $term->term_id,
 			Name: $term->name,
 			Slug: $term->slug,
-			Taxonomy: $term->taxonomy,
+			TaxonomyName: $term->taxonomy,
 			Url: $url,
 			ParentId: $term->parent,
 			Description: $term->description,
-			ChildrenResolver: static fn (bool $hideEmpty, string $orderby, string $order): array =>
-				self::childrenOf(
-					$term->term_id,
-					$term->taxonomy,
-					$hideEmpty,
-					$orderby,
-					$order,
-					$relatedTermFactory,
-				),
-			ParentResolver: static function () use ($parentId, $taxonomy, $relatedTermFactory): ?TermData {
-				if ($parentId <= 0 || $taxonomy === '') {
-					return null;
-				}
-				$parent = \get_term($parentId, $taxonomy);
-				return $parent instanceof \WP_Term
-					? self::relatedTerm($parent, $relatedTermFactory)
-					: null;
-			},
 		);
 	}
 
 	/**
+	 * @template TTerm of TermData
+	 * @param \Closure(\WP_Term): (TTerm|null) $createRelatedTerm
+	 * @return TTerm|null
+	 */
+	public static function Parent(int $parentId, string $taxonomy, \Closure $createRelatedTerm): ?TermData
+	{
+		if ($parentId <= 0 || $taxonomy === '')
+		{return null;}
+
+		$parent = \get_term($parentId, $taxonomy);
+		return $parent instanceof \WP_Term ? self::relatedTerm($parent, $createRelatedTerm) : null;
+	}
+
+	/**
 	 * @template TRelatedTerm of TermData = TermData
-	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
+	 * @param \Closure(\WP_Term): (TRelatedTerm|null) $createRelatedTerm
 	 * @return list<TRelatedTerm>
 	 */
-	private static function childrenOf(
+	public static function Children(
 		int $parentId,
 		string $taxonomy,
 		bool $hideEmpty,
 		string $orderby,
 		string $order,
-		?\Closure $relatedTermFactory,
+		\Closure $createRelatedTerm,
 	): array {
 		if ($parentId <= 0 || $taxonomy === '' || ! \is_taxonomy_hierarchical($taxonomy)) {
 			return [];
@@ -248,7 +232,7 @@ final class TermAdapter
 			if (! $term instanceof \WP_Term) {
 				continue;
 			}
-			$data = self::relatedTerm($term, $relatedTermFactory);
+			$data = self::relatedTerm($term, $createRelatedTerm);
 			if ($data !== null) {
 				$children[] = $data;
 			}

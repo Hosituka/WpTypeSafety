@@ -5,14 +5,27 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Core\Internal\UrlCheck;
 use WpTypeSafety\Wp\Data\PostTypeData;
-use WpTypeSafety\Wp\Data\PostTypeMembers;
+use WpTypeSafety\Wp\Data\PostTypeProps;
 use WpTypeSafety\Wp\Data\TaxonomyData;
-use WpTypeSafety\Wp\Data\TaxonomyMembers;
+use WpTypeSafety\Wp\Data\TaxonomyProps;
 
 /** @internal 投稿タイプ・タクソノミーの登録定義を正規化する。 */
 final class DefinitionAdapter
 {
 	private function __construct() {}
+
+	/** @return list<string> */
+	public static function TaxonomyNames(string $name): array
+	{
+		return $name !== '' ? self::names(\get_object_taxonomies($name, 'names')) : [];
+	}
+
+
+	public static function CurrentPostType(): ?PostTypeData
+	{
+		$name = MainQueryAdapter::PostTypeName();
+		return $name !== null ? self::PostTypeFromName($name) : null;
+	}
 
 	public static function PostTypeFromName(string $name): ?PostTypeData
 	{
@@ -36,20 +49,20 @@ final class DefinitionAdapter
 
 	public static function PostTypeFromWp(\WP_Post_Type $postType): PostTypeData
 	{
-		return new PostTypeData(self::PostTypeMembersFromWp($postType));
+		return new PostTypeData(self::PostTypePropsFromWp($postType));
 	}
 
 	public static function TaxonomyFromWp(\WP_Taxonomy $taxonomy): TaxonomyData
 	{
-		return new TaxonomyData(self::TaxonomyMembersFromWp($taxonomy));
+		return new TaxonomyData(self::TaxonomyPropsFromWp($taxonomy));
 	}
 
-	public static function PostTypeMembersFromWp(\WP_Post_Type $postType): PostTypeMembers
+	public static function PostTypePropsFromWp(\WP_Post_Type $postType): PostTypeProps
 	{
 		$name = self::text($postType->name);
 		$label = self::text($postType->label);
 		$archive = $name !== '' ? \get_post_type_archive_link($name) : false;
-		return new PostTypeMembers(
+		return new PostTypeProps(
 			Name: $name,
 			Label: $label,
 			SingularLabel: self::text($postType->labels->singular_name ?? null) ?: $label,
@@ -59,14 +72,13 @@ final class DefinitionAdapter
 			IsHierarchical: (bool) $postType->hierarchical,
 			HasArchive: (bool) $postType->has_archive,
 			ArchiveUrl: UrlCheck::IsHttpUrl($archive) ? $archive : '',
-			TaxonomyNamesResolver: static fn (): array => self::names(\get_object_taxonomies($name, 'names')),
 		);
 	}
 
-	public static function TaxonomyMembersFromWp(\WP_Taxonomy $taxonomy): TaxonomyMembers
+	public static function TaxonomyPropsFromWp(\WP_Taxonomy $taxonomy): TaxonomyProps
 	{
 		$label = self::text($taxonomy->label);
-		return new TaxonomyMembers(
+		return new TaxonomyProps(
 			Name: self::text($taxonomy->name),
 			Label: $label,
 			SingularLabel: self::text($taxonomy->labels->singular_name ?? null) ?: $label,

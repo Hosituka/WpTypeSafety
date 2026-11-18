@@ -3,19 +3,16 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-use WpTypeSafety\Core\Data\ImgData;
-
 /**
- * MenuNodeDataを構築する共通メンバ。Dataへ渡す前に値を調整できます。
+ * MenuNodeDataの構築用の値。Dataへ渡す前に値を調整できます。
  *
  * @template TChild of MenuNodeData = MenuNodeData
  */
-final class MenuNodeMembers
+final class MenuNodeProps
 {
 	/**
 	 * @param list<string> $Classes
 	 * @param list<TChild> $Children
-	 * @param null|\Closure(string|array{0: int, 1: int}): ?ImgData $ThumbnailResolver
 	 */
 	public function __construct(
 		public int $Id,
@@ -32,7 +29,6 @@ final class MenuNodeMembers
 		public string $AttributeTitle = '',
 		public string $Xfn = '',
 		public array $Children = [],
-		public ?\Closure $ThumbnailResolver = null,
 	) {
 	}
 }

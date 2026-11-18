@@ -8,6 +8,7 @@ if (PHP_SAPI !== 'cli') {
 
 class WP_Comment
 {
+	public string $comment_author_email = '';
 	public function __construct(
 		public int|string $comment_ID,
 		public int|string $comment_post_ID = 0,
@@ -75,23 +76,24 @@ function get_comments(array $args): mixed
 	return $GLOBALS['children'] ?? [];
 }
 
+require_once __DIR__ . '/../autoload.php';
 require_once __DIR__ . '/../Core/Data/ImgData.php';
 require_once __DIR__ . '/../Core/Data/LinkData.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
-require_once __DIR__ . '/../Wp/Data/UserMembers.php';
+require_once __DIR__ . '/../Wp/Data/UserProps.php';
 require_once __DIR__ . '/../Wp/Data/PostData.php';
-require_once __DIR__ . '/../Wp/Data/PostMembers.php';
+require_once __DIR__ . '/../Wp/Data/PostProps.php';
 require_once __DIR__ . '/../Wp/Data/CommentData.php';
-require_once __DIR__ . '/../Wp/Data/CommentMembers.php';
+require_once __DIR__ . '/../Wp/Data/CommentProps.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
 require_once __DIR__ . '/../Wp/Get/CommentGet.php';
 
 use WpTypeSafety\Wp\Data\CommentData;
-use WpTypeSafety\Wp\Data\CommentMembers;
+use WpTypeSafety\Wp\Data\CommentProps;
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
-use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\PostProps;
+use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Get\CommentGet;
 
@@ -101,39 +103,77 @@ use WpTypeSafety\Wp\Get\CommentGet;
  * @template TPost of PostData = PostData
  * @extends CommentData<TRelatedComment, TUser, TPost>
  */
-readonly class ProjectCommentData extends CommentData
+class ProjectCommentData extends CommentData
 {
-	/** @param CommentMembers<TRelatedComment, TUser, TPost> $members */
-	public function __construct(CommentMembers $members, public string $Label)
+	/** @param CommentProps<TRelatedComment, TUser, TPost> $props */
+	public function __construct(CommentProps $props, public readonly string $Label)
 	{
-		parent::__construct($members);
+		parent::__construct($props);
 	}
 
 	/** @return ProjectCommentData<ProjectCommentData, WpUserData, PostData> */
 	public static function FromWpComment(WP_Comment $comment): self
 	{
-		$relatedCommentFactory = static fn (WP_Comment $related): self => self::FromWpComment($related);
 		return new self(
-			CommentGet::Members($comment, relatedCommentFactory: $relatedCommentFactory),
+			CommentGet::Props($comment),
 			'派生コメント' . $comment->comment_ID,
 		);
 	}
 }
 
-readonly class ProjectCommentUserData extends WpUserData
+class ProjectCommentUserData extends WpUserData
 {
-	public function __construct(UserMembers $members, public string $Label)
+	public function __construct(UserProps $props, public readonly string $Label)
 	{
-		parent::__construct($members);
+		parent::__construct($props);
 	}
 }
 
-readonly class ProjectCommentPostData extends PostData
+class ProjectCommentPostData extends PostData
 {
-	public function __construct(PostMembers $members, public string $Label)
+	public function __construct(PostProps $props, public readonly string $Label)
 	{
-		parent::__construct($members);
+		parent::__construct($props);
 	}
+}
+
+class RelatedProjectComment extends ProjectCommentData
+{
+	protected function createRelatedComment(WP_Comment $comment): ?ProjectCommentData
+	{
+		return ProjectCommentData::FromWpComment($comment);
+	}
+}
+class DirectComment extends CommentData
+{
+	public function GetUser(): ?WpUserData
+	{
+		$GLOBALS['userCalls']++;
+		return new WpUserData(new UserProps(7, '登録ユーザー'));
+	}
+	public function GetParent(): ?CommentData { return $GLOBALS['plain']; }
+	public function GetChildren(string $status = 'approve', string $order = 'ASC'): array { return [$GLOBALS['plain']]; }
+}
+class CrossComment extends ProjectCommentData
+{
+	protected function createRelatedComment(WP_Comment $comment): ?self
+	{
+		return new self(CommentGet::Props($comment), '派生関連');
+	}
+	public function GetUser(): ?ProjectCommentUserData
+	{
+		$user = get_userdata($this->AuthorUserId);
+		return $user instanceof WP_User ? new ProjectCommentUserData(new UserProps($user->ID, $user->display_name), '派生ユーザー') : null;
+	}
+	public function GetPost(): ?ProjectCommentPostData
+	{
+		$post = get_post($this->PostId);
+		return $post instanceof WP_Post ? new ProjectCommentPostData(new PostProps($post->ID, '/', '投稿', ''), '派生投稿') : null;
+	}
+}
+class InvalidHookComment extends CommentData
+{
+	protected function createRelatedComment(WP_Comment $comment): ?CommentData { return new stdClass(); }
 }
 
 $checks = 0;
@@ -145,7 +185,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 };
 
 $plain = new CommentData(
-	new CommentMembers(
+	new CommentProps(
 		Id: 1,
 		PostId: 2,
 		ParentId: 0,
@@ -164,8 +204,8 @@ $check(! $plain->HasParent() && $plain->GetParent() === null, '親なしはResol
 $check($plain->GetAvatar() === null && $plain->GetPost() === null && $plain->GetChildren() === [], 'Resolver省略時の空値');
 
 $userCalls = 0;
-$direct = new CommentData(
-	new CommentMembers(
+$direct = new DirectComment(
+	new CommentProps(
 		Id: 2,
 		PostId: 3,
 		ParentId: 1,
@@ -176,12 +216,6 @@ $direct = new CommentData(
 		Content: '',
 		Type: 'comment',
 		Status: 'unapproved',
-		UserResolver: static function () use (&$userCalls): ?\WpTypeSafety\Wp\Data\WpUserData {
-			$userCalls++;
-			return new \WpTypeSafety\Wp\Data\WpUserData(new UserMembers(7, '登録ユーザー'));
-		},
-		ParentResolver: static fn (): CommentData => $plain,
-		ChildrenResolver: static fn (string $status, string $order): array => [$plain],
 	),
 );
 $check($direct->HasUser() && $userCalls === 0, '登録ユーザーの取得は遅延する');
@@ -212,8 +246,9 @@ $comment = new WP_Comment(
 	comment_parent: '4',
 	user_id: '7',
 );
-$commentMembers = CommentGet::Members($comment, 80);
-$check($commentMembers instanceof CommentMembers && $commentMembers->Id === 8, '公開FactoryからCommentMembersを生成する');
+$GLOBALS['comments'][8] = $comment;
+$commentMembers = CommentGet::Props($comment, 80);
+$check($commentMembers instanceof CommentProps && $commentMembers->Id === 8, '公開FactoryからCommentPropsを生成する');
 $data = CommentGet::From($comment, 80);
 $check($data->Id === 8 && $data->PostId === 12 && $data->ParentId === 4, 'IDを整数へ正規化する');
 $check($data->AuthorUserId === 7 && $data->AuthorName === '登録ユーザー', '投稿者情報を保持する');
@@ -230,8 +265,8 @@ $check($avatar?->Width === 80 && $avatar->Height === 80, '既定のアバター�
 $avatar = $data->GetAvatar(40);
 $check($avatar?->Width === 40 && ($GLOBALS['avatarCalls'][1][1]['size'] ?? null) === 40, '呼び出し時のアバター寸法を使用する');
 
-$children = $data->GetChildren('hold', 'DESC');
-$check(count($children) === 1 && $children[0]->Id === 9, 'WP_Commentだけを子へ変換する');
+$childResults = $data->GetChildren('hold', 'DESC');
+$check(count($childResults) === 1 && $childResults[0]->Id === 9, 'WP_Commentだけを子へ変換する');
 $check($GLOBALS['commentsArgs'][0] === [
 	'parent' => 8,
 	'status' => 'hold',
@@ -259,8 +294,8 @@ $check($invalid->Url === '' && $invalid->WebsiteUrl === '', '不正なURLを空�
 $check($invalid->CreatedAt === null, '不正な日時をnullへ正規化する');
 $check($invalid->GetUser() === null && $invalid->GetParent() === null, '匿名・親なしは問い合わせない');
 
-$invalidChildren = new CommentData(
-	new CommentMembers(
+$invalidChildren = new InvalidHookComment(
+	new CommentProps(
 		Id: 1,
 		PostId: 1,
 		ParentId: 0,
@@ -271,55 +306,59 @@ $invalidChildren = new CommentData(
 		Content: '',
 		Type: 'comment',
 		Status: 'approved',
-		ChildrenResolver: static fn (string $status, string $order): array => ['invalid'],
 	),
 );
 try {
 	$invalidChildren->GetChildren();
 	throw new RuntimeException('不正な子コメントを受け入れた');
-} catch (UnexpectedValueException) {
+} catch (TypeError) {
 	$check(true, '子コメントの要素型を検証する');
 }
 
 $GLOBALS['children'] = [new WP_Comment(9, 12, '返信者', comment_parent: 8)];
-$derivedComment = ProjectCommentData::FromWpComment($comment);
-$check($derivedComment->GetParent()?->Label === '派生コメント4', '関連Factoryで親コメントの派生型を維持する');
-$check($derivedComment->GetChildren()[0]->Label === '派生コメント9', '関連Factoryで子コメントの派生型を維持する');
-$baseRelations = new ProjectCommentData(CommentGet::Members($comment), '基底関連');
+$derivedComment = new RelatedProjectComment(CommentGet::Props($comment), '共通フック');
+$check($derivedComment->GetParent()?->Label === '派生コメント4', '生成フックで親コメントの派生型を維持する');
+$check($derivedComment->GetChildren()[0]->Label === '派生コメント9', '生成フックで子コメントの派生型を維持する');
+$baseRelations = new ProjectCommentData(CommentGet::Props($comment), '基底関連');
 $check(
 	$baseRelations->GetParent() instanceof CommentData
 	&& ! $baseRelations->GetParent() instanceof ProjectCommentData,
-	'関連Factory省略時は純粋なCommentDataを返す',
+	'生成フック省略時は純粋なCommentDataを返す',
 );
 
 $GLOBALS['comments'][4] = new WP_Comment(4, 12, '親投稿者', user_id: 7);
-$userFactory = static fn (WP_User $user): ProjectCommentUserData => new ProjectCommentUserData(
-	new UserMembers($user->ID, $user->display_name),
-	'派生ユーザー',
-);
-$postFactory = static fn (WP_Post $post): ProjectCommentPostData => new ProjectCommentPostData(
-	new PostMembers($post->ID, '/post/' . $post->ID . '/', '投稿' . $post->ID, ''),
-	'派生投稿',
-);
-$crossData = CommentGet::From(
-	$comment,
-	userFactory: $userFactory,
-	postFactory: $postFactory,
-);
-$check($crossData->GetUser()?->Label === '派生ユーザー', 'User Factoryでコメント投稿者の派生型を返す');
-$check($crossData->GetPost()?->Label === '派生投稿', 'Post Factoryで関連投稿の派生型を返す');
+$crossData = new CrossComment(CommentGet::Props($comment), '異種Data');
+$check($crossData->GetUser()?->Label === '派生ユーザー', 'GetUser上書きでコメント投稿者の派生型を返す');
+$check($crossData->GetPost()?->Label === '派生投稿', 'GetPost上書きで関連投稿の派生型を返す');
 $crossParent = $crossData->GetParent();
 $check(
 	$crossParent?->GetUser() instanceof ProjectCommentUserData
 	&& $crossParent->GetPost() instanceof ProjectCommentPostData,
-	'異種Data Factoryを基底型の親コメントへ引き継ぐ',
+	'関連Getterの上書きを基底型の親コメントへ引き継ぐ',
 );
 $check(
 	$data->GetUser() instanceof WpUserData
 	&& ! $data->GetUser() instanceof ProjectCommentUserData
 	&& $data->GetPost() instanceof PostData
 	&& ! $data->GetPost() instanceof ProjectCommentPostData,
-	'異種Data Factory省略時は純粋な基底Dataを返す',
+	'関連Getterの上書き省略時は純粋な基底Dataを返す',
 );
+
+$guest = new WP_Comment(41, 12, 'guest');
+$guest->comment_author_email = 'guest@example.invalid';
+$GLOBALS['comments'][41] = $guest;
+$guestProps = CommentGet::Props($guest, 0);
+$guestProps->AuthorUserId = 7;
+$guestProps->AuthorName = 'adjusted guest';
+$guestProps->WebsiteUrl = 'https://example.com/changed/';
+$guestData = new CommentData($guestProps);
+$check($guestData->GetAvatar()?->Width === 1, 'アバターは最小1');
+$avatarSubject = $GLOBALS['avatarCalls'][array_key_last($GLOBALS['avatarCalls'])][0];
+$check($avatarSubject !== $guest && $avatarSubject->comment_author_email === 'guest@example.invalid', '現在のゲスト情報を複製して使う');
+$check($avatarSubject->user_id === 7 && $avatarSubject->comment_author === 'adjusted guest' && $avatarSubject->comment_author_url === 'https://example.com/changed/', '保持済み著者情報を複製へ反映');
+$check((int) $guest->user_id === 0 && $guest->comment_author === 'guest', '元のコメントは変更しない');
+unset($GLOBALS['comments'][41]);
+$check($guestData->GetAvatar() === null, 'コメント削除後はアバターもnull');
+$check(! property_exists($guestData, 'AuthorEmail'), '公開メールプロパティは追加しない');
 
 echo "Comment data: {$checks} checks passed.\n";

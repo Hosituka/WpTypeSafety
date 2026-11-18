@@ -3,10 +3,9 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** 投稿タイプ定義の構築用メンバ。 */
-final class PostTypeMembers
+/** 投稿タイプ定義の構築用の値。 */
+final class PostTypeProps
 {
-	/** @param null|\Closure(): list<string> $TaxonomyNamesResolver */
 	public function __construct(
 		public string $Name,
 		public string $Label,
@@ -17,6 +16,5 @@ final class PostTypeMembers
 		public bool $IsHierarchical = false,
 		public bool $HasArchive = false,
 		public string $ArchiveUrl = '',
-		public ?\Closure $TaxonomyNamesResolver = null,
 	) {}
 }

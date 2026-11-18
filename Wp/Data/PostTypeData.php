@@ -3,50 +3,37 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** 投稿1件ではなく、投稿タイプの登録定義を表す。 */
-readonly class PostTypeData
-{
-	public string $Name;
-	public string $Label;
-	public string $SingularLabel;
-	public string $Description;
-	public bool $IsPublic;
-	public bool $IsPubliclyQueryable;
-	public bool $IsHierarchical;
-	public bool $HasArchive;
-	public string $ArchiveUrl;
-	/** @var null|\Closure(): list<string> */
-	private ?\Closure $taxonomyNamesResolver;
+use WpTypeSafety\Wp\Internal\DefinitionAdapter;
 
-	public function __construct(PostTypeMembers $members)
+/** 投稿1件ではなく、投稿タイプの登録定義を表す。 */
+class PostTypeData
+{
+	public readonly string $Name;
+	public readonly string $Label;
+	public readonly string $SingularLabel;
+	public readonly string $Description;
+	public readonly bool $IsPublic;
+	public readonly bool $IsPubliclyQueryable;
+	public readonly bool $IsHierarchical;
+	public readonly bool $HasArchive;
+	public readonly string $ArchiveUrl;
+
+	public function __construct(PostTypeProps $props)
 	{
-		$this->Name = $members->Name;
-		$this->Label = $members->Label;
-		$this->SingularLabel = $members->SingularLabel;
-		$this->Description = $members->Description;
-		$this->IsPublic = $members->IsPublic;
-		$this->IsPubliclyQueryable = $members->IsPubliclyQueryable;
-		$this->IsHierarchical = $members->IsHierarchical;
-		$this->HasArchive = $members->HasArchive;
-		$this->ArchiveUrl = $members->ArchiveUrl;
-		$this->taxonomyNamesResolver = $members->TaxonomyNamesResolver;
+		$this->Name = $props->Name;
+		$this->Label = $props->Label;
+		$this->SingularLabel = $props->SingularLabel;
+		$this->Description = $props->Description;
+		$this->IsPublic = $props->IsPublic;
+		$this->IsPubliclyQueryable = $props->IsPubliclyQueryable;
+		$this->IsHierarchical = $props->IsHierarchical;
+		$this->HasArchive = $props->HasArchive;
+		$this->ArchiveUrl = $props->ArchiveUrl;
 	}
 
 	/** @return list<string> 呼び出すたびに関連タクソノミー名を取得する。 */
 	public function GetTaxonomyNames(): array
 	{
-		if ($this->taxonomyNamesResolver === null)
-		{return [];}
-
-		$names = ($this->taxonomyNamesResolver)();
-		if (! is_array($names) || ! array_is_list($names)) {
-			throw new \UnexpectedValueException('TaxonomyNamesResolver must return a list of strings.');
-		}
-		foreach ($names as $name) {
-			if (! is_string($name)) {
-				throw new \UnexpectedValueException('TaxonomyNamesResolver must return a list of strings.');
-			}
-		}
-		return $names;
+		return DefinitionAdapter::TaxonomyNames($this->Name);
 	}
 }

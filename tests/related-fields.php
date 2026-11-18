@@ -10,18 +10,18 @@ require_once __DIR__ . '/../autoload.php';
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Acf\Internal\AcfAdapter;
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\TermMembers;
-use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\TermProps;
+use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 
 require_once __DIR__ . '/../Wp/Data/TermData.php';
-require_once __DIR__ . '/../Wp/Data/TermMembers.php';
+require_once __DIR__ . '/../Wp/Data/TermProps.php';
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
-require_once __DIR__ . '/../Wp/Data/UserMembers.php';
+require_once __DIR__ . '/../Wp/Data/UserProps.php';
 require_once __DIR__ . '/../Wp/Data/PostData.php';
-require_once __DIR__ . '/../Wp/Data/PostMembers.php';
+require_once __DIR__ . '/../Wp/Data/PostProps.php';
 require_once __DIR__ . '/../Acf/Get/AcfGet.php';
 require_once __DIR__ . '/../Acf/Internal/AcfAdapter.php';
 
@@ -71,7 +71,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	{
 		$id = $this->GetRaw($fieldName, $source);
 		return is_int($id) && $id > 0
-			? new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''))
+			? new PostData(new PostProps(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''))
 			: null;
 	}
 
@@ -81,7 +81,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new PostData(new PostMembers(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''));
+				$result[] = new PostData(new PostProps(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''));
 			}
 		}
 		return $result;
@@ -91,7 +91,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	{
 		$id = $this->GetRaw($fieldName, $source);
 		return is_int($id) && $id > 0
-			? new TermData(new TermMembers($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id))
+			? new TermData(new TermProps($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id))
 			: null;
 	}
 
@@ -101,7 +101,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new TermData(new TermMembers($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id));
+				$result[] = new TermData(new TermProps($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id));
 			}
 		}
 		return $result;
@@ -114,7 +114,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	): ?WpUserData {
 		($this->avatarSizeRecorder)($avatarSize);
 		$id = $this->GetRaw($fieldName, $source);
-		return is_int($id) && $id > 0 ? new WpUserData(new UserMembers($id, 'User ' . $id)) : null;
+		return is_int($id) && $id > 0 ? new WpUserData(new UserProps($id, 'User ' . $id)) : null;
 	}
 
 	/** @return list<WpUserData> */
@@ -127,7 +127,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new WpUserData(new UserMembers($id, 'User ' . $id));
+				$result[] = new WpUserData(new UserProps($id, 'User ' . $id));
 			}
 		}
 		return $result;

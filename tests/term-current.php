@@ -23,7 +23,7 @@ class WP_Term
 }
 class WP_Post {}
 class WP_Error {}
-readonly class ProjectTerm extends TermData {}
+class ProjectTerm extends TermData {}
 class WP_Query
 {
 	public function get_queried_object(): ?object { return $GLOBALS['queriedObject'] ?? null; }
@@ -43,12 +43,12 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 foreach (['category', 'post_tag', 'custom_taxonomy'] as $taxonomy) {
 	$GLOBALS['queriedObject'] = new WP_Term(taxonomy: $taxonomy);
 	$current = TermGet::Current();
-	$check($current instanceof TermData && $current->Taxonomy === $taxonomy, 'タームアーカイブをData化');
+	$check($current instanceof TermData && $current->TaxonomyName === $taxonomy, 'タームアーカイブをData化');
 }
 $calls = 0;
 $factory = static function (WP_Term $term) use (&$calls): ProjectTerm {
 	$calls++;
-	return new ProjectTerm(TermGet::Members($term));
+	return new ProjectTerm(TermGet::Props($term));
 };
 $check(TermGet::Current($factory) instanceof ProjectTerm && $calls === 1, '案件固有Factory');
 foreach ([null, new WP_Post(), new stdClass()] as $value) {

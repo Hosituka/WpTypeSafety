@@ -5,7 +5,7 @@ namespace WpTypeSafety\Wp\Internal;
 
 use WpTypeSafety\Wp\Data\MenuItemType;
 use WpTypeSafety\Wp\Data\MenuNodeData;
-use WpTypeSafety\Wp\Data\MenuNodeMembers;
+use WpTypeSafety\Wp\Data\MenuNodeProps;
 
 /** @internal */
 final class MenuAdapter
@@ -14,6 +14,15 @@ final class MenuAdapter
 	private static array $treeCache = [];
 
 	private function __construct() {}
+
+	/** @param string|array{0: int, 1: int} $size */
+	public static function Thumbnail(MenuItemType $type, string $object, int $objectId, string|array $size): ?\WpTypeSafety\Core\Data\ImgData
+	{
+		return $type === MenuItemType::PostType && $object === 'page' && $objectId > 0
+			? DtoFactory::ImgFromAttachmentId((int) \get_post_thumbnail_id($objectId), $size)
+			: null;
+	}
+
 
 	/**
 	 * @template TNode of MenuNodeData
@@ -169,14 +178,14 @@ final class MenuAdapter
 	/**
 	 * @template TChild of MenuNodeData
 	 * @param list<TChild> $children
-	 * @return MenuNodeMembers<TChild>
+	 * @return MenuNodeProps<TChild>
 	 */
-	public static function MembersFromWpPost(\WP_Post $item, array $children = []): MenuNodeMembers
+	public static function PropsFromWpPost(\WP_Post $item, array $children = []): MenuNodeProps
 	{
 		$objectId = (int) $item->object_id;
 		$type = MenuItemType::tryFrom((string) $item->type) ?? MenuItemType::Unknown;
 
-		return new MenuNodeMembers(
+		return new MenuNodeProps(
 			Id: (int) $item->ID,
 			ParentId: (int) $item->menu_item_parent,
 			Title: (string) $item->title,
@@ -191,10 +200,6 @@ final class MenuAdapter
 			Object: (string) $item->object,
 			ObjectId: $objectId,
 			Children: $children,
-			ThumbnailResolver: static fn (string|array $size) =>
-				$type === MenuItemType::PostType && (string) $item->object === 'page' && $objectId > 0
-					? DtoFactory::ImgFromAttachmentId((int) \get_post_thumbnail_id($objectId), $size)
-					: null,
 		);
 	}
 
@@ -205,7 +210,7 @@ final class MenuAdapter
 	 */
 	public static function FromWpPost(\WP_Post $item, array $children = []): MenuNodeData
 	{
-		return new MenuNodeData(self::MembersFromWpPost($item, $children));
+		return new MenuNodeData(self::PropsFromWpPost($item, $children));
 	}
 
 	/**

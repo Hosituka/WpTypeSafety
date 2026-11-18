@@ -2,6 +2,8 @@
 
 ## データクラスと取得契約
 
+WordPress Dataは、値だけのPropsから構築します。値の調整はProps、動作変更はGetter・生成フックのオーバーライドで行います。旧*Members・PostProperty・Members()/Property()は廃止しました。
+
 このライブラリの`Data`は、純粋な値だけを保持するDTOに限定しません。利用側のコードで、ひとまとまりとして扱う基本単位を表します。正規化済みの値を保持するデータクラスだけでなく、注入済みのResolverを通じて関連データを取得するクラスや、その単位を操作するための`Get`を構成要素として保持するクラスも含みます。
 
 `Get`は、外部から得た値の取得・型確認・正規化を担当し、用途に対応する`Data`またはPHPの固定型を返します。`Data`自身がWordPress・ACFのグローバル関数を直接呼ぶことは原則として避けますが、概念を一単位として扱うために、注入済みのResolverや`Get`を保持することは許容します。
@@ -30,11 +32,11 @@ URLプロパティは`string`で保持し、未設定・取得できないURLは
 | `CommentData` | `WebsiteUrl` | コメント投稿者のWebサイト | 空文字 |
 | `PostTypeData` | `ArchiveUrl` | 投稿タイプのアーカイブ | 空文字 |
 
-`WpUserData->Description` はWP標準の「プロフィール情報」（自己紹介文）です。Factoryが生成時に `WP_User->description` から取得します。未設定・文字列以外は空文字です。直接構築時は`UserMembers`の`Description:`で指定でき、省略時は空文字です。HTML出力やエスケープは利用側で行い、Dataは値をそのまま保持します。
+`WpUserData->Description` はWP標準の「プロフィール情報」（自己紹介文）です。Factoryが生成時に `WP_User->description` から取得します。未設定・文字列以外は空文字です。直接構築時は`UserProps`の`Description:`で指定でき、省略時は空文字です。HTML出力やエスケープは利用側で行い、Dataは値をそのまま保持します。
 
-`WpUserData->ArchiveUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。直接構築する場合は`UserMembers`の`ArchiveUrl:`で指定でき、省略時は空文字です。コンストラクターはURL形式を検証しないため、直接渡す値は呼び出し元で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
+`WpUserData->ArchiveUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。直接構築する場合は`UserProps`の`ArchiveUrl:`で指定でき、省略時は空文字です。コンストラクターはURL形式を検証しないため、直接渡す値は呼び出し元で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
 
-`WpUserData->WebsiteUrl` はユーザーに登録されたWebサイト（`WP_User->user_url`）です。FactoryではHTTP(S) URLを検証し、不正・未設定・文字列以外は空文字にします。著者一覧の`ArchiveUrl`とは独立した値です。直接構築時は`UserMembers`の`WebsiteUrl:`で指定できます。
+`WpUserData->WebsiteUrl` はユーザーに登録されたWebサイト（`WP_User->user_url`）です。FactoryではHTTP(S) URLを検証し、不正・未設定・文字列以外は空文字にします。著者一覧の`ArchiveUrl`とは独立した値です。直接構築時は`UserProps`の`WebsiteUrl:`で指定できます。
 
 公開Dataは、扱う概念によって次の領域に分かれます。
 
@@ -81,209 +83,138 @@ $image = new ImgData(
 );
 ```
 
-関連取得メソッドは、対応するMembersへ渡した`Closure`に処理を委ねます。
+## Propsと共通値のreadonly
 
-| Data | 取得メソッド | MembersのResolver | 省略時 |
-|---|---|---|---|
-| `PostData` | `GetAuthor()` | `AuthorResolver` | `null` |
-| `PostData` | `GetExcerpt()` | `ExcerptResolver` | 空文字 |
-| `PostData` | `HasExcerpt()` | `ExcerptPresenceResolver` | `false` |
-| `PostData` | `GetThumbnail()` | `ThumbnailResolver` | `null` |
-| `PostData` | `GetChildren()` | `ChildrenResolver` | 空配列 |
-| `PostData` | `GetParent()` | `ParentResolver` | `null` |
-| `PostData` | `GetPreviousPost()`・`GetNextPost()` | `PreviousPostResolver`・`NextPostResolver` | `null` |
-| `PostData` | `GetTemplateSlug()` | `TemplateSlugResolver` | 空文字 |
-| `PostData` | `GetRenderedContent()` | `RenderedContentResolver` | 空文字 |
-| `PostData` | `GetTerms()` | `TermsResolver` | 空配列 |
-| `CommentData` | `GetUser()`・`GetAvatar()`・`GetPost()` | `UserResolver`・`AvatarResolver`・`PostResolver` | `null` |
-| `CommentData` | `GetParent()` | `ParentResolver` | `null` |
-| `CommentData` | `GetChildren()` | `ChildrenResolver` | 空配列 |
-| `TermData` | `GetParent()`・`GetChildren()` | `ParentResolver`・`ChildrenResolver` | `null`・空配列 |
-| `WpUserData` | `GetAvatar()` | `AvatarResolver` | `null` |
-| `MenuNodeData` | `GetThumbnail()` | `ThumbnailResolver` | `null` |
+| Data | 構築用Props | 公開取得口 |
+|---|---|---|
+| PostData | PostProps | PostGet::Props(WP_Post) |
+| TermData | TermProps | TermGet::Props(WP_Term): ?TermProps |
+| CommentData | CommentProps | CommentGet::Props(WP_Comment, avatarSize: 96) |
+| WpUserData | UserProps | UserGet::Props(WP_User, avatarSize: 96): ?UserProps |
+| MenuNodeData | MenuNodeProps<TChild> | MenuNodeGet::Props(WP_Post, children: []) |
+| PostTypeData | PostTypeProps | PostTypeGet::Props(WP_Post_Type) |
+| TaxonomyData | TaxonomyProps | TaxonomyGet::Props(WP_Taxonomy) |
 
-関数を持つMembersプロパティには`Resolver`を付け、利用側のGet系メソッドと区別します。結果はキャッシュせず、呼び出すたびに関数を実行します。`GetChildren()`はリストと要素のData型を実行時にも確認し、契約違反なら`UnexpectedValueException`を投げます。他のGet系はPHPの戻り値型で確認します。
+Propsは変更可能な値の集合です。Resolver・Factoryは持たず、Dataは構築時の値をreadonlyプロパティへコピーします。元のPropsの後続変更は反映しません。Propsを再利用したい場合は変更前にcloneしてください。コンストラクターではWordPress・ACFへ問い合わせません。
+
+継承可能な7種類のWordPress Dataは、クラス全体ではなく共通プロパティへ個別にreadonlyを指定します。サブクラスの追加状態まで不変とは保証しません。案件側は追加プロパティをreadonlyにするか、編集状態・キャッシュ等として変更可能にするかを選べます。配列プロパティ自体の変更はできませんが、保持するオブジェクトの内部状態まで固定する深い不変性は保証しません。
+
+PHPでは非readonlyクラスをreadonlyクラスで継承できません。案件側も通常のclassで継承し、固定したい追加プロパティへreadonlyを付けてください。親のId・Title等のreadonlyは解除できません。編集用の追加状態を保存する処理は案件側の責務であり、保存後に共通値を更新したい場合はDataを再取得します。この変更自体はORM・保存APIを提供するものではありません。Coreのfinal値型、finalなQuery結果・ACF Dataは引き続きクラス全体をreadonlyにします。
+
+TermGet::Props()/From()は従来どおりURLの取得失敗でもnullを返します。UserGet::Props()/From()は存在しないユーザーならnullです。直接構築するPropsの値の妥当性は呼び出し側の責任です。
 
 ```php
-<?php
-use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
-use WpTypeSafety\Core\Data\ImgData;
-
-$data = new PostData(
-	new PostMembers(
-		Id: $post->ID,
-		Url: (string) get_permalink($post),
-		Title: get_the_title($post),
-		RawContent: $post->post_content,
-		Status: $post->post_status,
-		PostType: $post->post_type,
-		Slug: $post->post_name,
-		IsPasswordProtected: $post->post_password !== '',
-		IsPubliclyViewable: is_post_publicly_viewable($post),
-		ThumbnailResolver: static function (string|array $size) use ($post): ?ImgData {
-			$source = wp_get_attachment_image_src(get_post_thumbnail_id($post), $size);
-			return is_array($source)
-				? new ImgData(Url: $source[0], Width: $source[1], Height: $source[2])
-				: null;
-		},
-	),
-);
-
-$image = $data->GetThumbnail('medium_large');
-```
-
-`PostData`は`Status`・`PostType`・`Slug`・`IsPasswordProtected`・`IsPubliclyViewable`も保持します。`IsPublished()`は`Status === 'publish'`だけを判定し、投稿タイプの公開可否までは判定しません。`IsPubliclyViewable`はWordPressの`is_post_publicly_viewable()`による、投稿状態と投稿タイプを合わせた判定です。パスワード文字列自体は保持しません。直接生成時に省略した場合、文字列は空文字、真偽値はfalseになり、状態が不明であることを表します。
-
-取得関数はWordPress以外のデータ源を使っても構いません。`GetChildren()`の引数と戻り値型など、公開メソッドの契約は共通です。`MenuItemType`はWordPressの値から自動変換せず、該当するenum caseを呼び出し元が選びます。
-
-`MenuNodeData->Children`と`Classes`は取得済みの値です。コンストラクターでは要素型を検証しません。`readonly`は配列プロパティの再代入を防ぎますが、配列に入れたオブジェクト自体の変更を防ぐものではありません。
-
-`PostData`の`GetLink()`は、保持している`Url`・`Title`から`LinkData`を作り、`Target`は空文字です。`MenuNodeData`の`GetLink()`は、保持している`Url`・`Title`・`Target`から`LinkData`を作ります。`MenuNodeData`はメニュー項目の`AttributeTitle`・`Xfn`も保持し、`Target`が`_blank`かどうかを`IsNewTab()`で判定できます。WordPressへの問い合わせやHTML属性の生成は行いません。
-
-`PostData::GetTemplateSlug(): string`は、`PostMembers::$TemplateSlugResolver`へ委譲して、管理画面で選択されたテンプレートの相対パス（例：`custom-service-subpage.php`）を返します。拡張子・ハイフン・サブディレクトリは変換しません。テンプレート階層で実際に適用されるPHPファイルを判定するAPIではありません。Resolver省略時は空文字です。InternalのFactoryは`get_page_template_slug($postId)`を呼ぶResolverを注入し、デフォルト・取得失敗・文字列以外の値を空文字へ正規化します。取得は呼び出すたびに行います。
-
-```php
-<?php
-$template = $postData->GetTemplateSlug();
-// 'custom-service-subpage.php'、またはデフォルトなら ''
-```
-
-## 案件用サブクラスのコンストラクター
-
-継承可能なWordPress Dataには、対応する構築用Membersがあります。`PostData`には`PostMembers`、`WpUserData`には`UserMembers`、`CommentData`には`CommentMembers`、`TermData`には`TermMembers`、`MenuNodeData`には`MenuNodeMembers`を渡します。Membersは生成前に型付きプロパティを変更でき、Dataは受け取った時点の値をreadonlyプロパティへコピーします。
-
-この形なら、派生クラスは親の値やResolverを個別に再宣言・転送する必要がありません。値の取得は`FromWpPost()`等の生成メソッドへ分け、コンストラクターではWordPressやACFへ問い合わせません。以下のクラス名・フィールド名は説明用の例です。
-
-```php
-<?php
-use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
-use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Wp\Data\PostData;
 
-final readonly class ArticlePostData extends PostData
+$props = PostGet::Props($post);
+$props->Title = '表示用タイトル';
+$props->RawContent = '変更した本文';
+$props->RawExcerpt = '変更した手入力抜粋';
+$data = new PostData($props);
+```
+
+## 案件用Dataの生成と継承
+
+```php
+use WpTypeSafety\Wp\Data\PostData;
+use WpTypeSafety\Wp\Data\PostProps;
+use WpTypeSafety\Wp\Data\WpUserData;
+use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Acf\Get\AcfGet;
+
+/** @extends PostData<ArticlePostData, WpUserData> */
+final class ArticlePostData extends PostData
 {
-	public function __construct(
-		PostMembers $members,
-		public string $Subtitle,
-	) {
-		parent::__construct($members);
+	public function __construct(PostProps $props, public readonly string $Subtitle)
+	{
+		parent::__construct($props);
+	}
+
+	protected function createRelatedPost(\WP_Post $post): ?self
+	{
+		return self::FromWpPost($post);
 	}
 
 	public static function FromWpPost(\WP_Post $post): self
 	{
-		$relatedPostFactory = static fn (\WP_Post $related): self => self::FromWpPost($related);
-		$members = PostGet::Members($post, $relatedPostFactory);
-		$postGet = new AcfGet($post->ID);
-
+		$postGet = new AcfGet($post);
 		return new self(
-			members: $members,
+			props: PostGet::Props($post),
 			Subtitle: $postGet->Text('subtitle'),
 		);
 	}
 }
 ```
 
-`PostGet::Members()`が返す`PostMembers`には、共通値とResolverがすべて含まれます。案件側で親の値を変更する場合は、Dataへ渡す前にMembersの型付きプロパティを変更します。元のMembersを再利用したい場合は、変更前に`clone`してください。
+複数のGetterで共通する関連Data生成は、次のprotectedフックを上書きします。
 
-上の`relatedPostFactory`は、`GetParent()`・`GetChildren()`・`GetPreviousPost()`・`GetNextPost()`が返す関連投稿にも同じ派生Dataを使用するための任意指定です。コールバックは関連する`WP_Post`を受け取り、`PostData`の派生型または`null`を返します。各派生Dataの生成処理でも同じ指定を行うことで、後続の関連取得にも派生型が維持されます。
+| Data | 生成フック | 適用先 |
+|---|---|---|
+| PostData | createRelatedPost(WP_Post): ?PostData | GetParent・GetChildren・GetPreviousPost・GetNextPost |
+| TermData | createRelatedTerm(WP_Term): ?TermData | GetParent・GetChildren |
+| CommentData | createRelatedComment(WP_Comment): ?CommentData | GetParent・GetChildren |
 
-`relatedPostFactory`を省略した場合、関連取得は純粋な`PostData`を返します。派生Dataの追加フィールドが不要で、共通のタイトルやURLだけを軽量に扱いたい場合はこちらを使用します。
+標準フックは基底Dataを生成します。派生型を返す場合は生成フックを上書きしてください。nullは単一取得ではnull、リストでは要素の除外を意味します。順序を維持して再採番します。戻り値型違反はPHPのTypeError、フック内の例外はそのまま伝播します。前後投稿の処理では一時的なグローバルpostを例外時も復元します。
 
-```php
-<?php
-$members = new PostMembers(
-	Id: 123,
-	Url: '/sample/',
-	Title: '任意のタイトル',
-	RawContent: '任意の本文',
-	ExcerptResolver: static fn (): string => '任意の抜粋',
-);
+一つのGetterだけの変更には、別のFactoryやフックを設けません。PostData::GetAuthor()、CommentData::GetUser()/GetPost()/GetAvatar()、TermData::GetTaxonomy()等を直接オーバーライドします。標準処理は内部static Adapterへ委譲します。Internalは公開拡張点ではありません。
 
-$data = new ArticlePostData(
-	members: $members,
-	Subtitle: '記事の補足',
-);
-```
+## 保持値と呼び出し時点の情報
 
-`GetAuthor()`から派生した投稿者Dataを返す場合は、`PostGet::Members()`の`authorFactory`へ生成処理を指定します。省略時は純粋な`WpUserData`を返します。
+| Data・処理 | 基準 |
+|---|---|
+| PostData::GetLink | 保持したTitle・Url |
+| PostData::GetExcerpt / HasExcerpt | 保持したRawExcerpt。本文から自動生成しない |
+| PostData::GetRenderedContent | 保持したRawContent・主要な投稿値。詳細はwordpress.md |
+| PostDataの親・著者 | 保持したParentId・AuthorId |
+| PostDataの子・ターム・画像・前後投稿・テンプレート | 保持したId |
+| TermDataの親 | 保持したParentId・TaxonomyName |
+| TermDataの子 | 保持したId・TaxonomyName。階層タクソノミーのみ |
+| CommentDataの親・子・ユーザー・投稿 | 保持したParentId・Id・AuthorUserId・PostId |
+| WpUserData::GetAvatar | 保持したId・アバターサイズ |
+| MenuNodeData::GetThumbnail | 保持したType・Object・ObjectId |
+| PostData::GetPostType / TermData::GetTaxonomy | 保持した登録名 |
+| PostTypeData::GetTaxonomyNames | 保持したNameで現在の関連登録名を取得 |
+| TaxonomyData::HasObjectType | 構築時に保持したObjectTypes |
 
-```php
-<?php
-$members = PostGet::Members(
-	$post,
-	authorFactory: static fn (\WP_User $author): ?AuthorProfileData =>
-		AuthorProfileData::FromWpUser($author),
-);
-```
+外部取得は呼び出しごとに実行し、Dataは結果をキャッシュしません。元のWordPressオブジェクトは保持しません。PropsのId等を変更した場合も変更後の保持値を使用します。
 
-取得条件そのものを変更したい場合は、`PostMembers::$AuthorResolver`を直接差し替えることもできます。
+値の参照・GetLink・HasContent・HasExcerpt・HasParent・IsPublished・IsApproved・HasObjectTypeなどはWordPressなしで利用できます。標準のGetExcerptのタグ除去や外部取得・描画にはWordPressが必要です。直接newしたDataでも標準取得を実行し、Resolver省略による無効化はありません。オーバーライド内でparent::を呼べば、親処理のWordPress依存も残ります。
 
-`WpUserData`の派生クラスには`UserMembers`を渡します。
+### PostData
 
-```php
-<?php
-use WpTypeSafety\Wp\Data\WpUserData;
-use WpTypeSafety\Wp\Data\UserMembers;
-use WpTypeSafety\Acf\Get\AcfGet;
-use WpTypeSafety\Wp\Get\UserGet;
+RawExcerptは手入力抜粋の原文です。GetExcerptはwp_strip_all_tags()を適用し、HasExcerptはRawExcerpt !== ''を返します。DBから抜粋を再取得せず、has_excerptフィルターや本文からの自動生成は適用しません。
 
-final readonly class AuthorProfileData extends WpUserData
-{
-	public function __construct(
-		UserMembers $members,
-		public string $RoleLabel = '',
-	) {
-		parent::__construct($members);
-	}
+Status・PostTypeName・Slug・IsPasswordProtected・IsPubliclyViewableは構築時の値です。IsPublished()はStatus === 'publish'だけを判定します。パスワード文字列自体は保持しません。
 
-	public static function FromWpUser(\WP_User $user, int $avatarSize = 96): ?self
-	{
-		$members = UserGet::Members($user, $avatarSize);
-		$userGet = new AcfGet($user);
+GetTemplateSlug()は選択済みテンプレートの相対パスです。デフォルト・取得失敗・不正な値は空文字で、実際に適用されるPHPファイルの判定ではありません。GetParent()は添付ファイルの親も対象とし、GetChildren()は従来どおり階層型投稿タイプのみ対象です。
 
-		return $members === null ? null : new self(
-			members: $members,
-			RoleLabel: $userGet->Text('role_label'),
-		);
-	}
-}
-```
+### TermData・登録定義
 
-`CommentData`・`TermData`・`MenuNodeData`を拡張する場合も、対応する`CommentMembers`・`TermMembers`・`MenuNodeMembers`を子で受け取り、親へそのまま渡します。さらに下のサブクラスを作る場合も、同じMembersを受け渡します。上の`final`クラスをさらに継承する場合は、`final`を外し、生成メソッドの戻り値・生成先も見直してください。
+HasParent()は正の親IDの有無だけを判定します。親の存在確認はしません。GetTaxonomy()/GetPostType()は現在の登録定義を取得し、空の登録名・未登録ならnullです。取得できなくても保持済み登録名は変わりません。
 
-`CommentGet::Members()`には`relatedCommentFactory`、`TermGet::Members()`には`relatedTermFactory`を指定できます。コメントでは親と子、タームでは親と子へ適用されます。省略時はそれぞれ`CommentData`・`TermData`を返します。
+PostTypeData::GetTaxonomyNames()はget_object_taxonomies(Name, 'names')の結果から、空文字・文字列以外を除外して再採番します。空のNameや不正な取得結果は空配列です。TaxonomyData::ObjectTypesは構築時の値で、自動更新しません。
 
-異なる種類のDataを返す関係にも個別のFactoryを指定できます。`PostGet`の`authorFactory`は`GetAuthor()`、`CommentGet`の`userFactory`は`GetUser()`、`postFactory`は`GetPost()`へ適用されます。すべて任意指定で、省略時は純粋な`WpUserData`または`PostData`です。
+### アバター
 
-## タームの親取得
+WpUserData・CommentDataともにGetAvatar(?int $size = null)でサイズを指定できます。省略時はPropsのAvatarSize、さらに未指定なら96です。最小値は1です。
 
-`TermData::GetParent(): ?TermData`は、直接の親を`parentResolver`から取得します。`ParentId`が0・Resolver省略・親の取得失敗の場合はnullです。`HasParent()`は親IDの有無だけを判定し、親が取得できるかどうかまでは確認しません。取得結果はキャッシュせず、呼び出すたびにResolverを実行します。
+CommentData::GetAvatar()は保持したIdで現在のWP_Commentを取得し、複製へ保持済みAuthorUserId・AuthorName・WebsiteUrlを反映してWordPressのアバターAPIへ渡します。ゲストのメールアドレス等は現在のコメントを使用します。新しい公開メールプロパティは追加しません。コメントの削除・型不一致ならnullです。これは完全なアバター情報のスナップショットではありません。
 
-`TermGet::From()`・`TermGet::Members()`のInternal生成処理は、同じタクソノミーと親IDで`get_term()`を呼ぶクロージャーを注入します。親のURLを取得できずDataに変換できない場合もnullです。利用側から`TermMembers::$ParentResolver`へ直接注入することもできます。
+### メニュー
 
-```php
-<?php
-$parent = $birthplace?->GetParent();
-if ($birthplace?->Taxonomy === 'area' && $parent?->Slug === 'kanagawa') {
-	// 神奈川県直下の地域を選択している場合。
-}
-```
+MenuNodeProps<TChild>・MenuNodeData<TChild>のChildrenは構築済みのlist<TChild>です。新たに取得・再生成するフックは設けません。TreeFromLocation()のnodeFactoryは木を構築する入口として維持し、既存の木キャッシュの扱いも変更しません。
 
-## 投稿の直接の親
+GetThumbnail()は従来どおり固定ページを参照するメニュー項目（TypeがPostType、Objectがpage）だけを対象とします。リンク・判定メソッドは保持値から動作します。
 
-`PostData::ParentId`は`post_parent`に対応するreadonlyプロパティです。`HasParent()`は正の親IDが保存されているかだけを判定し、親投稿の存在確認・取得はしません。
+## ジェネリクス・取得入口のFactory
 
-`GetParent(): ?PostData`は注入された`ParentResolver`から直接の親を取得します。親なし・取得失敗・Resolver省略時は`null`です。結果はキャッシュせず、呼び出しごとに取得します。`PostMembers`を直接構築する場合、`ParentId`と`ParentResolver`は任意で指定できます。既定値は`0`・`null`です。
+PostData<TRelatedPost, TAuthor>、TermData<TRelatedTerm>、CommentData<TRelatedComment, TUser, TPost>、MenuNodeData<TChild>を維持します。MenuNodeProps以外のPropsは値だけなので関連型のパラメーターを持ちません。
 
-```php
-$postData = PostGet::From($post);
-if ($postData->HasParent()) {
-	$parent = $postData->GetParent();
-}
-```
+型パラメーターの宣言だけでは実行時の生成型は変わりません。@extendsと生成フック・Getterの実装を一致させてください。既定実装は基底型を返すため、その2つを静的解析だけで完全には保証できません。PHPStanの回帰テストと実行時テストを併用します。
 
-`PostGet::Members()`・`From()`等で生成した場合は、親取得にも既存の`relatedPostFactory`が適用されます。戻り値のPHPDocは`TRelatedPost|null`です。未指定時は共通`PostData`を返し、`authorFactory`は標準の親Data生成にも引き継ぎます。関連Factoryの既存契約どおり`null`を許可し、別の型を返す場合は`UnexpectedValueException`です。Resolverの例外は捕捉しません。
+Current/Loop、Query、ACF、TreeFromLocationやGetTerms()等の取得入口・呼び出し単位のFactoryは維持します。Data構築に動作を注入するrelatedPostFactory・authorFactory・relatedTermFactory・relatedCommentFactory・CommentGetのuserFactory/postFactoryは廃止しました。
 
-親取得を階層型投稿タイプだけに制限しないため、添付ファイルの親投稿も取得できます。権限・公開状態による除外や再帰的な祖先一覧の取得は、このAPIでは行いません。
+AcfBlockDataの描画用wrapperAttributesResolver、FlexibleNodeのGet、Core DataとQuery結果Dataの責務は変更していません。
+
+静的型の回帰テストはtests/phpstan/posts.neonとdata-props.neonです。PHPStan導入済み環境でphpstan analyse -c tests/phpstan/data-props.neon等を実行してください。WordPress・DBの起動は不要です。

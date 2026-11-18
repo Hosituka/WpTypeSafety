@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace WpTypeSafety\Wp\Get;
 
 use WpTypeSafety\Wp\Data\TaxonomyData;
-use WpTypeSafety\Wp\Data\TaxonomyMembers;
+use WpTypeSafety\Wp\Data\TaxonomyProps;
 use WpTypeSafety\Wp\Internal\DefinitionAdapter;
 
 /** タクソノミーの登録定義を取得・変換する公開入口。 */
@@ -12,9 +12,9 @@ final class TaxonomyGet
 {
 	private function __construct() {}
 
-	public static function Members(\WP_Taxonomy $taxonomy): TaxonomyMembers
+	public static function Props(\WP_Taxonomy $taxonomy): TaxonomyProps
 	{
-		return DefinitionAdapter::TaxonomyMembersFromWp($taxonomy);
+		return DefinitionAdapter::TaxonomyPropsFromWp($taxonomy);
 	}
 
 	public static function From(\WP_Taxonomy $taxonomy): TaxonomyData

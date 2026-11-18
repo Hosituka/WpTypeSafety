@@ -173,7 +173,7 @@ The detailed documentation is currently available in Japanese.
 | WordPress accessors, metadata, subject-specific Get, and Query | [WordPress](docs/wordpress.md) |
 | Type checks, normalization, arrays, objects, and mixed trees | [Core](docs/core.md) |
 | Generic typed-tree engine and extension contracts | [TreeTypeReader](Internal/TreeTypeReader/README.md) |
-| Data, Resolvers, and derived classes | [Data](docs/data.md) |
+| Data, Props, and derived classes | [Data](docs/data.md) |
 | `autoload.php` and optional PSR-4 mappings | [Autoloading](docs/autoload.md) |
 | Nested ACF, derived Data, and ACF block examples | [Examples](docs/examples.md) |
 | Internal architecture, tests, and verification | [Architecture](docs/architecture.md) |

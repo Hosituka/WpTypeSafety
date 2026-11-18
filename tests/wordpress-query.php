@@ -205,18 +205,18 @@ use WpTypeSafety\Wp\Get\TermQuery;
 use WpTypeSafety\Wp\Get\UserQuery;
 use WpTypeSafety\Wp\Internal\QueryPagination;
 use WpTypeSafety\Wp\Data\CommentData;
-use WpTypeSafety\Wp\Data\CommentMembers;
+use WpTypeSafety\Wp\Data\CommentProps;
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\TermMembers;
-use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\TermProps;
+use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 
-readonly class ProjectQueryPostData extends PostData {}
-readonly class ProjectQueryTermData extends TermData {}
-readonly class ProjectQueryUserData extends WpUserData {}
-readonly class ProjectQueryCommentData extends CommentData {}
+class ProjectQueryPostData extends PostData {}
+class ProjectQueryTermData extends TermData {}
+class ProjectQueryUserData extends WpUserData {}
+class ProjectQueryCommentData extends CommentData {}
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -246,7 +246,7 @@ $check(($GLOBALS['postQueryArgs'][0]['post_type'] ?? null) === 'staff', '投稿�
 $derivedPostResult = PostQuery::Get(
 	['_results' => [new WP_Post(12)]],
 	postFactory: static fn (WP_Post $post): ProjectQueryPostData => new ProjectQueryPostData(
-		new PostMembers(
+		new PostProps(
 			Id: $post->ID,
 			Url: 'https://example.com/project/' . $post->ID . '/',
 			Title: '案件投稿' . $post->ID,
@@ -263,18 +263,18 @@ $termResult = TermQuery::Get([
 	'taxonomy' => 'area',
 	'_results' => [new WP_Term(3, '厚木市', 'atsugi', 'area')],
 ]);
-$check(count($termResult->Terms) === 1 && $termResult->Terms[0]->Taxonomy === 'area', 'タームをTermDataへ変換する');
+$check(count($termResult->Terms) === 1 && $termResult->Terms[0]->TaxonomyName === 'area', 'タームをTermDataへ変換する');
 $check($termResult->HasTerms(), 'タームの存在を判定する');
 $check(($GLOBALS['termQueryArgs'][0]['taxonomy'] ?? null) === 'area', 'タームクエリ引数をそのまま渡す');
 
 $derivedTermResult = TermQuery::Get(
 	['_results' => [new WP_Term(4, '藤沢市', 'fujisawa', 'area')]],
 	termFactory: static fn (WP_Term $term): ProjectQueryTermData => new ProjectQueryTermData(
-		new TermMembers(
+		new TermProps(
 			Id: $term->term_id,
 			Name: $term->name,
 			Slug: $term->slug,
-			Taxonomy: $term->taxonomy,
+			TaxonomyName: $term->taxonomy,
 			Url: 'https://example.com/area/' . $term->slug . '/',
 		),
 	),
@@ -300,7 +300,7 @@ $derivedUserResult = UserQuery::Get(
 	userFactory: static function (WP_User $user, int $avatarSize) use (&$queryUserAvatarSizes): ProjectQueryUserData {
 		$queryUserAvatarSizes[] = $avatarSize;
 		return new ProjectQueryUserData(
-			new UserMembers(
+			new UserProps(
 				Id: $user->ID,
 				DisplayName: $user->display_name,
 				AvatarSize: $avatarSize,
@@ -332,7 +332,7 @@ $derivedCommentResult = CommentQuery::Get(
 	commentFactory: static function (WP_Comment $comment, int $avatarSize) use (&$queryCommentAvatarSizes): ProjectQueryCommentData {
 		$queryCommentAvatarSizes[] = $avatarSize;
 		return new ProjectQueryCommentData(
-			new CommentMembers(
+			new CommentProps(
 				Id: $comment->comment_ID,
 				PostId: $comment->comment_post_ID,
 				ParentId: $comment->comment_parent,

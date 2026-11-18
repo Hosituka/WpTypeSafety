@@ -5,7 +5,7 @@ namespace WpTypeSafety\Wp\Get;
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\TermMembers;
+use WpTypeSafety\Wp\Data\TermProps;
 use WpTypeSafety\Wp\Internal\TermAdapter;
 
 /** タームの取得・Data生成・階層による選別の公開入口。 */
@@ -24,24 +24,15 @@ final class TermGet
 		return TermAdapter::Current($termFactory);
 	}
 
-	/**
-	 * @template TRelatedTerm of TermData = TermData
-	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
-	 * @return TermMembers<TRelatedTerm>|null
-	 */
-	public static function Members(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermMembers
+	public static function Props(\WP_Term $term): ?TermProps
 	{
-		return TermAdapter::MembersFromWpTerm($term, $relatedTermFactory);
+		return TermAdapter::PropsFromWpTerm($term);
 	}
 
-	/**
-	 * @template TRelatedTerm of TermData = TermData
-	 * @param null|\Closure(\WP_Term): (TRelatedTerm|null) $relatedTermFactory
-	 * @return TermData<TRelatedTerm>|null
-	 */
-	public static function From(\WP_Term $term, ?\Closure $relatedTermFactory = null): ?TermData
+	/** @return TermData<TermData>|null */
+	public static function From(\WP_Term $term): ?TermData
 	{
-		return TermAdapter::FromWpTerm($term, $relatedTermFactory);
+		return TermAdapter::FromWpTerm($term);
 	}
 
 	/**

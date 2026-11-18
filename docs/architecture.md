@@ -19,9 +19,9 @@
 
 ## GetとQuery
 
-投稿タイプ・タクソノミーの登録定義には`PostTypeGet`・`TaxonomyGet`を使用します。両Getは`DefinitionAdapter`へ委譲し、`PostTypeMembers`・`TaxonomyMembers`または対応するDataを返します。名前からの検索は`FromName()`、取得済みのWordPress定義オブジェクトからの変換は`From()`・`Members()`です。投稿タイプに紐づく分類名の取得だけはDataへResolverとして注入し、他の定義情報は生成時のスナップショットとして保持します。
+投稿タイプ・タクソノミーの登録定義には`PostTypeGet`・`TaxonomyGet`を使用します。両Getは`DefinitionAdapter`へ委譲し、`PostTypeProps`・`TaxonomyProps`または対応するDataを返します。名前からの検索は`FromName()`、取得済みのWordPress定義オブジェクトからの変換は`From()`・`Props()`です。投稿タイプに紐づく分類名は保持したNameで内部Adapterから遅延取得し、他の定義情報は生成時のスナップショットとして保持します。
 
-各対象別Getは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または対象別Adapterへ処理を委譲します。`PostGet`・`CommentGet`・`UserGet`・`TermGet`・`MenuNodeGet`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Members()`を提供します。関連Dataを返すDataとMembersはその関連型をジェネリクスとして保持し、FactoryからData内の遅延Resolverまで案件固有型を失わずに接続します。
+各対象別Getは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または対象別Adapterへ処理を委譲します。`PostGet`・`CommentGet`・`UserGet`・`TermGet`・`MenuNodeGet`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Props()`を提供します。Propsは値だけを保持し、共通プロパティがreadonlyのDataへコピーします。Dataの標準取得は内部static Adapter、拡張はGetter・protected生成フックのオーバーライドで行います。Dataのジェネリクスと実装を揃えて関連型を維持します。
 
 対象別Queryも`Wp/Get/`の公開入口ですが、クエリビルダーの責務は持ちません。`Get()`はWordPressネイティブの引数配列をクエリクラスへ渡し、`From()`は生成済みのネイティブクエリを受け取ります。実行とData変換は`Wp/Internal/*QueryAdapter.php`へ委譲し、結果は`Wp/Data/*QueryData.php`へまとめます。`TermQueryData`はWordPress側に共通のページ総数プロパティがないため、タームのリストだけを保持します。取得手段を表す`Query`はクラス名で区別し、`Wp/Get/Query/`のような取得層内の追加階層は設けません。
 
@@ -46,7 +46,7 @@ autoload.php
 
 ## 依存方向
 
-`Wp/Internal/DtoFactory.php`はWordPressの値をWp固有またはCore共通のDTOへ変換し、必要なResolverをDTOへ渡します。`Acf/Internal/AcfDtoFactory.php`はACFの戻り値をDTOへ変換します。ターム階層は`TermAdapter`、メニューツリーは`MenuAdapter`、ACF値の正規化は`AcfAdapter`が担当します。
+`Wp/Internal/DtoFactory.php`はWordPressの値をWp固有またはCore共通のPropsまたはDataへ変換します。Dataの標準取得はPostAdapter・TermAdapter・CommentAdapter・UserAdapter・MenuAdapter・DefinitionAdapterへ委譲します。`Acf/Internal/AcfDtoFactory.php`はACFの戻り値をDTOへ変換します。ターム階層は`TermAdapter`、メニューツリーは`MenuAdapter`、ACF値の正規化は`AcfAdapter`が担当します。
 
 | 参照元 | 参照できる領域 |
 |---|---|

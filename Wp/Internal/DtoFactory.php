@@ -8,10 +8,10 @@ use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Internal\SvgDimensions;
 use WpTypeSafety\Core\Internal\UrlCheck;
 use WpTypeSafety\Wp\Data\CommentData;
-use WpTypeSafety\Wp\Data\CommentMembers;
+use WpTypeSafety\Wp\Data\CommentProps;
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
-use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\PostProps;
+use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 
 /** @internal WordPressの値からCoreのDTOを組み立てる。 */
@@ -77,59 +77,37 @@ final class DtoFactory
 	}
 
 	/**
-	 * @template TRelatedComment of CommentData = CommentData
-	 * @template TUser of WpUserData = WpUserData
-	 * @template TPost of PostData = PostData
-	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
-	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
-	 * @return CommentData<TRelatedComment, TUser, TPost>
+	 * @template TUser of WpUserData
+	 * @param null|\Closure(\WP_User, int): TUser $userFactory
+	 * @return ($userFactory is null ? WpUserData|null : TUser|null)
 	 */
-	public static function CommentFromWpComment(
-		\WP_Comment $comment,
-		int $avatarSize = 96,
-		?\Closure $relatedCommentFactory = null,
-		?\Closure $userFactory = null,
-		?\Closure $postFactory = null,
-	): CommentData
+	public static function CurrentUser(int $avatarSize = 96, ?\Closure $userFactory = null): ?WpUserData
 	{
-		return new CommentData(self::CommentMembersFromWpComment(
-			$comment,
-			$avatarSize,
-			$relatedCommentFactory,
-			$userFactory,
-			$postFactory,
-		));
+		$user = MainQueryAdapter::QueriedObject();
+		if (! $user instanceof \WP_User || ! $user->exists())
+		{return null;}
+
+		$data = $userFactory !== null ? $userFactory($user, $avatarSize) : self::UserFromWpUser($user, $avatarSize);
+		if (! $data instanceof WpUserData)
+		{throw new \UnexpectedValueException('UserGetのuserFactoryはWpUserDataを返す必要があります。');}
+
+		return $data;
 	}
 
-	/**
-	 * @template TRelatedComment of CommentData = CommentData
-	 * @template TUser of WpUserData = WpUserData
-	 * @template TPost of PostData = PostData
-	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
-	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
-	 * @return CommentMembers<TRelatedComment, TUser, TPost>
-	 */
-	public static function CommentMembersFromWpComment(
-		\WP_Comment $comment,
-		int $avatarSize = 96,
-		?\Closure $relatedCommentFactory = null,
-		?\Closure $userFactory = null,
-		?\Closure $postFactory = null,
-	): CommentMembers
+	/** @return CommentData<CommentData, WpUserData, PostData> */
+	public static function CommentFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentData
 	{
-		$commentId = (int) $comment->comment_ID;
-		$postId = (int) $comment->comment_post_ID;
-		$parentId = (int) $comment->comment_parent;
-		$authorUserId = (int) $comment->user_id;
-		$url = \get_comment_link($comment);
+		return new CommentData(self::CommentPropsFromWpComment($comment, $avatarSize));
+	}
 
-		return new CommentMembers(
-			Id: $commentId,
-			PostId: $postId,
-			ParentId: $parentId,
-			AuthorUserId: $authorUserId,
+	public static function CommentPropsFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentProps
+	{
+		$url = \get_comment_link($comment);
+		return new CommentProps(
+			Id: (int) $comment->comment_ID,
+			PostId: (int) $comment->comment_post_ID,
+			ParentId: (int) $comment->comment_parent,
+			AuthorUserId: (int) $comment->user_id,
 			AuthorName: (string) $comment->comment_author,
 			WebsiteUrl: UrlCheck::IsHttpUrl($comment->comment_author_url) ? $comment->comment_author_url : '',
 			Url: is_string($url) ? $url : '',
@@ -138,50 +116,6 @@ final class DtoFactory
 			Status: self::commentStatus((string) $comment->comment_approved),
 			CreatedAt: self::commentDateTime($comment->comment_date),
 			AvatarSize: $avatarSize,
-			UserResolver: static function () use ($authorUserId, $userFactory): ?WpUserData {
-				if ($authorUserId <= 0) {
-					return null;
-				}
-				$user = \get_userdata($authorUserId);
-				return $user instanceof \WP_User ? self::relatedUser($user, $userFactory) : null;
-			},
-			AvatarResolver: static function (int $size) use ($comment): ?ImgData {
-				$url = \get_avatar_url($comment, ['size' => $size]);
-				return is_string($url) && UrlCheck::IsHttpUrl($url)
-					? new ImgData(Url: $url, Width: $size, Height: $size)
-					: null;
-			},
-			PostResolver: static function () use ($postId, $postFactory): ?PostData {
-				$post = $postId > 0 ? \get_post($postId) : null;
-				return $post instanceof \WP_Post ? self::relatedPost($post, $postFactory) : null;
-			},
-			ParentResolver: static function () use (
-				$parentId,
-				$avatarSize,
-				$relatedCommentFactory,
-				$userFactory,
-				$postFactory,
-			): ?CommentData {
-				$parent = $parentId > 0 ? \get_comment($parentId) : null;
-				return $parent instanceof \WP_Comment
-					? self::relatedComment(
-						$parent,
-						$avatarSize,
-						$relatedCommentFactory,
-						$userFactory,
-						$postFactory,
-					)
-					: null;
-			},
-			ChildrenResolver: static fn (string $status, string $order): array => self::commentChildren(
-				$commentId,
-				$avatarSize,
-				$status,
-				$order,
-				$relatedCommentFactory,
-				$userFactory,
-				$postFactory,
-			),
 		);
 	}
 
@@ -212,300 +146,62 @@ final class DtoFactory
 		return $dateTime;
 	}
 
-	/**
-	 * @template TRelatedComment of CommentData = CommentData
-	 * @template TUser of WpUserData = WpUserData
-	 * @template TPost of PostData = PostData
-	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
-	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
-	 * @return list<TRelatedComment>
-	 */
-	private static function commentChildren(
-		int $commentId,
-		int $avatarSize,
-		string $status,
-		string $order,
-		?\Closure $relatedCommentFactory,
-		?\Closure $userFactory,
-		?\Closure $postFactory,
-	): array
+	/** @return PostData<PostData, WpUserData> */
+	public static function PostFromWpPost(\WP_Post $post): PostData
 	{
-		if ($commentId <= 0) {
-			return [];
-		}
-		$comments = \get_comments([
-			'parent' => $commentId,
-			'status' => $status,
-			'orderby' => 'comment_date_gmt comment_ID',
-			'order' => $order,
-			'hierarchical' => false,
-		]);
-		$children = [];
-		foreach (is_array($comments) ? $comments : [] as $child) {
-			if ($child instanceof \WP_Comment) {
-				$data = self::relatedComment(
-					$child,
-					$avatarSize,
-					$relatedCommentFactory,
-					$userFactory,
-					$postFactory,
-				);
-				if ($data !== null) {
-					$children[] = $data;
-				}
-			}
-		}
-		return $children;
+		return new PostData(self::PostPropsFromWpPost($post));
 	}
 
-	/**
-	 * @template TRelatedPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
-	 * @return PostData<TRelatedPost, TAuthor>
-	 */
-	public static function PostFromWpPost(
-		\WP_Post $post,
-		?\Closure $relatedPostFactory = null,
-		?\Closure $authorFactory = null,
-	): PostData
+	public static function PostPropsFromWpPost(\WP_Post $post): PostProps
 	{
-		return new PostData(self::PostMembersFromWpPost($post, $relatedPostFactory, $authorFactory));
-	}
-
-	/**
-	 * @template TRelatedPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
-	 * @return PostMembers<TRelatedPost, TAuthor>
-	 */
-	public static function PostMembersFromWpPost(
-		\WP_Post $post,
-		?\Closure $relatedPostFactory = null,
-		?\Closure $authorFactory = null,
-	): PostMembers
-	{
-		$postId = (int) $post->ID;
-		$authorId = (int) $post->post_author;
-		$parentId = max(0, (int) ($post->post_parent ?? 0));
 		$url = \get_permalink($post);
 		$publishedAt = \get_post_datetime($post);
 		$modifiedAt = \get_post_datetime($post, 'modified');
 
-		return new PostMembers(
-			Id: $postId,
+		return new PostProps(
+			Id: (int) $post->ID,
 			Url: is_string($url) ? $url : '',
 			Title: (string) \get_the_title($post),
 			RawContent: (string) $post->post_content,
 			PublishedAt: $publishedAt instanceof \DateTimeImmutable ? $publishedAt : null,
 			ModifiedAt: $modifiedAt instanceof \DateTimeImmutable ? $modifiedAt : null,
 			Status: (string) $post->post_status,
-			PostType: (string) $post->post_type,
+			PostTypeName: (string) $post->post_type,
 			Slug: (string) $post->post_name,
 			IsPasswordProtected: (string) $post->post_password !== '',
 			IsPubliclyViewable: \is_post_publicly_viewable($post),
-			AuthorResolver: static function () use ($authorId, $authorFactory): ?WpUserData {
-				if ($authorId <= 0) {
-					return null;
-				}
-				$user = \get_userdata($authorId);
-				return $user instanceof \WP_User ? self::relatedUser($user, $authorFactory) : null;
-			},
-			ExcerptResolver: static function () use ($postId): string {
-				$current = \get_post($postId);
-				return $current instanceof \WP_Post ? \wp_strip_all_tags($current->post_excerpt) : '';
-			},
-			ExcerptPresenceResolver: static function () use ($postId): bool {
-				$current = \get_post($postId);
-				return $current instanceof \WP_Post && \has_excerpt($current);
-			},
-			ThumbnailResolver: static fn (string|array $size): ?ImgData =>
-				self::ImgFromAttachmentId((int) \get_post_thumbnail_id($postId), $size),
-			ChildrenResolver: static fn (string|array $orderby, string $order): array =>
-				self::postChildren(
-					$postId,
-					$orderby,
-					$order,
-					$relatedPostFactory,
-					$authorFactory,
-				),
-			PreviousPostResolver: static fn (): ?PostData =>
-				self::adjacentPost($postId, true, $relatedPostFactory, $authorFactory),
-			NextPostResolver: static fn (): ?PostData =>
-				self::adjacentPost($postId, false, $relatedPostFactory, $authorFactory),
-			TemplateSlugResolver: static function () use ($postId): string {
-				$slug = \get_page_template_slug($postId);
-				return is_string($slug) ? $slug : '';
-			},
-			RenderedContentResolver: static fn (string $rawContent): string =>
-				PostContentRenderer::Render($post, $rawContent),
-			TermsResolver: static fn (string $taxonomy, ?\Closure $termFactory): array =>
-				TermAdapter::FromPost($postId, $taxonomy, $termFactory),
-			ParentId: $parentId,
-			ParentResolver: static function () use ($parentId, $relatedPostFactory, $authorFactory): ?PostData {
-				if ($parentId <= 0)
-				{return null;}
-
-				$parent = \get_post($parentId);
-				return $parent instanceof \WP_Post
-					? self::relatedPost($parent, $relatedPostFactory, $authorFactory)
-					: null;
-			},
+			ParentId: max(0, (int) ($post->post_parent ?? 0)),
+			AuthorId: (int) $post->post_author,
+			RawExcerpt: (string) ($post->post_excerpt ?? ''),
 		);
 	}
 
 	/**
-	 * @template TRelatedPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
-	 * @return list<TRelatedPost>
-	 */
-	private static function postChildren(
-		int $postId,
-		string|array $orderby,
-		string $order,
-		?\Closure $relatedPostFactory,
-		?\Closure $authorFactory,
-	): array
-	{
-		$parent = $postId > 0 ? \get_post($postId) : null;
-		if (! $parent instanceof \WP_Post || ! \is_post_type_hierarchical($parent->post_type)) {
-			return [];
-		}
-		$posts = \get_posts([
-			'post_type' => $parent->post_type,
-			'post_parent' => $postId,
-			'post_status' => 'publish',
-			'posts_per_page' => -1,
-			'orderby' => $orderby,
-			'order' => $order,
-			'no_found_rows' => true,
-		]);
-		$children = [];
-		foreach (is_array($posts) ? $posts : [] as $child) {
-			if ($child instanceof \WP_Post) {
-				$data = self::relatedPost($child, $relatedPostFactory, $authorFactory);
-				if ($data !== null) {
-					$children[] = $data;
-				}
-			}
-		}
-		return $children;
-	}
-
-	/**
-	 * @template TRelatedPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
-	 * @return TRelatedPost|null
-	 */
-	private static function adjacentPost(
-		int $postId,
-		bool $previous,
-		?\Closure $relatedPostFactory,
-		?\Closure $authorFactory,
-	): ?PostData
-	{
-		$post = $postId > 0 ? \get_post($postId) : null;
-		if (! $post instanceof \WP_Post) {
-			return null;
-		}
-		$hadGlobal = array_key_exists('post', $GLOBALS);
-		$savedPost = $GLOBALS['post'] ?? null;
-		try {
-			$GLOBALS['post'] = $post;
-			$adjacent = \get_adjacent_post(false, '', $previous);
-			return $adjacent instanceof \WP_Post
-				? self::relatedPost($adjacent, $relatedPostFactory, $authorFactory)
-				: null;
-		} finally {
-			if ($hadGlobal) {
-				$GLOBALS['post'] = $savedPost;
-			} else {
-				unset($GLOBALS['post']);
-			}
-		}
-	}
-
-	/**
-	 * @template TRelatedComment of CommentData = CommentData
-	 * @template TUser of WpUserData = WpUserData
 	 * @template TPost of PostData = PostData
-	 * @param null|\Closure(\WP_Comment): (TRelatedComment|null) $relatedCommentFactory
-	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
 	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
-	 * @return TRelatedComment|null
-	 */
-	private static function relatedComment(
-		\WP_Comment $comment,
-		int $avatarSize,
-		?\Closure $relatedCommentFactory,
-		?\Closure $userFactory,
-		?\Closure $postFactory,
-	): ?CommentData {
-		$data = $relatedCommentFactory !== null
-			? $relatedCommentFactory($comment)
-			: self::CommentFromWpComment(
-				$comment,
-				$avatarSize,
-				null,
-				$userFactory,
-				$postFactory,
-			);
-		if ($data !== null && ! $data instanceof CommentData) {
-			throw new \UnexpectedValueException('Related comment factory must return CommentData or null.');
-		}
-		return $data;
-	}
-
-	/**
-	 * @template TPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TPost|null) $postFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
 	 * @return TPost|null
 	 */
-	private static function relatedPost(
+	public static function RelatedPost(
 		\WP_Post $post,
 		?\Closure $postFactory,
-		?\Closure $authorFactory = null,
 	): ?PostData
 	{
 		$data = $postFactory !== null
 			? $postFactory($post)
-			: self::PostFromWpPost($post, authorFactory: $authorFactory);
+			: self::PostFromWpPost($post);
 		if ($data !== null && ! $data instanceof PostData) {
 			throw new \UnexpectedValueException('Related post factory must return PostData or null.');
 		}
 		return $data;
 	}
 
-	/**
-	 * @template TUser of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_User): (TUser|null) $userFactory
-	 * @return TUser|null
-	 */
-	private static function relatedUser(\WP_User $user, ?\Closure $userFactory): ?WpUserData
-	{
-		$data = $userFactory !== null ? $userFactory($user) : self::UserFromWpUser($user);
-		if ($data !== null && ! $data instanceof WpUserData) {
-			throw new \UnexpectedValueException('Related user factory must return WpUserData or null.');
-		}
-		return $data;
-	}
-
 	public static function UserFromWpUser(\WP_User $user, int $avatarSize = 96): ?WpUserData
 	{
-		$members = self::UserMembersFromWpUser($user, $avatarSize);
-		return $members !== null ? new WpUserData($members) : null;
+		$props = self::UserPropsFromWpUser($user, $avatarSize);
+		return $props !== null ? new WpUserData($props) : null;
 	}
 
-	public static function UserMembersFromWpUser(\WP_User $user, int $avatarSize = 96): ?UserMembers
+	public static function UserPropsFromWpUser(\WP_User $user, int $avatarSize = 96): ?UserProps
 	{
 		if (! $user->exists()) {
 			return null;
@@ -514,19 +210,13 @@ final class DtoFactory
 		$archiveUrl = \get_author_posts_url($userId);
 		$websiteUrl = $user->user_url ?? '';
 		$description = $user->description ?? '';
-		return new UserMembers(
+		return new UserProps(
 			Id: $userId,
 			DisplayName: (string) $user->display_name,
 			ArchiveUrl: UrlCheck::IsHttpUrl($archiveUrl) ? $archiveUrl : '',
 			WebsiteUrl: UrlCheck::IsHttpUrl($websiteUrl) ? $websiteUrl : '',
 			Description: is_string($description) ? $description : '',
 			AvatarSize: $avatarSize,
-			AvatarResolver: static function (int $size) use ($userId): ?ImgData {
-				$url = \get_avatar_url($userId, ['size' => $size]);
-				return is_string($url) && UrlCheck::IsHttpUrl($url)
-					? new ImgData(Url: $url, Width: $size, Height: $size)
-					: null;
-			},
 		);
 	}
 

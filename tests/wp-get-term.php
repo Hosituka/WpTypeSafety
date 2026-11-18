@@ -54,10 +54,10 @@ function get_term(int $termId, string $taxonomy): mixed
 require_once __DIR__ . '/../autoload.php';
 
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\TermMembers;
+use WpTypeSafety\Wp\Data\TermProps;
 use WpTypeSafety\Wp\Get\TermGet;
 
-readonly class ProjectPostTermData extends TermData {}
+class ProjectPostTermData extends TermData {}
 
 $root = new WP_Term(1, '神奈川県', 'kanagawa');
 $child = new WP_Term(2, '横浜市', 'yokohama', parent: 1);
@@ -69,11 +69,11 @@ $GLOBALS['wpTermValues'] = [1 => $root, 2 => $child, 3 => $grandchild];
 $GLOBALS['termAncestors'] = [1 => [], 2 => [1], 3 => [2, 1]];
 
 $termFactory = static fn (WP_Term $term): ProjectPostTermData => new ProjectPostTermData(
-	new TermMembers(
+	new TermProps(
 		Id: $term->term_id,
 		Name: $term->name,
 		Slug: $term->slug,
-		Taxonomy: $term->taxonomy,
+		TaxonomyName: $term->taxonomy,
 		Url: '/term/' . $term->slug . '/',
 		ParentId: $term->parent,
 	),

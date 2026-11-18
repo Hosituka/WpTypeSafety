@@ -3,69 +3,62 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** @template TRelatedTerm of TermData = TermData */
-readonly class TermData
-{
-	public int $Id;
-	public string $Name;
-	public string $Slug;
-	public string $Taxonomy;
-	public string $Url;
-	public int $ParentId;
-	public string $Description;
-	/** @var null|\Closure(bool, string, string): list<TRelatedTerm> */
-	private ?\Closure $childrenResolver;
-	/** @var null|\Closure(): (TRelatedTerm|null) */
-	private ?\Closure $parentResolver;
+use WpTypeSafety\Wp\Get\TermGet;
+use WpTypeSafety\Wp\Internal\TermAdapter;
+use WpTypeSafety\Wp\Internal\DefinitionAdapter;
 
-	/** @param TermMembers<TRelatedTerm> $members */
-	public function __construct(TermMembers $members)
+/** @template TRelatedTerm of TermData = TermData */
+class TermData
+{
+	public readonly int $Id;
+	public readonly string $Name;
+	public readonly string $Slug;
+	public readonly string $TaxonomyName;
+	public readonly string $Url;
+	public readonly int $ParentId;
+	public readonly string $Description;
+
+	public function __construct(TermProps $props)
 	{
-		$this->Id = $members->Id;
-		$this->Name = $members->Name;
-		$this->Slug = $members->Slug;
-		$this->Taxonomy = $members->Taxonomy;
-		$this->Url = $members->Url;
-		$this->ParentId = $members->ParentId;
-		$this->Description = $members->Description;
-		$this->childrenResolver = $members->ChildrenResolver;
-		$this->parentResolver = $members->ParentResolver;
+		$this->Id = $props->Id;
+		$this->Name = $props->Name;
+		$this->Slug = $props->Slug;
+		$this->TaxonomyName = $props->TaxonomyName;
+		$this->Url = $props->Url;
+		$this->ParentId = $props->ParentId;
+		$this->Description = $props->Description;
+	}
+
+	/** 登録定義を遅延取得する。空の登録名・未登録時はnull。 */
+	public function GetTaxonomy(): ?TaxonomyData
+	{
+		return $this->TaxonomyName !== '' ? DefinitionAdapter::TaxonomyFromName($this->TaxonomyName) : null;
 	}
 
 	/** @return list<TRelatedTerm> */
 	public function GetChildren(bool $hideEmpty = false, string $orderby = 'name', string $order = 'ASC'): array
 	{
-		if ($this->childrenResolver === null) {
-			return [];
-		}
-
-		$children = ($this->childrenResolver)($hideEmpty, $orderby, $order);
-		if (! is_array($children) || ! array_is_list($children)) {
-			throw new \UnexpectedValueException('GetChildren must return a list of TermData.');
-		}
-		foreach ($children as $child) {
-			if (! $child instanceof self) {
-				throw new \UnexpectedValueException('GetChildren must return a list of TermData.');
-			}
-		}
-
-		return $children;
+		return TermAdapter::Children($this->Id, $this->TaxonomyName, $hideEmpty, $orderby, $order, $this->createRelatedTerm(...));
 	}
 
 	public function HasParent(): bool
 	{
-		return $this->ParentId !== 0;
+		return $this->ParentId > 0;
 	}
 
 	/**
-	 * 直接の親を取得する。親なし・Resolver省略時はnull。
+	 * 直接の親を取得する。親なし時はnull。
 	 *
 	 * @return TRelatedTerm|null
 	 */
 	public function GetParent(): ?TermData
 	{
-		return $this->HasParent() && $this->parentResolver !== null
-			? ($this->parentResolver)()
-			: null;
+		return TermAdapter::Parent($this->ParentId, $this->TaxonomyName, $this->createRelatedTerm(...));
+	}
+	/** @return TRelatedTerm|null 親・子の共通生成フック。nullなら対象を除外する。 */
+	protected function createRelatedTerm(\WP_Term $term): ?TermData
+	{
+		// @phpstan-ignore return.type (既定型はTermData。別のTRelatedTermを宣言する派生クラスは上書きする。)
+		return TermGet::From($term);
 	}
 }

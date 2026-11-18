@@ -7,17 +7,19 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 
+require_once __DIR__ . '/../autoload.php';
+function get_post_thumbnail_id(int $id): int { return 0; }
 require_once __DIR__ . '/../Core/Data/ImgData.php';
 require_once __DIR__ . '/../Core/Data/LinkData.php';
 require_once __DIR__ . '/../Wp/Data/MenuItemType.php';
-require_once __DIR__ . '/../Wp/Data/MenuNodeMembers.php';
+require_once __DIR__ . '/../Wp/Data/MenuNodeProps.php';
 require_once __DIR__ . '/../Wp/Data/MenuNodeData.php';
 require_once __DIR__ . '/../Wp/Internal/MenuAdapter.php';
 require_once __DIR__ . '/../Wp/Get/MenuNodeGet.php';
 
 use WpTypeSafety\Wp\Data\MenuItemType;
 use WpTypeSafety\Wp\Data\MenuNodeData;
-use WpTypeSafety\Wp\Data\MenuNodeMembers;
+use WpTypeSafety\Wp\Data\MenuNodeProps;
 use WpTypeSafety\Wp\Get\MenuNodeGet;
 
 class WP_Post
@@ -44,14 +46,14 @@ function get_nav_menu_locations(): array { return ['primary' => 10]; }
 function wp_get_nav_menu_items(int $menuId): mixed { return $GLOBALS['menuItems'] ?? []; }
 
 /** @extends MenuNodeData<ProjectMenuNodeData> */
-readonly class ProjectMenuNodeData extends MenuNodeData
+class ProjectMenuNodeData extends MenuNodeData
 {
-	/** @param MenuNodeMembers<ProjectMenuNodeData> $members */
+	/** @param MenuNodeProps<ProjectMenuNodeData> $props */
 	public function __construct(
-		MenuNodeMembers $members,
-		public string $Label,
+		MenuNodeProps $props,
+		public readonly string $Label,
 	) {
-		parent::__construct($members);
+		parent::__construct($props);
 	}
 }
 
@@ -63,7 +65,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-$child = new MenuNodeData(new MenuNodeMembers(
+$child = new MenuNodeData(new MenuNodeProps(
 	Id: 2,
 	ParentId: 1,
 	Title: '子項目',
@@ -76,7 +78,7 @@ $child = new MenuNodeData(new MenuNodeMembers(
 	ObjectId: 0,
 ));
 
-$members = new MenuNodeMembers(
+$props = new MenuNodeProps(
 	Id: 1,
 	ParentId: 0,
 	Title: '変更前',
@@ -89,9 +91,9 @@ $members = new MenuNodeMembers(
 	ObjectId: 10,
 	Children: [$child],
 );
-$data = new MenuNodeData($members);
-$members->Title = '変更後';
-$members->Children = [];
+$data = new MenuNodeData($props);
+$props->Title = '変更後';
+$props->Children = [];
 
 $check($data->Title === '変更前', 'DataはMembersを構築時の値として保持する');
 $check($data->Children === [$child] && $data->HasChildren(), '子ノードを保持する');
@@ -106,7 +108,7 @@ $check($data->GetThumbnail() === null, 'Resolver省略時は画像なし');
 
 /** @var list<ProjectMenuNodeData> $projectChildren */
 $projectChildren = [];
-$projectMembers = MenuNodeGet::Members(new WP_Post(3, title: '派生タイトル'), $projectChildren);
+$projectMembers = MenuNodeGet::Props(new WP_Post(3, title: '派生タイトル'), $projectChildren);
 $derived = new ProjectMenuNodeData($projectMembers, '案件固有');
 $check($derived->Title === '派生タイトル' && $derived->Label === '案件固有', 'Membersを派生Dataへ渡せる');
 
@@ -125,7 +127,7 @@ $item = new WP_Post(
 	object: 'page',
 	object_id: '30',
 );
-$factoryMembers = MenuNodeGet::Members($item, [$child]);
+$factoryMembers = MenuNodeGet::Props($item, [$child]);
 $check($factoryMembers->Id === 20 && $factoryMembers->ParentId === 5, 'FactoryがIDを正規化する');
 $check($factoryMembers->Classes === ['menu-item', 'about'], 'Factoryが文字列クラスだけを保持する');
 $check($factoryMembers->Type === MenuItemType::PostType, 'Factoryがメニュー種別をenumへ変換する');
@@ -141,7 +143,7 @@ $factoryData = MenuNodeGet::From($item, [$child]);
 $check($factoryData->Title === '会社案内' && $factoryData->Children === [$child], '公開FactoryからMenuNodeDataを生成する');
 $check($factoryData->IsNewTab() && $factoryData->GetLink()->Target === '_blank', '新規タブ判定とLinkDataへTargetを引き継ぐ');
 
-$invalidLinkAttributes = MenuNodeGet::Members(new WP_Post(
+$invalidLinkAttributes = MenuNodeGet::Props(new WP_Post(
 	ID: 21,
 	target: [],
 	attr_title: false,
@@ -192,7 +194,7 @@ $GLOBALS['menuItems'] = [
 $nodeFactory = static function (WP_Post $menuItem, array $children): ProjectMenuNodeData {
 	/** @var list<ProjectMenuNodeData> $children */
 	return new ProjectMenuNodeData(
-		MenuNodeGet::Members($menuItem, $children),
+		MenuNodeGet::Props($menuItem, $children),
 		'派生メニュー' . $menuItem->ID,
 	);
 };

@@ -4,28 +4,28 @@ declare(strict_types=1);
 namespace WpTypeSafety\Wp\Data;
 
 /** ターム1件ではなく、タクソノミーの登録定義を表す。 */
-readonly class TaxonomyData
+class TaxonomyData
 {
-	public string $Name;
-	public string $Label;
-	public string $SingularLabel;
-	public string $Description;
+	public readonly string $Name;
+	public readonly string $Label;
+	public readonly string $SingularLabel;
+	public readonly string $Description;
 	/** @var list<string> */
-	public array $ObjectTypes;
-	public bool $IsPublic;
-	public bool $IsPubliclyQueryable;
-	public bool $IsHierarchical;
+	public readonly array $ObjectTypes;
+	public readonly bool $IsPublic;
+	public readonly bool $IsPubliclyQueryable;
+	public readonly bool $IsHierarchical;
 
-	public function __construct(TaxonomyMembers $members)
+	public function __construct(TaxonomyProps $props)
 	{
-		$this->Name = $members->Name;
-		$this->Label = $members->Label;
-		$this->SingularLabel = $members->SingularLabel;
-		$this->Description = $members->Description;
-		$this->ObjectTypes = $members->ObjectTypes;
-		$this->IsPublic = $members->IsPublic;
-		$this->IsPubliclyQueryable = $members->IsPubliclyQueryable;
-		$this->IsHierarchical = $members->IsHierarchical;
+		$this->Name = $props->Name;
+		$this->Label = $props->Label;
+		$this->SingularLabel = $props->SingularLabel;
+		$this->Description = $props->Description;
+		$this->ObjectTypes = $props->ObjectTypes;
+		$this->IsPublic = $props->IsPublic;
+		$this->IsPubliclyQueryable = $props->IsPubliclyQueryable;
+		$this->IsHierarchical = $props->IsHierarchical;
 	}
 
 	public function HasObjectType(string $postType): bool

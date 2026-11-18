@@ -7,8 +7,8 @@ WordPressの値は、取得元と必要な戻り値に合わせて次の入口�
 | 取得したいもの | 入口 | 主な操作 |
 |---|---|---|
 | 現在の表示対象・ループ投稿・ログインユーザー | `PostGet`・`TermGet`・`UserGet` | `Current()`・`Loop()`・`LoggedIn()` |
-| 取得済みのWordPressオブジェクト・IDをDataへ変換 | 対象別の`*Get` | `From()`・`FromId()`・`Members()` |
-| 元のメインクエリのページ情報 | `MainQueryGet` | ページ番号・総ページ数・投稿総数 |
+| 取得済みのWordPressオブジェクト・IDをDataへ変換 | 対象別の`*Get` | `From()`・`FromId()`・`Props()` |
+| 元のメインクエリの投稿・ページ情報 | `MainQueryGet` | 投稿一覧・ページ番号・総ページ数・投稿総数 |
 | 投稿・ターム・ユーザー・コメントの一覧 | 各`*Query` | `Get()`・`From()` |
 | 投稿・ターム・ユーザー・コメントのメタ | `MetaGet` | 型付きGetter・入れ子探索 |
 | メニューのツリー | `MenuNodeGet` | ツリー取得・ノード検索 |
@@ -25,6 +25,8 @@ WordPressのコンテキストからDataを取得する入口です。Dataへの
 | `PostGet::Current(?Closure $postFactory = null)` | 元のメインクエリの表示対象 | 投稿でなければ`null` |
 | `PostGet::Loop(?Closure $postFactory = null)` | グローバル`$post` | `WP_Post`でなければ`null` |
 | `TermGet::Current(?Closure $termFactory = null)` | 元のメインクエリの表示対象 | タームでなければ`null` |
+| `PostTypeGet::Current()` | 元のメインクエリの投稿詳細・投稿タイプアーカイブ | 対象外・未登録なら`null` |
+| `UserGet::Current(int $avatarSize = 96, ?Closure $userFactory = null)` | 元のメインクエリの表示対象 | 有効なユーザーでなければ`null` |
 | `UserGet::LoggedIn(int $avatarSize = 96, ?Closure $userFactory = null)` | `wp_get_current_user()` | 未ログインなら`null` |
 
 `Current()`はクエリ確定後に使用します。メインクエリが存在しない場合は`null`です。`$wp_query`が独自クエリに置き換えられていても、`$wp_the_query`が指す表示対象を読みます。ターム一覧では`PostGet::Current()`は`null`で、`TermGet::Current()`が表示タームを返します。
@@ -38,16 +40,17 @@ use WpTypeSafety\Wp\Get\UserGet;
 $pageData = PostGet::Current();
 $loopPostData = PostGet::Loop();
 $loggedInUser = UserGet::LoggedIn(avatarSize: 64);
+$archiveAuthor = UserGet::Current(avatarSize: 64);
 
 // 案件固有Dataを返す生成クロージャーも指定できる。
 $projectPost = PostGet::Current(
 	postFactory: static fn (WP_Post $post): ProjectPostData =>
-		new ProjectPostData(PostGet::Members($post)),
+		new ProjectPostData(PostGet::Props($post)),
 );
 $projectUser = UserGet::LoggedIn(
 	avatarSize: 64,
 	userFactory: static fn (WP_User $user, int $avatarSize): ProjectUserData =>
-		new ProjectUserData(UserGet::Members($user, $avatarSize)),
+		new ProjectUserData(UserGet::Props($user, $avatarSize)),
 );
 ```
 
@@ -55,7 +58,9 @@ $projectUser = UserGet::LoggedIn(
 
 これらはWordPressの値をDataへ取り込むAPIで、ログイン処理・権限判定・投稿の公開可否による除外・HTML生成は行いません。グローバルな投稿やクエリの置き換え、ループの進行、結果の独自キャッシュも行いません。変換時のURL等の取得やWordPress自身のログインユーザー初期化は通常どおり発生します。
 
-## メインクエリのページ情報
+`UserGet::Current()`は著者アーカイブの表示対象、`LoggedIn()`は閲覧者のログインユーザーです。別の著者ページを開いても両者は同一とは限りません。`Current()`はログインユーザーへフォールバックしません。
+
+## メインクエリの投稿一覧とページ情報
 
 `MainQueryGet`は、クエリ確定後に元のメインクエリ`$wp_the_query`を読みます。`$wp_query`が独自クエリへ置き換えられていても対象は変わりません。追加クエリ・件数の再集計・グローバルの変更はしません。
 
@@ -67,8 +72,23 @@ $maxPageCount = MainQueryGet::MaxPageCount();
 $foundPostCount = MainQueryGet::FoundPostCount();
 ```
 
+`Current()`は実行済みのメインクエリを`PostQueryData`へ変換します。新しい投稿検索やループの進行は行いません。
+
+```php
+$result = MainQueryGet::Current();
+$posts = $result->Posts;
+
+// 案件固有のPostData派生型も指定できます。
+$caseResult = MainQueryGet::Current(
+	postFactory: CaseData::FromWpPost(...),
+);
+```
+
+Factoryの引数は`WP_Post`、戻り値は`PostData`またはその派生型です。`null`は認めません。各呼び出しでDataを生成し、独自キャッシュは行いません。`CurrentPageNumber`は既存の同名メソッドと同じ規則で取得します。`no_found_rows`が有効な場合、結果の`TotalCount`・`MaxPageCount`は`null`です。`fields: ids`等のID専用クエリは`PostQuery::From()`と同じく非対応です。
+
 | メソッド | 戻り値 | 値がない場合 |
 |---|---|---|
+| `Current($postFactory = null)` | `PostQueryData<TPost>` | 投稿なしは空リスト、未集計の件数はnull |
 | `CurrentPageNumber()` | `int` | 未指定・不正値は1 |
 | `MaxPageCount()` | `int` | 未集計・空結果は0 |
 | `FoundPostCount()` | `int` | 未集計・空結果は0 |
@@ -113,21 +133,31 @@ $image = AttachmentGet::ImgFromId($attachmentId, 'medium_large');
 $file = AttachmentGet::FileFromId($attachmentId);
 ```
 
-`PostGet`・`CommentGet`・`UserGet`・`TermGet`・`MenuNodeGet`の`Members()`は、対応する`PostMembers`・`CommentMembers`・`UserMembers`・`TermMembers`・`MenuNodeMembers`を返します。Membersは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。`MenuNodeGet`は`wp_get_nav_menu_items()`等でセットアップ済みのメニュー項目`WP_Post`を対象とし、必要なら構築済みの子ノードを第2引数で受け取ります。
+`PostGet::Props()`は値専用の`PostProps`を返します。`CommentGet`・`UserGet`・`TermGet`・`MenuNodeGet`・`PostTypeGet`・`TaxonomyGet`も対応するPropsを返します。Propsは案件固有Dataを作る前に、型付きプロパティを変更できる構築用オブジェクトです。Dataへ渡した時点の値がreadonlyプロパティへコピーされます。`MenuNodeGet`は`wp_get_nav_menu_items()`等でセットアップ済みのメニュー項目`WP_Post`を対象とし、必要なら構築済みの子ノードを第2引数で受け取ります。
 
-`PostGet`・`CommentGet`・`TermGet`では、任意の`relatedPostFactory`・`relatedCommentFactory`・`relatedTermFactory`を指定すると自己参照する関連Dataにも案件固有の派生型を使用できます。未指定時は共通Dataを返すため、派生型を必要としない取得へ明示的に戻せます。
+PostDataはprotectedなcreateRelatedPost()を上書きすると、親・子・前後投稿に案件固有の派生型を使用できます。著者はGetAuthor()を直接上書きします。PostDataのコンストラクターとPostGet::From()/FromId()からrelatedPostFactory・authorFactoryを廃止しています。TermDataはcreateRelatedTerm()、CommentDataはcreateRelatedComment()を上書きします。CommentDataのGetUser()/GetPost()も直接上書きします。構築用の関連FactoryとResolverは廃止しました。
 
-`PostData`・`TermData`・`CommentData`・`MenuNodeData`と対応するMembersは関連Data型をジェネリクスとして保持します。そのため、案件固有Dataの`@extends`へ関連型を指定すると、子・親・前後投稿・投稿者などを取得した後もPHPStanで派生型を維持できます。
+`PostData`・`TermData`・`CommentData`・`MenuNodeData`は関連Data型をジェネリクスとして保持します（PostPropsは値だけで型パラメーターを持ちません）。そのため、案件固有Dataの`@extends`へ関連型を指定すると、子・親・前後投稿・投稿者などを取得した後もPHPStanで派生型を維持できます。
 
 ```php
 <?php
 /** @extends PostData<ArticleData, ProjectUserData> */
-final readonly class ArticleData extends PostData
+final class ArticleData extends PostData
 {
-	/** @param PostMembers<ArticleData, ProjectUserData> $members */
-	public function __construct(PostMembers $members)
+	protected function createRelatedPost(\WP_Post $post): ?self
 	{
-		parent::__construct($members);
+		return self::FromWpPost($post);
+	}
+
+	public function GetAuthor(): ?ProjectUserData
+	{
+		$user = $this->AuthorId > 0 ? get_userdata($this->AuthorId) : null;
+		return $user instanceof \WP_User ? ProjectUserData::FromWpUser($user) : null;
+	}
+
+	public static function FromWpPost(\WP_Post $post): self
+	{
+		return new self(PostGet::Props($post));
 	}
 }
 
@@ -135,17 +165,17 @@ $child = $article->GetChildren()[0]; // ArticleData
 $author = $article->GetAuthor();     // ProjectUserData|null
 ```
 
-関連Factoryを指定せず基底Dataを返す派生Dataも作る場合は、案件固有Data自体をテンプレート化し、コンストラクターへ渡すMembersの型引数と対応させます。
+生成フックを上書きしなければ関連投稿は基底PostDataです。@extendsには実際の関連型を指定してください。構築時にFactoryを渡す必要はありません。
 
 ```php
 <?php
-$members = PostGet::Members($post);
-$members->Title = '表示用：' . $members->Title;
+$props = PostGet::Props($post);
+$props->Title = '表示用：' . $props->Title;
 
-$postData = new PostData($members);
+$postData = new PostData($props);
 ```
 
-`PostData`は投稿の`Status`・`PostType`・`Slug`を保持します。`IsPublished()`は投稿状態が`publish`かを返し、`IsPubliclyViewable`はWordPressの`is_post_publicly_viewable()`による投稿状態と投稿タイプを合わせた結果です。`IsPasswordProtected`はパスワード文字列が設定されているかを表しますが、パスワード文字列自体や、現在の閲覧者が認証済みかどうかは保持しません。
+`PostData`は投稿の`Status`・`PostTypeName`・`Slug`を保持します。`IsPublished()`は投稿状態が`publish`かを返し、`IsPubliclyViewable`はWordPressの`is_post_publicly_viewable()`による投稿状態と投稿タイプを合わせた結果です。`IsPasswordProtected`はパスワード文字列が設定されているかを表しますが、パスワード文字列自体や、現在の閲覧者が認証済みかどうかは保持しません。
 
 SVG添付画像は、ローカルファイルの単位なし・`px`の`width`と`height`を寸法として優先します。両方を取得できない場合は、`viewBox`から比率を取得します。SVGにはラスター画像のサイズバリエーションがないため、指定したサイズ名にかかわらず元のURLと寸法または比率を持つ`ImgData`を返します。どちらも判定できないSVGは`null`です。
 
@@ -346,15 +376,15 @@ echo $postData->GetRenderedContent();
 $terms = $postData->GetTerms('category');
 ```
 
-`GetRenderedContent(): string`は、Factoryが注入したResolverで`get_the_content()`・`the_content`フィルター・`]]>`の置換を行い、描画用HTMLを返します。Data自身は出力せず、キャッシュもしません。`PostMembers::RenderedContentResolver`は現在の`RawContent`を引数で受け取るため、Membersで調整した本文も描画へ反映されます。直接構築してResolverを省略した場合は空文字です。
+GetRenderedContent(): stringは、内部Adapterでget_the_content()・the_contentフィルター・]]>の置換を行い、保持したRawContentから描画用HTMLを返します。出力・キャッシュは行いません。現在のIdに対応する投稿が取得できない場合は空文字です。直接構築したDataでも標準処理を実行します。
 
-標準Resolverは元の`WP_Post`を複製して未加工本文を設定し、対象投稿へ`$post`と投稿用グローバル変数を一時的に切り替えます。正常終了・例外発生のどちらでも既存値と未定義状態を復元します。WordPressのクエリ初期化後に利用してください。`setup_postdata()`に失敗する場合は`LogicException`、フィルターが文字列以外を返す場合は`UnexpectedValueException`、プラグイン等の例外はそのまま伝播します。
+現在のWordPress投稿を複製し、本文・タイトル・抜粋・著者ID・親ID・状態・投稿タイプ・スラッグ・保持した日時をDataの値へ置き換えます。パスワードなどDataが保持しない描画用情報は現在の投稿を使います。完全なWordPress状態のスナップショットではありません。投稿用グローバル変数は一時的に切り替え、正常終了・例外時とも復元します。WordPressのクエリ初期化後に利用してください。setup_postdata()失敗はLogicException、不正なフィルター戻り値はUnexpectedValueExceptionです。
 
 これは任意の投稿に対してメインクエリ全体を再現するAPIではありません。`is_singular()`等のクエリ条件・閲覧権限は変更せず、`the_post`や描画フィルターが起こす任意の副作用も巻き戻しません。パスワード保護・ページ分割等はWordPressの本文取得処理に従います。通常のテンプレートと同じく、本文描画時に登録されるブロックのCSS等の配信タイミングにも注意してください。生成HTMLの一括エスケープはせず、出力するかの判断はテンプレートで行います。
 
-`GetTerms(string $taxonomy, ?Closure $termFactory = null): array`は、`TermGet::FromPost()`と同じ内部処理で`list<TermData>`を返します。呼び出すたびに取得し、空タクソノミー・タームなし・取得エラー・Resolver省略時は空配列です。案件固有の`Closure(WP_Term): TTerm`を渡すと、その呼び出しの戻り値は`list<TTerm>`になります。クラスの型パラメーターは増やしていません。
+`GetTerms(string $taxonomy, ?Closure $termFactory = null): array`は、`TermGet::FromPost()`と同じ内部処理で`list<TermData>`を返します。呼び出すたびに取得し、無効なId・空タクソノミー・タームなし・取得エラー時は空配列です。案件固有の`Closure(WP_Term): TTerm`を渡すと、その呼び出しの戻り値は`list<TTerm>`になります。クラスの型パラメーターは増やしていません。
 
-直接構築時は`PostMembers::TermsResolver`へ、タクソノミー名と任意のTerm Factoryを受け取るResolverを指定できます。戻り値が`list<TermData>`でなければ`UnexpectedValueException`です。HTML出力用の`RenderContent()`は設けていません。
+取得処理は内部Adapterへ委譲します。動作を変更する場合はメソッドをオーバーライドします。戻り値がlist<TermData>でなければUnexpectedValueExceptionです。HTML出力用のRenderContent()は設けていません。
 
 ## WordPressのターム
 
@@ -411,7 +441,7 @@ $menu = MenuNodeGet::TreeFromLocation(
 	'primary',
 	static fn (\WP_Post $item, array $children): ProjectMenuNodeData =>
 		new ProjectMenuNodeData(
-			MenuNodeGet::Members($item, $children),
+			MenuNodeGet::Props($item, $children),
 		),
 );
 ```
@@ -471,24 +501,13 @@ $avatar = $commentData->GetAvatar(64);
 
 `GetPost()`・`GetParent()`・`GetChildren()`は関連する投稿・親コメント・直下の子コメントを呼び出し時に取得します。`GetChildren()`の第1引数はWordPressのコメントクエリへ渡す状態（既定値`approve`）、第2引数は並び順（既定値`ASC`）です。
 
-案件固有Dataを関連先にも使用する場合は、Factoryへ生成処理を指定します。`relatedCommentFactory`は親・子コメント、`userFactory`は`GetUser()`、`postFactory`は`GetPost()`へ適用されます。未指定時は共通Dataを返します。
+案件固有DataはCommentGet::Props($comment, $avatarSize)から構築します。親・子コメントはprotected createRelatedComment(WP_Comment): ?CommentData、ユーザーと投稿はGetUser()/GetPost()を直接上書きします。relatedCommentFactory・userFactory・postFactoryを構築時に渡す方式は廃止しました。
 
-```php
-<?php
-$commentMembers = CommentGet::Members(
-	$comment,
-	relatedCommentFactory: static fn (\WP_Comment $related): ?ProjectCommentData =>
-		ProjectCommentData::FromWpComment($related),
-	userFactory: static fn (\WP_User $user): ?AuthorProfileData =>
-		AuthorProfileData::FromWpUser($user),
-	postFactory: static fn (\WP_Post $post): ?ArticlePostData =>
-		ArticlePostData::FromWpPost($post),
-);
-```
-
-`Status`はWordPressの`comment_approved`を正規化し、`1`は`approved`、`0`は`unapproved`になります。`spam`・`trash`など、それ以外の値は維持します。`Type`は空文字を`comment`へ正規化します。`CreatedAt`は`comment_date`をサイトのタイムゾーンで解釈した`?DateTimeImmutable`です。欠損・不正な日時は`null`になります。
+GetAvatar()は現在のコメントを複製し、保持済み著者情報を反映して取得します。ゲストのメールアドレス等は現在のコメントを使い、削除済みならnullです。サイズ省略時はPropsのAvatarSizeまたは96、最小1です。詳細は[Dataと派生クラス](data.md)を参照してください。
 
 ## 投稿タイプ・タクソノミーの登録定義
+
+`PostTypeGet::Current()`は、元のメインクエリの投稿・固定ページ・CPT詳細、または投稿タイプアーカイブから`PostTypeData`を取得します。通常の投稿一覧（ブログトップ）・検索・カテゴリー・ターム・著者ページは対象外で`null`です。メインクエリ未設定・登録解除済みでも`null`を返し、ループ中の投稿やクエリ条件から推測しません。`PostData::GetPostType()`が保持する投稿の種類を取得するのに対し、こちらは表示中のページを基準にします。
 
 `PostTypeData`は投稿タイプの定義、`TaxonomyData`はタクソノミーの定義を表します。投稿1件を表す`PostData`、ターム1件を表す`TermData`とは別の型です。
 
@@ -499,6 +518,7 @@ use WpTypeSafety\Wp\Get\TaxonomyGet;
 
 // 投稿タイプ・タクソノミーの登録完了後に呼び出す。
 $postTypeData = PostTypeGet::FromName('cases');
+$currentPostType = PostTypeGet::Current();
 $taxonomyData = TaxonomyGet::FromName('area');
 
 $archiveUrl = $postTypeData?->ArchiveUrl;
@@ -506,19 +526,19 @@ $taxonomyNames = $postTypeData?->GetTaxonomyNames() ?? [];
 $isCasesTaxonomy = $taxonomyData?->HasObjectType('cases') ?? false;
 ```
 
-| 取得口 | `From()`の入力・戻り値 | `Members()`の戻り値 | `FromName()`の戻り値 |
+| 取得口 | `From()`の入力・戻り値 | `Props()`の戻り値 | `FromName()`の戻り値 |
 |---|---|---|---|
-| `PostTypeGet` | `WP_Post_Type` → `PostTypeData` | `PostTypeMembers` | `PostTypeData|null` |
-| `TaxonomyGet` | `WP_Taxonomy` → `TaxonomyData` | `TaxonomyMembers` | `TaxonomyData|null` |
+| `PostTypeGet` | `WP_Post_Type` → `PostTypeData` | `PostTypeProps` | `PostTypeData|null` |
+| `TaxonomyGet` | `WP_Taxonomy` → `TaxonomyData` | `TaxonomyProps` | `TaxonomyData|null` |
 
-`FromName()`は登録名を検索し、未登録・空文字では`null`を返します。`From()`と`Members()`は取得済みのWordPressオブジェクトを受け取ります。`Members()`で調整してから派生Dataへ渡すこともできます。これらの取得口は登録・更新を行いません。
+`FromName()`は登録名を検索し、未登録・空文字では`null`を返します。`From()`と`Props()`は取得済みのWordPressオブジェクトを受け取ります。`Props()`で調整してから派生Dataへ渡すこともできます。これらの取得口は登録・更新を行いません。
 
 共通プロパティは`Name`・`Label`・`SingularLabel`・`Description`・`IsPublic`・`IsPubliclyQueryable`・`IsHierarchical`です。文字列以外の表示名・説明は空文字、欠損または空の単数形ラベルは`Label`へフォールバックします。公開設定は登録上のbool値であり、現在の閲覧者の権限や記事単位の閲覧可否を保証しません。
 
 `PostTypeData`は追加で`HasArchive: bool`・`ArchiveUrl: string`を保持します。`HasArchive`は登録設定`has_archive`をboolへ変換した値です。URLは生成時に`get_post_type_archive_link()`から取得し、HTTP(S)絶対URL以外・取得失敗は空文字です。標準投稿`post`は`HasArchive`がfalseでも投稿一覧URLを持つ場合があるため、URLの有無は`ArchiveUrl !== ''`で判断してください。
 
-`GetTaxonomyNames(): list<string>`は、注入されたResolverから呼び出しごとに関連タクソノミーの登録名を取得します。Factoryは`get_object_taxonomies()`へ接続するResolverを注入し、文字列以外・空文字の要素を除外して連番化します。Resolver省略時は`[]`です。直接注入したResolverが`list<string>`以外を返す場合は`UnexpectedValueException`、内部の例外はそのまま伝播します。
+`GetTaxonomyNames(): list<string>`は保持したNameで内部Adapterへ委譲し、get_object_taxonomies()から現在の関連名を取得します。文字列以外・空文字を除外して再採番し、空のName・不正な取得結果は[]です。変更する場合はGetTaxonomyNames()をオーバーライドします。
 
 `TaxonomyData`は`ObjectTypes: list<string>`を生成時点のスナップショットとして保持します。取得口は不正な要素・空文字を除外して連番化します。`HasObjectType(string $postType): bool`は登録名の完全一致で判定し、WordPress APIを呼びません。タクソノミー全体の`Url`や投稿・ターム取得メソッドは提供せず、タームURLは`TermData`、一覧取得は`*Query`で扱います。
 
-DataはMembersの値をreadonlyプロパティへコピーします。Membersの後続の変更は既存Dataへ反映されません。直接構築した値の正規化は呼び出し側の責任です。`PostData::$PostType`と`TermData::$Taxonomy`は文字列で、登録定義のData型へ自動変換しません。
+DataはPropsの値をreadonlyプロパティへコピーします。Propsの後続の変更は既存Dataへ反映されません。直接構築した値の正規化は呼び出し側の責任です。`PostData::$PostTypeName`と`TermData::$TaxonomyName`は文字列です。登録定義はそれぞれ`GetPostType()`・`GetTaxonomy()`で必要になった時点で取得できます。

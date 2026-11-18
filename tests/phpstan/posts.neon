@@ -1,0 +1,10 @@
+parameters:
+	level: 8
+	treatPhpDocTypesAsCertain: false
+	bootstrapFiles:
+		- ../../autoload.php
+	scanFiles:
+		- post-stubs.php
+	paths:
+		- post-types.php
+		- ../../Wp/Data/PostData.php

@@ -34,15 +34,15 @@ require_once __DIR__ . '/../autoload.php';
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Acf\Internal\AcfAdapter;
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
+use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\TermMembers;
-use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\TermProps;
+use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 
-readonly class ProjectAcfPostData extends PostData {}
-readonly class ProjectAcfTermData extends TermData {}
-readonly class ProjectAcfUserData extends WpUserData {}
+class ProjectAcfPostData extends PostData {}
+class ProjectAcfTermData extends TermData {}
+class ProjectAcfUserData extends WpUserData {}
 
 final class DerivedReferenceAdapter extends AcfAdapter
 {
@@ -106,7 +106,7 @@ $adapter = new DerivedReferenceAdapter([
 $acfGet = new AcfGet(1, $adapter);
 
 $postFactory = static fn (WP_Post $post): ProjectAcfPostData => new ProjectAcfPostData(
-	new PostMembers(
+	new PostProps(
 		Id: $post->ID,
 		Url: '/post/' . $post->ID,
 		Title: '投稿' . $post->ID,
@@ -114,11 +114,11 @@ $postFactory = static fn (WP_Post $post): ProjectAcfPostData => new ProjectAcfPo
 	),
 );
 $termFactory = static fn (WP_Term $term): ProjectAcfTermData => new ProjectAcfTermData(
-	new TermMembers(
+	new TermProps(
 		Id: $term->term_id,
 		Name: $term->name,
 		Slug: $term->slug,
-		Taxonomy: $term->taxonomy,
+		TaxonomyName: $term->taxonomy,
 		Url: '/term/' . $term->slug,
 	),
 );
@@ -126,7 +126,7 @@ $factoryAvatarSizes = [];
 $userFactory = static function (WP_User $user, int $avatarSize) use (&$factoryAvatarSizes): ProjectAcfUserData {
 	$factoryAvatarSizes[] = $avatarSize;
 	return new ProjectAcfUserData(
-		new UserMembers(
+		new UserProps(
 			Id: $user->ID,
 			DisplayName: $user->display_name,
 			AvatarSize: $avatarSize,

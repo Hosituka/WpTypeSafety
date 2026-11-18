@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-/** タクソノミー定義の構築用メンバ。 */
-final class TaxonomyMembers
+/** タクソノミー定義の構築用の値。 */
+final class TaxonomyProps
 {
 	/** @param list<string> $ObjectTypes */
 	public function __construct(

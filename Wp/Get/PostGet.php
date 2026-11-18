@@ -4,11 +4,10 @@ declare(strict_types=1);
 namespace WpTypeSafety\Wp\Get;
 
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostMembers;
-use WpTypeSafety\Wp\Data\WpUserData;
+use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Internal\DtoFactory;
 
-/** WP_Postから投稿のMembersまたはDataを生成します。 */
+/** WP_Postから投稿のPropsまたはDataを生成します。 */
 final class PostGet
 {
 	private function __construct() {}
@@ -35,59 +34,25 @@ final class PostGet
 		return DtoFactory::LoopPost($postFactory);
 	}
 
-	/**
-	 * @template TRelatedPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
-	 * @return PostMembers<TRelatedPost, TAuthor>
-	 */
-	public static function Members(
-		\WP_Post $post,
-		?\Closure $relatedPostFactory = null,
-		?\Closure $authorFactory = null,
-	): PostMembers
+	/** 投稿の構築用の値を取得する。 */
+	public static function Props(\WP_Post $post): PostProps
 	{
-		return DtoFactory::PostMembersFromWpPost($post, $relatedPostFactory, $authorFactory);
+		return DtoFactory::PostPropsFromWpPost($post);
 	}
 
-	/**
-	 * @template TRelatedPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
-	 * @return PostData<TRelatedPost, TAuthor>
-	 */
-	public static function From(
-		\WP_Post $post,
-		?\Closure $relatedPostFactory = null,
-		?\Closure $authorFactory = null,
-	): PostData
+	/** @return PostData<PostData, \WpTypeSafety\Wp\Data\WpUserData> */
+	public static function From(\WP_Post $post): PostData
 	{
-		return DtoFactory::PostFromWpPost($post, $relatedPostFactory, $authorFactory);
+		return DtoFactory::PostFromWpPost($post);
 	}
 
-	/**
-	 * @template TRelatedPost of PostData = PostData
-	 * @template TAuthor of WpUserData = WpUserData
-	 * @param null|\Closure(\WP_Post): (TRelatedPost|null) $relatedPostFactory
-	 * @param null|\Closure(\WP_User): (TAuthor|null) $authorFactory
-	 * @return PostData<TRelatedPost, TAuthor>|null
-	 */
-	public static function FromId(
-		int $postId,
-		?\Closure $relatedPostFactory = null,
-		?\Closure $authorFactory = null,
-	): ?PostData
+	/** @return PostData<PostData, \WpTypeSafety\Wp\Data\WpUserData>|null */
+	public static function FromId(int $postId): ?PostData
 	{
-		if ($postId <= 0) {
-			return null;
-		}
+		if ($postId <= 0)
+		{return null;}
 
 		$post = \get_post($postId);
-
-		return $post instanceof \WP_Post
-			? self::From($post, $relatedPostFactory, $authorFactory)
-			: null;
+		return $post instanceof \WP_Post ? self::From($post) : null;
 	}
 }

@@ -48,7 +48,7 @@ final class ReferenceAdapter
 		{return $value;}
 
 		if ($value instanceof TermData) {
-			$taxonomy ??= $value->Taxonomy;
+			$taxonomy ??= $value->TaxonomyName;
 			$value = $value->Id;
 		}
 

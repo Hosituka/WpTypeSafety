@@ -437,7 +437,7 @@ class AcfAdapter
 	public function TermPostId(\WP_Term|TermData $term): string
 	{
 		$id = $term instanceof TermData ? $term->Id : (int) $term->term_id;
-		$taxonomy = $term instanceof TermData ? $term->Taxonomy : (string) ($term->taxonomy ?? '');
+		$taxonomy = $term instanceof TermData ? $term->TaxonomyName : (string) ($term->taxonomy ?? '');
 		return ($taxonomy !== '' ? $taxonomy : 'term') . '_' . $id;
 	}
 

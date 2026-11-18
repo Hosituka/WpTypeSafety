@@ -7,7 +7,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 use WpTypeSafety\Wp\Data\WpUserData;
-use WpTypeSafety\Wp\Data\UserMembers;
+use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Get\UserGet;
 
 class WP_User
@@ -27,8 +27,10 @@ function get_author_posts_url(int $id): mixed
 	return $GLOBALS['authorResult'];
 }
 
+require_once __DIR__ . '/../autoload.php';
+function get_avatar_url(mixed $subject, array $args): false { return false; }
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
-require_once __DIR__ . '/../Wp/Data/UserMembers.php';
+require_once __DIR__ . '/../Wp/Data/UserProps.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
 require_once __DIR__ . '/../Wp/Internal/DtoFactory.php';
 require_once __DIR__ . '/../Wp/Get/UserGet.php';
@@ -40,15 +42,15 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	}
 	$checks++;
 };
-$plain = new WpUserData(new UserMembers(1, '名前'));
+$plain = new WpUserData(new UserProps(1, '名前'));
 $check($plain->WebsiteUrl === '', 'website defaults to empty');
-$withWebsite = new WpUserData(new UserMembers(1, '名前', WebsiteUrl: 'https://example.com/'));
+$withWebsite = new WpUserData(new UserProps(1, '名前', WebsiteUrl: 'https://example.com/'));
 $check($withWebsite->WebsiteUrl === 'https://example.com/' && $withWebsite->ArchiveUrl === '', 'website and archive are independent');
 $check((new ReflectionProperty(WpUserData::class, 'WebsiteUrl'))->isReadOnly(), 'readonly website');
 $check($plain->ArchiveUrl === '', 'direct construction default');
-$direct = new WpUserData(new UserMembers(Id: 2, DisplayName: '名前', ArchiveUrl: 'https://example.com/author/test/'));
+$direct = new WpUserData(new UserProps(Id: 2, DisplayName: '名前', ArchiveUrl: 'https://example.com/author/test/'));
 $check($direct->ArchiveUrl === 'https://example.com/author/test/', 'direct construction with URL');
-$withAvatarSize = new WpUserData(new UserMembers(3, '名前', 64, null));
+$withAvatarSize = new WpUserData(new UserProps(3, '名前', 64));
 $check($withAvatarSize->ArchiveUrl === '' && $withAvatarSize->GetAvatar() === null, 'Membersの位置引数を利用する');
 foreach ([
 	['https://example.com/author/test/', 'https://example.com/author/test/'],
@@ -73,14 +75,14 @@ foreach ([
 	$check($GLOBALS['authorCalls'] === [7], 'reading does not reacquire URL');
 }
 $GLOBALS['authorResult'] = 'https://example.com/author/7/';
-$members = UserGet::Members(new WP_User(7));
-$check($members instanceof UserMembers && $members->Id === 7, 'public factory creates UserMembers');
+$props = UserGet::Props(new WP_User(7));
+$check($props instanceof UserProps && $props->Id === 7, 'public factory creates UserProps');
 $GLOBALS['authorCalls'] = [];
 $check(UserGet::From(new WP_User(0)) === null, 'nonexistent user');
 $check($GLOBALS['authorCalls'] === [], 'nonexistent user does not acquire URL');
 $check((new ReflectionProperty(WpUserData::class, 'ArchiveUrl'))->isReadOnly(), 'readonly URL');
-$check((new WpUserData(new UserMembers(1, '名前')))->Description === '', 'description defaults to empty');
-$direct = new WpUserData(new UserMembers(1, '名前', Description: "自己紹介\n2行目"));
+$check((new WpUserData(new UserProps(1, '名前')))->Description === '', 'description defaults to empty');
+$direct = new WpUserData(new UserProps(1, '名前', Description: "自己紹介\n2行目"));
 $check($direct->Description === "自己紹介\n2行目", 'description direct construction');
 $check((new ReflectionProperty(WpUserData::class, 'Description'))->isReadOnly(), 'readonly description');
 foreach (["自己紹介\n2行目", '<strong>紹介文</strong>', '', '0', null, false, 123, []] as $value) {
