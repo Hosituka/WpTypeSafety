@@ -209,4 +209,4 @@ Coreは厳密な型確認を既定値とします。`NumericMode`・`BoolMode`�
 
 WpTypeSafety本体は[MIT License](LICENSE)です。同梱したComposerの`ClassLoader.php`は[別のライセンス表記](Autoload/Internal/Composer/LICENSE)を保持しています。
 
-未リリース機能の概要は[リリースノート](docs/releases.md)を参照してください。
+各バージョンの変更点・破壊的変更は[リリースノート](docs/releases.md)を参照してください。

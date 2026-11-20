@@ -211,4 +211,4 @@ The detailed documentation is currently available in Japanese.
 
 WpTypeSafety is released under the [MIT License](LICENSE). The bundled Composer `ClassLoader.php` retains its [separate license notice](Autoload/Internal/Composer/LICENSE).
 
-See the [release notes](docs/releases.md) for unreleased features.
+See the [release notes](docs/releases.md) for version changes and breaking changes.
