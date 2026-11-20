@@ -13,31 +13,31 @@ final class CommentQuery
 	private function __construct() {}
 
 	/**
-	 * @template TComment of CommentData
+	 * @template TComment of CommentData = CommentData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_Comment, int): TComment $commentFactory
-	 * @return ($commentFactory is null ? CommentQueryData<CommentData> : CommentQueryData<TComment>)
+	 * @param class-string<TComment> $dataClass
+	 * @return CommentQueryData<TComment>
 	 */
 	public static function Get(
 		array $args = [],
 		int $avatarSize = 96,
-		?\Closure $commentFactory = null,
+		string $dataClass = CommentData::class,
 	): CommentQueryData
 	{
-		return CommentQueryAdapter::Get($args, $avatarSize, $commentFactory);
+		return CommentQueryAdapter::Get($args, $avatarSize, $dataClass);
 	}
 
 	/**
-	 * @template TComment of CommentData
-	 * @param null|\Closure(\WP_Comment, int): TComment $commentFactory
-	 * @return ($commentFactory is null ? CommentQueryData<CommentData> : CommentQueryData<TComment>)
+	 * @template TComment of CommentData = CommentData
+	 * @param class-string<TComment> $dataClass
+	 * @return CommentQueryData<TComment>
 	 */
 	public static function From(
 		\WP_Comment_Query $query,
 		int $avatarSize = 96,
-		?\Closure $commentFactory = null,
+		string $dataClass = CommentData::class,
 	): CommentQueryData
 	{
-		return CommentQueryAdapter::From($query, $avatarSize, $commentFactory);
+		return CommentQueryAdapter::From($query, $avatarSize, $dataClass);
 	}
 }

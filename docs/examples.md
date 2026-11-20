@@ -80,7 +80,7 @@ $content = $get->Nested('content');
 
 ## 案件固有Dataを作る
 
-共通の投稿情報は`PostGet::Props()`から受け取り、案件固有値だけを追加できます。完全な継承契約は[Dataと派生クラス](data.md)を参照してください。
+共通の投稿情報はprotected staticの`getProps()`で調整し、追加値は`initialize()`で設定します。Fromとコンストラクターはfinalです。他のDataの構築契約は変更しません。完全な継承契約は[Dataと派生クラス](data.md)を参照してください。
 
 ```php
 use WpTypeSafety\Acf\Get\AcfGet;
@@ -91,28 +91,30 @@ use WpTypeSafety\Wp\Get\PostGet;
 /** @extends PostData<ArticleData, \WpTypeSafety\Wp\Data\WpUserData> */
 final class ArticleData extends PostData
 {
-	public function __construct(
-		PostProps $props,
-		public readonly string $Subtitle,
-	) {
-		parent::__construct($props);
+	public readonly string $Subtitle;
+
+	protected static function getProps(\WP_Post $post): PostProps
+	{
+		$props = parent::getProps($post);
+		$props->Title = '記事：' . $props->Title;
+		return $props;
 	}
 
 	protected function createRelatedPost(\WP_Post $post): ?self
 	{
-		return self::FromWpPost($post);
+		return self::From($post);
 	}
 
-	public static function FromWpPost(\WP_Post $post): self
+	protected function initialize(\WP_Post $post): void
 	{
+		parent::initialize($post);
 		$postGet = new AcfGet($post);
-
-		return new self(
-			props: PostGet::Props($post),
-			Subtitle: $postGet->Text('subtitle'),
-		);
+		$this->Subtitle = $postGet->Text('subtitle');
 	}
 }
+
+$article = ArticleData::From($post);
+$loopArticle = PostGet::Loop(dataClass: ArticleData::class);
 ```
 
 ## ACFブロックを描画する

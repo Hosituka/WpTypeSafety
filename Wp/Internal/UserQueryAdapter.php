@@ -12,35 +12,37 @@ final class UserQueryAdapter
 	private function __construct() {}
 
 	/**
-	 * @template TUser of WpUserData
+	 * @template TUser of WpUserData = WpUserData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? UserQueryData<WpUserData> : UserQueryData<TUser>)
+	 * @param class-string<TUser> $dataClass
+	 * @return UserQueryData<TUser>
 	 */
 	public static function Get(
 		array $args,
 		int $avatarSize,
-		?\Closure $userFactory = null,
+		string $dataClass = WpUserData::class,
 	): UserQueryData
 	{
+		DataClass::Validate($dataClass, WpUserData::class);
 		$query = new \WP_User_Query();
 		$query->prepare_query($args);
 		$query->query();
 
-		return self::From($query, $avatarSize, $userFactory);
+		return self::From($query, $avatarSize, $dataClass);
 	}
 
 	/**
-	 * @template TUser of WpUserData
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? UserQueryData<WpUserData> : UserQueryData<TUser>)
+	 * @template TUser of WpUserData = WpUserData
+	 * @param class-string<TUser> $dataClass
+	 * @return UserQueryData<TUser>
 	 */
 	public static function From(
 		\WP_User_Query $query,
 		int $avatarSize,
-		?\Closure $userFactory = null,
+		string $dataClass = WpUserData::class,
 	): UserQueryData
 	{
+		DataClass::Validate($dataClass, WpUserData::class);
 		$fields = $query->get('fields');
 		if ($fields !== 'all' && $fields !== 'all_with_meta') {
 			throw new \InvalidArgumentException(
@@ -53,12 +55,7 @@ final class UserQueryAdapter
 			if (! $user instanceof \WP_User) {
 				throw new \UnexpectedValueException('WP_User_Queryの結果にWP_User以外の値が含まれています。');
 			}
-			$data = $userFactory !== null
-				? $userFactory($user, $avatarSize)
-				: DtoFactory::UserFromWpUser($user, $avatarSize);
-			if ($userFactory !== null && ! $data instanceof WpUserData) {
-				throw new \UnexpectedValueException('UserQueryのuserFactoryはWpUserDataを返す必要があります。');
-			}
+			$data = $dataClass::From($user, $avatarSize);
 			if ($data === null) {
 				continue;
 			}

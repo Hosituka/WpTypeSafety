@@ -68,16 +68,7 @@ $GLOBALS['postTerms'] = [
 $GLOBALS['wpTermValues'] = [1 => $root, 2 => $child, 3 => $grandchild];
 $GLOBALS['termAncestors'] = [1 => [], 2 => [1], 3 => [2, 1]];
 
-$termFactory = static fn (WP_Term $term): ProjectPostTermData => new ProjectPostTermData(
-	new TermProps(
-		Id: $term->term_id,
-		Name: $term->name,
-		Slug: $term->slug,
-		TaxonomyName: $term->taxonomy,
-		Url: '/term/' . $term->slug . '/',
-		ParentId: $term->parent,
-	),
-);
+$termFactory = ProjectPostTermData::class;
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -103,17 +94,17 @@ foreach ([
 	static fn () => TermGet::FromPost(
 		10,
 		'area',
-		static fn (WP_Term $term): mixed => null,
+		stdClass::class,
 	),
 	static fn () => TermGet::Roots(
 		$terms,
-		static fn (WP_Term $term): mixed => null,
+		stdClass::class,
 	),
 ] as $invalidFactory) {
 	try {
 		$invalidFactory();
 		throw new RuntimeException('ターム生成Factoryがnullを返せた');
-	} catch (UnexpectedValueException) {
+	} catch (InvalidArgumentException) {
 		$check(true, 'ターム生成FactoryはTermDataを必ず返す');
 	}
 }

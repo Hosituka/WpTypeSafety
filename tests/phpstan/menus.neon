@@ -1,0 +1,14 @@
+parameters:
+	level: 8
+	treatPhpDocTypesAsCertain: false
+	bootstrapFiles:
+		- ../../autoload.php
+	scanFiles:
+		- menu-stubs.php
+	paths:
+		- ../../Wp/Data/MenuData.php
+		- ../../Wp/Data/MenuProps.php
+		- ../../Wp/Data/MenuNodeData.php
+		- ../../Wp/Data/MenuNodeProps.php
+		- ../../Wp/Get/MenuGet.php
+		- ../../Wp/Internal/MenuAdapter.php

@@ -23,7 +23,14 @@ class WP_Term
 }
 class WP_Post {}
 class WP_Error {}
-class ProjectTerm extends TermData {}
+class ProjectTerm extends TermData
+{
+	protected function initialize(WP_Term $term): void { $GLOBALS['calls']++; }
+}
+class ThrowingTerm extends TermData
+{
+	protected function initialize(WP_Term $term): void { throw $GLOBALS['expected']; }
+}
 class WP_Query
 {
 	public function get_queried_object(): ?object { return $GLOBALS['queriedObject'] ?? null; }
@@ -46,10 +53,7 @@ foreach (['category', 'post_tag', 'custom_taxonomy'] as $taxonomy) {
 	$check($current instanceof TermData && $current->TaxonomyName === $taxonomy, 'タームアーカイブをData化');
 }
 $calls = 0;
-$factory = static function (WP_Term $term) use (&$calls): ProjectTerm {
-	$calls++;
-	return new ProjectTerm(TermGet::Props($term));
-};
+$factory = ProjectTerm::class;
 $check(TermGet::Current($factory) instanceof ProjectTerm && $calls === 1, '案件固有Factory');
 foreach ([null, new WP_Post(), new stdClass()] as $value) {
 	$GLOBALS['queriedObject'] = $value;
@@ -60,9 +64,9 @@ $GLOBALS['termLink'] = new WP_Error();
 $check(TermGet::Current() === null, 'ターム変換失敗もnull');
 unset($GLOBALS['termLink']);
 try {
-	TermGet::Current(static fn () => null);
+	TermGet::Current(stdClass::class);
 	throw new RuntimeException('不正なFactoryを受け入れた');
-} catch (UnexpectedValueException) {
+} catch (InvalidArgumentException) {
 	$checks++;
 }
 echo "Current term: {$checks} checks passed.\n";

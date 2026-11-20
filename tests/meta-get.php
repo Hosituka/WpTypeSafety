@@ -134,6 +134,7 @@ function get_comment_link(WP_Comment $comment): string { return 'https://example
 function wp_timezone(): DateTimeZone { return new DateTimeZone('Asia/Tokyo'); }
 
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/post-props.php';
 
 use WpTypeSafety\Core\Check\Data\BoolMode;
 use WpTypeSafety\Core\Check\Data\NumericMode;
@@ -260,7 +261,7 @@ $check($postMetaGet->PostMeta('related_post_id')->String('subtitle') === '参照
 $wpPostGet = new MetaGet(new WP_Post(7));
 $check($wpPostGet->String('title') === '見出し', 'WP_Postから投稿IDを取得する');
 
-$postData = new PostData(new PostProps(Id: 9, Url: '', Title: '', RawContent: ''));
+$postData = TestPostData::FromProps(new PostProps(Id: 9, Url: '', Title: '', RawContent: ''));
 $check((new MetaGet($postData))->String('title') === 'PostDataの投稿', 'PostDataから投稿IDを取得する');
 $check((new MetaGet(new WP_Term(40)))->String('color') === 'green', 'WP_Termからタームメタを取得する');
 $check((new MetaGet(new WP_User(30)))->String('nickname') === 'tester', 'WP_Userからユーザーメタを取得する');

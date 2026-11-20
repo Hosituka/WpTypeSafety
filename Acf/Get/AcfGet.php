@@ -15,6 +15,7 @@ use WpTypeSafety\Core\Data\TimeData;
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\WpUserData;
+use WpTypeSafety\Wp\Internal\DataClass;
 
 /** 投稿・ACF参照先ID・取得済み配列からフィールドを取得する。 */
 class AcfGet
@@ -119,14 +120,18 @@ class AcfGet
 	}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
 	 */
-	public function Post(string $fieldName, ?\Closure $postFactory = null): ?PostData
+	public function Post(string $fieldName, string $dataClass = PostData::class): ?PostData
 	{
-		if ($postFactory === null) {
-			return $this->adapter->GetPost($fieldName, $this->source);
+		DataClass::Validate($dataClass, PostData::class);
+		if ($dataClass === PostData::class) {
+			// この分岐ではTPostはPostData。独自Adapterの既存取得経路も維持する。
+			/** @var TPost|null $data */
+			$data = $this->adapter->GetPost($fieldName, $this->source);
+			return $data;
 		}
 
 		$post = $this->adapter->GetWpPost($fieldName, $this->source);
@@ -134,12 +139,7 @@ class AcfGet
 			return null;
 		}
 
-		$data = $postFactory($post);
-		if (! $data instanceof PostData) {
-			throw new \UnexpectedValueException('AcfGetのpostFactoryはPostDataを返す必要があります。');
-		}
-
-		return $data;
+		return $dataClass::From($post);
 	}
 
 	public function WpPost(string $fieldName): ?\WP_Post
@@ -154,23 +154,22 @@ class AcfGet
 	}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? list<PostData> : list<TPost>)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return list<TPost>
 	 */
-	public function Posts(string $fieldName, ?\Closure $postFactory = null): array
+	public function Posts(string $fieldName, string $dataClass = PostData::class): array
 	{
-		if ($postFactory === null) {
-			return $this->adapter->GetPosts($fieldName, $this->source);
+		DataClass::Validate($dataClass, PostData::class);
+		if ($dataClass === PostData::class) {
+			/** @var list<TPost> $data */
+			$data = $this->adapter->GetPosts($fieldName, $this->source);
+			return $data;
 		}
 
 		$result = [];
 		foreach ($this->adapter->GetWpPosts($fieldName, $this->source) as $post) {
-			$data = $postFactory($post);
-			if (! $data instanceof PostData) {
-				throw new \UnexpectedValueException('AcfGetのpostFactoryはPostDataを返す必要があります。');
-			}
-			$result[] = $data;
+			$result[] = $dataClass::From($post);
 		}
 
 		return $result;
@@ -189,14 +188,17 @@ class AcfGet
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermData|null : TTerm|null)
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TTerm|null
 	 */
-	public function Term(string $fieldName, ?\Closure $termFactory = null): ?TermData
+	public function Term(string $fieldName, string $dataClass = TermData::class): ?TermData
 	{
-		if ($termFactory === null) {
-			return $this->adapter->GetTerm($fieldName, $this->source);
+		DataClass::Validate($dataClass, TermData::class);
+		if ($dataClass === TermData::class) {
+			/** @var TTerm|null $data */
+			$data = $this->adapter->GetTerm($fieldName, $this->source);
+			return $data;
 		}
 
 		$term = $this->adapter->GetWpTerm($fieldName, $this->source);
@@ -204,12 +206,7 @@ class AcfGet
 			return null;
 		}
 
-		$data = $termFactory($term);
-		if (! $data instanceof TermData) {
-			throw new \UnexpectedValueException('AcfGetのtermFactoryはTermDataを返す必要があります。');
-		}
-
-		return $data;
+		return $dataClass::From($term);
 	}
 
 	public function WpTerm(string $fieldName): ?\WP_Term
@@ -218,22 +215,24 @@ class AcfGet
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return list<TTerm>
 	 */
-	public function Terms(string $fieldName, ?\Closure $termFactory = null): array
+	public function Terms(string $fieldName, string $dataClass = TermData::class): array
 	{
-		if ($termFactory === null) {
-			return $this->adapter->GetTerms($fieldName, $this->source);
+		DataClass::Validate($dataClass, TermData::class);
+		if ($dataClass === TermData::class) {
+			/** @var list<TTerm> $data */
+			$data = $this->adapter->GetTerms($fieldName, $this->source);
+			return $data;
 		}
 
 		$result = [];
 		foreach ($this->adapter->GetWpTerms($fieldName, $this->source) as $term) {
-			$data = $termFactory($term);
-			if (! $data instanceof TermData) {
-				throw new \UnexpectedValueException('AcfGetのtermFactoryはTermDataを返す必要があります。');
-			}
+			$data = $dataClass::From($term);
+			if ($data === null)
+			{continue;}
 			$result[] = $data;
 		}
 
@@ -259,18 +258,21 @@ class AcfGet
 	}
 
 	/**
-	 * @template TUser of WpUserData
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? WpUserData|null : TUser|null)
+	 * @template TUser of WpUserData = WpUserData
+	 * @param class-string<TUser> $dataClass
+	 * @return TUser|null
 	 */
 	public function User(
 		string $fieldName,
 		int $avatarSize = 96,
-		?\Closure $userFactory = null,
+		string $dataClass = WpUserData::class,
 	): ?WpUserData
 	{
-		if ($userFactory === null) {
-			return $this->adapter->GetUser($fieldName, $this->source, $avatarSize);
+		DataClass::Validate($dataClass, WpUserData::class);
+		if ($dataClass === WpUserData::class) {
+			/** @var TUser|null $data */
+			$data = $this->adapter->GetUser($fieldName, $this->source, $avatarSize);
+			return $data;
 		}
 
 		$user = $this->adapter->GetWpUser($fieldName, $this->source);
@@ -278,12 +280,7 @@ class AcfGet
 			return null;
 		}
 
-		$data = $userFactory($user, $avatarSize);
-		if (! $data instanceof WpUserData) {
-			throw new \UnexpectedValueException('AcfGetのuserFactoryはWpUserDataを返す必要があります。');
-		}
-
-		return $data;
+		return $dataClass::From($user, $avatarSize);
 	}
 
 	public function WpUser(string $fieldName): ?\WP_User
@@ -292,26 +289,28 @@ class AcfGet
 	}
 
 	/**
-	 * @template TUser of WpUserData
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? list<WpUserData> : list<TUser>)
+	 * @template TUser of WpUserData = WpUserData
+	 * @param class-string<TUser> $dataClass
+	 * @return list<TUser>
 	 */
 	public function Users(
 		string $fieldName,
 		int $avatarSize = 96,
-		?\Closure $userFactory = null,
+		string $dataClass = WpUserData::class,
 	): array
 	{
-		if ($userFactory === null) {
-			return $this->adapter->GetUsers($fieldName, $this->source, $avatarSize);
+		DataClass::Validate($dataClass, WpUserData::class);
+		if ($dataClass === WpUserData::class) {
+			/** @var list<TUser> $data */
+			$data = $this->adapter->GetUsers($fieldName, $this->source, $avatarSize);
+			return $data;
 		}
 
 		$result = [];
 		foreach ($this->adapter->GetWpUsers($fieldName, $this->source) as $user) {
-			$data = $userFactory($user, $avatarSize);
-			if (! $data instanceof WpUserData) {
-				throw new \UnexpectedValueException('AcfGetのuserFactoryはWpUserDataを返す必要があります。');
-			}
+			$data = $dataClass::From($user, $avatarSize);
+			if ($data === null)
+			{continue;}
 			$result[] = $data;
 		}
 

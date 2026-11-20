@@ -173,29 +173,29 @@ $members = $postGet->Users('members', avatarSize: 160);
 
 戻り値はそれぞれ`list<PostData>`・`list<TermData>`・`list<WpUserData>`です。ACFの返却形式がオブジェクトまたはIDのどちらでも変換し、未入力・配列以外は`[]`、取得・変換できない要素は除外します。入力順と重複は維持します。`Users()`の`avatarSize`は各`WpUserData`のアバター取得時の既定サイズとして保持されます。
 
-案件固有の派生Dataを維持する場合は、単数・複数の取得口へ生成処理を指定できます。ACFの参照値は`WP_Post`・`WP_Term`・`WP_User`へ正規化されてからFactoryへ渡されます。
+案件固有の投稿Dataは単数・複数とも`dataClass`で指定します。`Post(string $fieldName, string $dataClass = PostData::class): ?PostData`・`Posts(string $fieldName, string $dataClass = PostData::class): array`のPHPDocは`@template T of PostData`・`@param class-string<T> $dataClass`と戻り値`T|null`・`list<T>`です。参照値をWP_Postへ正規化してから指定クラスのFromを呼びます。ターム・ユーザーもdataClassで指定し、正規化したWP_Term・WP_Userを指定クラスのFromへ渡します。
 
 ```php
 <?php
 $featuredCase = $postGet->Post(
 	'featured_case',
-	postFactory: CaseData::FromWpPost(...),
+	dataClass: CaseData::class,
 );
 $relatedCases = $postGet->Posts(
 	'related_cases',
-	postFactory: CaseData::FromWpPost(...),
+	dataClass: CaseData::class,
 );
 $areas = $postGet->Terms(
 	'areas',
-	termFactory: AreaData::FromWpTerm(...),
+	dataClass: AreaData::class,
 );
 $members = $postGet->Users(
 	'members',
-	userFactory: StaffUserData::FromWpUser(...),
+	dataClass: StaffUserData::class,
 );
 ```
 
-単数フィールドの未選択・型違いは`null`、複数フィールドの未選択・変換できない参照値は空配列または要素除外となり、その値に対してFactoryは呼ばれません。ユーザーFactoryには第2引数として`avatarSize`も渡します。Factoryが呼ばれた場合は対応するDataを必ず返す必要があり、`null`による要素の除外はできません。絞り込みはACFのフィールド設定または取得後の利用側で明示してください。Factory未指定時は共通Dataを返します。
+指定クラスはフィールド取得前に検証し、未知・別系統・abstractクラスはInvalidArgumentExceptionです。単数の未選択・変換失敗はnull、複数は要素を除外します。入力順・重複は維持します。PostのFromは非nullable、Term/UserのFromはnullableです。生成例外は伝播します。UserにはavatarSizeも渡します。クラス未指定時は共通Dataを返します。
 
 WordPressやプラグインのAPIへネイティブオブジェクトを渡す場合は、`WpPost()`・`WpTerm()`・`WpUser()`と、それぞれの複数形を使用できます。DataとWordPressネイティブ型は、利用先に合わせて選べます。
 
@@ -561,7 +561,7 @@ $wrapperAttributes = $blockData->GetWrapperAttributes(className: 'staff-card');
 
 Factoryの`bool $isPreview = false`引数でプレビュー状態を明示します。`$block`内の値や`is_admin()`から推測しません。文字列項目の欠損・型違いは空文字、クラスの欠損・型違いは空配列へ正規化されます。元配列や周辺状態が変化しても、生成済みインスタンスの値は変更されません。
 
-PostDataと同様に、正規化済みの値を使って直接生成することもできます。Dataのコンストラクターは生の`$block`配列ではなく、名前付き引数を受け取ります。
+AcfBlockDataは正規化済みの値を使って直接生成することもできます。WordPress Dataの外部new禁止はAcfBlockDataへ適用しません。Dataのコンストラクターは生の`$block`配列ではなく、名前付き引数を受け取ります。
 
 ```php
 <?php

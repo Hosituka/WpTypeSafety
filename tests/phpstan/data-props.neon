@@ -11,5 +11,10 @@ parameters:
 		- ../../Wp/Data/CommentData.php
 		- ../../Wp/Data/WpUserData.php
 		- ../../Wp/Data/MenuNodeData.php
+		- ../../Wp/Data/MenuData.php
 		- ../../Wp/Data/PostTypeData.php
 		- ../../Wp/Data/TaxonomyData.php
+		- ../../Wp/Get/PostGet.php
+		- ../../Wp/Get/TermGet.php
+		- ../../Wp/Get/UserGet.php
+		- ../../Wp/Get/CommentGet.php

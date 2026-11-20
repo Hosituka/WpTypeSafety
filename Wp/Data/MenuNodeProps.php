@@ -29,6 +29,7 @@ final class MenuNodeProps
 		public string $AttributeTitle = '',
 		public string $Xfn = '',
 		public array $Children = [],
+		public bool $IsCurrent = false,
 	) {
 	}
 }

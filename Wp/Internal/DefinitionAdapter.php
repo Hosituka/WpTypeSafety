@@ -21,40 +21,58 @@ final class DefinitionAdapter
 	}
 
 
-	public static function CurrentPostType(): ?PostTypeData
+	/**
+	 * @template TData of PostTypeData = PostTypeData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public static function CurrentPostType(string $dataClass = PostTypeData::class): ?PostTypeData
 	{
+		DataClass::Validate($dataClass, PostTypeData::class);
 		$name = MainQueryAdapter::PostTypeName();
-		return $name !== null ? self::PostTypeFromName($name) : null;
+		return $name !== null ? self::PostTypeFromName($name, $dataClass) : null;
 	}
 
-	public static function PostTypeFromName(string $name): ?PostTypeData
+	/**
+	 * @template TData of PostTypeData = PostTypeData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public static function PostTypeFromName(string $name, string $dataClass = PostTypeData::class): ?PostTypeData
 	{
+		DataClass::Validate($dataClass, PostTypeData::class);
 		if ($name === '')
 		{return null;}
 		$postType = \get_post_type_object($name);
 		return $postType instanceof \WP_Post_Type
-			? self::PostTypeFromWp($postType)
+			? $dataClass::From($postType)
 			: null;
 	}
 
-	public static function TaxonomyFromName(string $name): ?TaxonomyData
+	/**
+	 * @template TData of TaxonomyData = TaxonomyData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public static function TaxonomyFromName(string $name, string $dataClass = TaxonomyData::class): ?TaxonomyData
 	{
+		DataClass::Validate($dataClass, TaxonomyData::class);
 		if ($name === '')
 		{return null;}
 		$taxonomy = \get_taxonomy($name);
 		return $taxonomy instanceof \WP_Taxonomy
-			? self::TaxonomyFromWp($taxonomy)
+			? $dataClass::From($taxonomy)
 			: null;
 	}
 
 	public static function PostTypeFromWp(\WP_Post_Type $postType): PostTypeData
 	{
-		return new PostTypeData(self::PostTypePropsFromWp($postType));
+		return PostTypeData::From($postType);
 	}
 
 	public static function TaxonomyFromWp(\WP_Taxonomy $taxonomy): TaxonomyData
 	{
-		return new TaxonomyData(self::TaxonomyPropsFromWp($taxonomy));
+		return TaxonomyData::From($taxonomy);
 	}
 
 	public static function PostTypePropsFromWp(\WP_Post_Type $postType): PostTypeProps

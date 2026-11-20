@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 // WordPress APIスタブ。DBや実際のタクソノミー登録は変更しない。
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\TermProps;
@@ -31,7 +32,7 @@ class WP_Taxonomy
 	public bool $hierarchical = true;
 	public function __construct(public string $name) {}
 }
-class ProjectTerm extends TermData {}
+class ProjectTerm extends TermData { use TestTermProps; }
 function get_term_link(WP_Term $term): string { return '/area/' . $term->slug . '/'; }
 function is_wp_error(mixed $value): bool { return false; }
 function get_taxonomy(string $name): mixed {
@@ -45,20 +46,20 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	{throw new RuntimeException($label);}
 	$checks++;
 };
-$plain = new TermData(new TermProps(1, '分類', 'sample', TaxonomyName: 'area', Url: '/'));
+$plain = TestTermData::FromProps(new TermProps(1, '分類', 'sample', TaxonomyName: 'area', Url: '/'));
 $check($plain->TaxonomyName === 'area' && $plain->GetTaxonomy() === null, '直接構築は登録名だけでも利用可能');
 $check(! property_exists($plain, 'Taxonomy'), '旧Taxonomyプロパティを残さない');
 $check((new ReflectionProperty(TermData::class, 'TaxonomyName'))->isReadOnly(), '登録名はreadonly');
 $props = new TermProps(1, '分類', 'sample', 'area', '/');
-$direct = new ProjectTerm($props);
+$direct = ProjectTerm::FromProps($props);
 $props->TaxonomyName = 'changed';
 $check($direct->TaxonomyName === 'area', '構築時に登録名をコピー');
-$empty = new TermData(new TermProps(1, '', '', '', '/'));
+$empty = TestTermData::FromProps(new TermProps(1, '', '', '', '/'));
 $check($empty->GetTaxonomy() === null, '空の登録名では取得しない');
 $GLOBALS['taxonomyRequests'] = [];
 $GLOBALS['taxonomies'] = ['area' => new WP_Taxonomy('area')];
 $native = new WP_Term();
-$data = TermGet::From($native);
+$data = \WpTypeSafety\Wp\Data\TermData::From($native);
 $check($data instanceof TermData && $GLOBALS['taxonomyRequests'] === [], 'WordPressタームのData化でも定義取得は遅延');
 $definition = $data->GetTaxonomy();
 $check($definition instanceof TaxonomyData && $definition->Name === 'area', '登録定義をTaxonomyDataへ変換');
@@ -71,14 +72,15 @@ $GLOBALS['taxonomies']['area'] = new stdClass();
 $check($data->GetTaxonomy() === null, 'WordPress定義の型不一致はnull');
 $GLOBALS['taxonomies']['area'] = new WP_Taxonomy('area');
 $check($data->GetTaxonomy() instanceof TaxonomyData, '再登録後は新しい定義を取得できる');
-$changed = TermGet::Props($native);
+$changed = \WpTypeSafety\Wp\Internal\TermAdapter::PropsFromWpTerm($native);
 $changed->TaxonomyName = 'other';
 $GLOBALS['taxonomies']['other'] = new WP_Taxonomy('other');
-$derived = new ProjectTerm($changed);
+$derived = ProjectTerm::FromProps($changed);
 $check($derived->GetTaxonomy()?->Name === 'other', 'Membersの調整後の登録名で遅延取得');
 class CustomTerm extends TermData
 {
+	use TestTermProps;
 	public function GetTaxonomy(): ?TaxonomyData { return null; }
 }
-$check((new CustomTerm($changed))->GetTaxonomy() === null, 'Getterを直接上書きできる');
+$check((CustomTerm::FromProps($changed))->GetTaxonomy() === null, 'Getterを直接上書きできる');
 echo "Term taxonomy: {$checks} checks passed.\n";

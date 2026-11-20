@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
-use WpTypeSafety\Wp\Get\TermGet;
 use WpTypeSafety\Wp\Internal\TermAdapter;
 use WpTypeSafety\Wp\Internal\DefinitionAdapter;
 
@@ -18,7 +17,7 @@ class TermData
 	public readonly int $ParentId;
 	public readonly string $Description;
 
-	public function __construct(TermProps $props)
+	final protected function __construct(TermProps $props)
 	{
 		$this->Id = $props->Id;
 		$this->Name = $props->Name;
@@ -27,6 +26,25 @@ class TermData
 		$this->Url = $props->Url;
 		$this->ParentId = $props->ParentId;
 		$this->Description = $props->Description;
+	}
+
+	final public static function From(\WP_Term $term): ?static
+	{
+		$props = static::getProps($term);
+		if ($props === null)
+		{return null;}
+		$data = new static($props);
+		$data->initialize($term);
+		return $data;
+	}
+
+	protected static function getProps(\WP_Term $term): ?TermProps
+	{
+		return TermAdapter::PropsFromWpTerm($term);
+	}
+
+	protected function initialize(\WP_Term $term): void
+	{
 	}
 
 	/** 登録定義を遅延取得する。空の登録名・未登録時はnull。 */
@@ -59,6 +77,6 @@ class TermData
 	protected function createRelatedTerm(\WP_Term $term): ?TermData
 	{
 		// @phpstan-ignore return.type (既定型はTermData。別のTRelatedTermを宣言する派生クラスは上書きする。)
-		return TermGet::From($term);
+		return TermData::From($term);
 	}
 }

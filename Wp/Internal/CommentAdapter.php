@@ -13,6 +13,22 @@ final class CommentAdapter
 	private function __construct() {}
 
 	/**
+	 * @template TComment of CommentData = CommentData
+	 * @param class-string<TComment> $dataClass
+	 * @return TComment|null
+	 */
+	public static function ById(int $commentId, int $avatarSize = 96, string $dataClass = CommentData::class): ?CommentData
+	{
+		DataClass::Validate($dataClass, CommentData::class);
+		if ($commentId <= 0)
+		{return null;}
+		$comment = \get_comment($commentId);
+		if (!$comment instanceof \WP_Comment)
+		{return null;}
+		return $dataClass::From($comment, $avatarSize);
+	}
+
+	/**
 	 * @template TComment of CommentData
 	 * @param \Closure(\WP_Comment): (TComment|null) $createRelatedComment
 	 * @return TComment|null

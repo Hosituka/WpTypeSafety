@@ -97,9 +97,13 @@ Core、WordPress meta、対象別Get、Queryの入口も利用できます。[�
 
 現在の表示対象は`PostGet::Current()`・`TermGet::Current()`、ループ中の投稿は`PostGet::Loop()`、ログインユーザーは`UserGet::LoggedIn()`からDataとして取得できます。[コンテキストからの取得](docs/wordpress.md#現在の表示対象ループ投稿ログインユーザー)も参照してください。
 
-案件固有のDataは`PostGet::Props($post)`などで共通値を受け取り、派生クラスで追加の値やメソッドを定義できます。共通値は`readonly`で保持され、派生クラスの追加状態は必要に応じて変更できます。関連投稿・ターム・コメントの生成方法はprotectedフック、個別の取得方法はGetterの上書きで変更します。[Dataと派生クラス](docs/data.md)に手順と型の契約をまとめています。
+投稿は`PostData::From($post)`または継承した`ProjectPostData::From($post)`で生成します。PostDataは`final public static From(WP_Post): static`と`final protected __construct(PostProps)`で生成手順を固定します。共通値は`protected static getProps()`、追加プロパティは`protected initialize()`で設定し、後者は最初に`parent::initialize($post)`を呼びます。Term/User/Comment/Menu/登録定義Dataも同じ生成ライフサイクルで、外部new・Get::From/Propsは廃止しました。共通値は`readonly`、追加状態の可変性は案件側で選べます。関連生成フック・Getterの上書きも維持します。[Dataと派生クラス](docs/data.md)を参照してください。
 
 投稿タイプ・タクソノミーの登録定義は、`PostTypeGet`・`TaxonomyGet`から取得できます。[定義情報の取得API](docs/wordpress.md#投稿タイプタクソノミーの登録定義)を参照してください。
+
+投稿・ターム・ユーザー・コメントは各`ById()`で単体取得できます。投稿は`ByPath()`、タームは`BySlug(taxonomy, slug)`、ユーザーは`BySlug()`・`ByEmail()`・`ByLogin()`も使用できます。PostGet・PostQuery・MainQueryGet::Current()・AcfGet::Post()/Posts()は`dataClass: ProjectPostData::class`（`class-string<T>`、既定値`PostData::class`）で派生型を指定し、他のWordPress DataのGet・Query・ACF参照もclass-string方式です。未知・別系統・abstractな投稿クラスは検索前に`InvalidArgumentException`、投稿の未発見は従来どおり`null`または空リストです。[単体取得API](docs/wordpress.md#識別子からの単体取得)を参照してください。旧`PostGet::FromId()`は`ById()`へ改名しました。
+
+クラシックメニューは`MenuGet::ByLocation()`・`ById()`・`BySlug()`から取得できます。`MenuData`が定義情報とルートノードを保持し、`FindBy*()`・`PathTo*()`・`FindCurrent()`で取得済みツリーを探索します。セットアップ済み項目の変換はMenuNodeData::Fromへ集約し、派生MenuDataのgetNodeClassでノード型を決めます。[メニューAPI](docs/wordpress.md#wordpressメニュー)を参照してください。
 
 ## WpTypeSafety DataとWordPressネイティブ型を選ぶ
 

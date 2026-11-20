@@ -18,7 +18,7 @@ class PostTypeData
 	public readonly bool $HasArchive;
 	public readonly string $ArchiveUrl;
 
-	public function __construct(PostTypeProps $props)
+	final protected function __construct(PostTypeProps $props)
 	{
 		$this->Name = $props->Name;
 		$this->Label = $props->Label;
@@ -29,6 +29,23 @@ class PostTypeData
 		$this->IsHierarchical = $props->IsHierarchical;
 		$this->HasArchive = $props->HasArchive;
 		$this->ArchiveUrl = $props->ArchiveUrl;
+	}
+
+	final public static function From(\WP_Post_Type $postType): static
+	{
+		$props = static::getProps($postType);
+		$data = new static($props);
+		$data->initialize($postType);
+		return $data;
+	}
+
+	protected static function getProps(\WP_Post_Type $postType): PostTypeProps
+	{
+		return DefinitionAdapter::PostTypePropsFromWp($postType);
+	}
+
+	protected function initialize(\WP_Post_Type $postType): void
+	{
 	}
 
 	/** @return list<string> 呼び出すたびに関連タクソノミー名を取得する。 */

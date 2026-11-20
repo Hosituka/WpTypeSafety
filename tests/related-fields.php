@@ -6,6 +6,8 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/data-props.php';
+require_once __DIR__ . '/fixtures/post-props.php';
 
 use WpTypeSafety\Acf\Get\AcfGet;
 use WpTypeSafety\Acf\Internal\AcfAdapter;
@@ -71,7 +73,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	{
 		$id = $this->GetRaw($fieldName, $source);
 		return is_int($id) && $id > 0
-			? new PostData(new PostProps(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''))
+			? TestPostData::FromProps(new PostProps(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''))
 			: null;
 	}
 
@@ -81,7 +83,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new PostData(new PostProps(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''));
+				$result[] = TestPostData::FromProps(new PostProps(Id: $id, Url: '/post/' . $id, Title: 'Post ' . $id, RawContent: ''));
 			}
 		}
 		return $result;
@@ -91,7 +93,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	{
 		$id = $this->GetRaw($fieldName, $source);
 		return is_int($id) && $id > 0
-			? new TermData(new TermProps($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id))
+			? TestTermData::FromProps(new TermProps($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id))
 			: null;
 	}
 
@@ -101,7 +103,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new TermData(new TermProps($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id));
+				$result[] = TestTermData::FromProps(new TermProps($id, 'Term ' . $id, 'term-' . $id, 'category', '/term/' . $id));
 			}
 		}
 		return $result;
@@ -114,7 +116,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 	): ?WpUserData {
 		($this->avatarSizeRecorder)($avatarSize);
 		$id = $this->GetRaw($fieldName, $source);
-		return is_int($id) && $id > 0 ? new WpUserData(new UserProps($id, 'User ' . $id)) : null;
+		return is_int($id) && $id > 0 ? TestUserData::FromProps(new UserProps($id, 'User ' . $id)) : null;
 	}
 
 	/** @return list<WpUserData> */
@@ -127,7 +129,7 @@ final class ProjectAcfAdapter extends AcfAdapter
 		$result = [];
 		foreach ($this->GetArray($fieldName, $source) as $id) {
 			if (is_int($id) && $id > 0) {
-				$result[] = new WpUserData(new UserProps($id, 'User ' . $id));
+				$result[] = TestUserData::FromProps(new UserProps($id, 'User ' . $id));
 			}
 		}
 		return $result;

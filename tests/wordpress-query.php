@@ -213,10 +213,30 @@ use WpTypeSafety\Wp\Data\TermProps;
 use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 
-class ProjectQueryPostData extends PostData {}
+class ProjectQueryPostData extends PostData
+{
+	protected static function getProps(WP_Post $post): PostProps
+	{
+		return new PostProps($post->ID, 'https://example.com/project/' . $post->ID . '/', '案件投稿' . $post->ID, '');
+	}
+}
 class ProjectQueryTermData extends TermData {}
-class ProjectQueryUserData extends WpUserData {}
-class ProjectQueryCommentData extends CommentData {}
+class ProjectQueryUserData extends WpUserData
+{
+	protected function initialize(WP_User $source, int $avatarSize = 96): void
+	{
+		parent::initialize($source, $avatarSize);
+		$GLOBALS['queryUserAvatarSizes'][] = $avatarSize;
+	}
+}
+class ProjectQueryCommentData extends CommentData
+{
+	protected function initialize(WP_Comment $source, int $avatarSize = 96): void
+	{
+		parent::initialize($source, $avatarSize);
+		$GLOBALS['queryCommentAvatarSizes'][] = $avatarSize;
+	}
+}
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -245,14 +265,7 @@ $check(($GLOBALS['postQueryArgs'][0]['post_type'] ?? null) === 'staff', '投稿�
 
 $derivedPostResult = PostQuery::Get(
 	['_results' => [new WP_Post(12)]],
-	postFactory: static fn (WP_Post $post): ProjectQueryPostData => new ProjectQueryPostData(
-		new PostProps(
-			Id: $post->ID,
-			Url: 'https://example.com/project/' . $post->ID . '/',
-			Title: '案件投稿' . $post->ID,
-			RawContent: '',
-		),
-	),
+	dataClass: ProjectQueryPostData::class,
 );
 $check($derivedPostResult->Posts[0] instanceof ProjectQueryPostData, '投稿生成処理で派生PostDataを返す');
 
@@ -269,15 +282,7 @@ $check(($GLOBALS['termQueryArgs'][0]['taxonomy'] ?? null) === 'area', 'ターム
 
 $derivedTermResult = TermQuery::Get(
 	['_results' => [new WP_Term(4, '藤沢市', 'fujisawa', 'area')]],
-	termFactory: static fn (WP_Term $term): ProjectQueryTermData => new ProjectQueryTermData(
-		new TermProps(
-			Id: $term->term_id,
-			Name: $term->name,
-			Slug: $term->slug,
-			TaxonomyName: $term->taxonomy,
-			Url: 'https://example.com/area/' . $term->slug . '/',
-		),
-	),
+	dataClass: ProjectQueryTermData::class,
 );
 $check($derivedTermResult->Terms[0] instanceof ProjectQueryTermData, 'ターム生成処理で派生TermDataを返す');
 
@@ -297,16 +302,7 @@ $queryUserAvatarSizes = [];
 $derivedUserResult = UserQuery::Get(
 	['_results' => [new WP_User(6, '案件利用者')]],
 	avatarSize: 144,
-	userFactory: static function (WP_User $user, int $avatarSize) use (&$queryUserAvatarSizes): ProjectQueryUserData {
-		$queryUserAvatarSizes[] = $avatarSize;
-		return new ProjectQueryUserData(
-			new UserProps(
-				Id: $user->ID,
-				DisplayName: $user->display_name,
-				AvatarSize: $avatarSize,
-			),
-		);
-	},
+	dataClass: ProjectQueryUserData::class,
 );
 $check($derivedUserResult->Users[0] instanceof ProjectQueryUserData, 'ユーザー生成処理で派生WpUserDataを返す');
 $check($queryUserAvatarSizes === [144], 'ユーザー生成処理へアバター寸法を渡す');
@@ -329,24 +325,7 @@ $queryCommentAvatarSizes = [];
 $derivedCommentResult = CommentQuery::Get(
 	['_results' => [new WP_Comment(12, 10)]],
 	avatarSize: 128,
-	commentFactory: static function (WP_Comment $comment, int $avatarSize) use (&$queryCommentAvatarSizes): ProjectQueryCommentData {
-		$queryCommentAvatarSizes[] = $avatarSize;
-		return new ProjectQueryCommentData(
-			new CommentProps(
-				Id: $comment->comment_ID,
-				PostId: $comment->comment_post_ID,
-				ParentId: $comment->comment_parent,
-				AuthorUserId: $comment->user_id,
-				AuthorName: $comment->comment_author,
-				WebsiteUrl: '',
-				Url: 'https://example.com/#comment-' . $comment->comment_ID,
-				Content: $comment->comment_content,
-				Type: 'comment',
-				Status: 'approved',
-				AvatarSize: $avatarSize,
-			),
-		);
-	},
+	dataClass: ProjectQueryCommentData::class,
 );
 $check($derivedCommentResult->Comments[0] instanceof ProjectQueryCommentData, 'コメント生成処理で派生CommentDataを返す');
 $check($queryCommentAvatarSizes === [128], 'コメント生成処理へアバター寸法を渡す');
@@ -431,27 +410,23 @@ $check($nativeCommentResult->Comments[0]->Id === 23, '既存のWP_Comment_Query�
 $check($nativeCommentResult->TotalCount === null && $nativeCommentResult->MaxPageCount === null, 'コメントの件数計算無効をnullで表す');
 
 foreach ([
-	static fn () => PostQuery::Get(
-		['_results' => [new WP_Post(30)]],
-		postFactory: static fn (WP_Post $post): mixed => null,
-	),
 	static fn () => TermQuery::Get(
 		['_results' => [new WP_Term(31, '不正', 'invalid')]],
-		termFactory: static fn (WP_Term $term): mixed => null,
+		dataClass: stdClass::class,
 	),
 	static fn () => UserQuery::Get(
 		['_results' => [new WP_User(32)]],
-		userFactory: static fn (WP_User $user, int $avatarSize): mixed => null,
+		dataClass: stdClass::class,
 	),
 	static fn () => CommentQuery::Get(
 		['_results' => [new WP_Comment(33)]],
-		commentFactory: static fn (WP_Comment $comment, int $avatarSize): mixed => null,
+		dataClass: stdClass::class,
 	),
 ] as $invalidFactory) {
 	try {
 		$invalidFactory();
 		throw new RuntimeException('Queryの生成処理がnullを返せた');
-	} catch (UnexpectedValueException) {
+	} catch (InvalidArgumentException) {
 		$check(true, 'Queryの生成処理は対応するDataを必ず返す');
 	}
 }
@@ -482,5 +457,16 @@ $directCommentResult = new \WpTypeSafety\Wp\Data\CommentQueryData(
 	CurrentPageNumber: 1,
 );
 $check(! $directCommentResult->HasComments(), 'CommentQueryDataで不明な件数を保持できる');
+
+class ExcludedQueryTerm extends TermData
+{
+	protected static function getProps(WP_Term $term): ?TermProps { return null; }
+}
+class ExcludedQueryUser extends WpUserData
+{
+	protected static function getProps(WP_User $user, int $avatarSize = 96): ?UserProps { return null; }
+}
+$check(TermQuery::Get(['_results' => [new WP_Term(40, 'excluded', 'excluded')]], ExcludedQueryTerm::class)->Terms === [], 'Termのnull生成はリストから除外');
+$check(UserQuery::Get(['_results' => [new WP_User(40)]], dataClass: ExcludedQueryUser::class)->Users === [], 'Userのnull生成はリストから除外');
 
 echo "WordPress query: {$checks} checks passed.\n";

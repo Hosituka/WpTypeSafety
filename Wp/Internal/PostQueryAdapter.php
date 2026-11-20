@@ -12,26 +12,28 @@ final class PostQueryAdapter
 	private function __construct() {}
 
 	/**
-	 * @template TPost of PostData
+	 * @template TPost of PostData = PostData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostQueryData<PostData> : PostQueryData<TPost>)
+	 * @param class-string<TPost> $dataClass
+	 * @return PostQueryData<TPost>
 	 */
-	public static function Get(array $args, ?\Closure $postFactory = null): PostQueryData
+	public static function Get(array $args, string $dataClass = PostData::class): PostQueryData
 	{
+		DataClass::Validate($dataClass, PostData::class);
 		$query = new \WP_Query();
 		$query->query($args);
 
-		return self::From($query, $postFactory);
+		return self::From($query, $dataClass);
 	}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostQueryData<PostData> : PostQueryData<TPost>)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return PostQueryData<TPost>
 	 */
-	public static function From(\WP_Query $query, ?\Closure $postFactory = null): PostQueryData
+	public static function From(\WP_Query $query, string $dataClass = PostData::class): PostQueryData
 	{
+		DataClass::Validate($dataClass, PostData::class);
 		$fields = $query->get('fields');
 		if ($fields === 'ids' || $fields === 'id=>parent') {
 			throw new \InvalidArgumentException(
@@ -44,13 +46,7 @@ final class PostQueryAdapter
 			if (! $post instanceof \WP_Post) {
 				throw new \UnexpectedValueException('WP_Queryの結果にWP_Post以外の値が含まれています。');
 			}
-			$data = $postFactory !== null
-				? $postFactory($post)
-				: DtoFactory::PostFromWpPost($post);
-			if (! $data instanceof PostData) {
-				throw new \UnexpectedValueException('PostQueryのpostFactoryはPostDataを返す必要があります。');
-			}
-			$posts[] = $data;
+			$posts[] = $dataClass::From($post);
 		}
 
 		$hasTotal = ! (bool) $query->get('no_found_rows');

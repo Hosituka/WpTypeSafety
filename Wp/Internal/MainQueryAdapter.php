@@ -12,13 +12,14 @@ final class MainQueryAdapter
 	private function __construct() {}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostQueryData<PostData> : PostQueryData<TPost>)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return PostQueryData<TPost>
 	 */
-	public static function Current(?\Closure $postFactory = null): PostQueryData
+	public static function Current(string $dataClass = PostData::class): PostQueryData
 	{
-		$result = PostQueryAdapter::From(self::mainQuery(), $postFactory);
+		DataClass::Validate($dataClass, PostData::class);
+		$result = PostQueryAdapter::From(self::mainQuery(), $dataClass);
 
 		return new PostQueryData(
 			Posts: $result->Posts,

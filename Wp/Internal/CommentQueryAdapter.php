@@ -12,34 +12,36 @@ final class CommentQueryAdapter
 	private function __construct() {}
 
 	/**
-	 * @template TComment of CommentData
+	 * @template TComment of CommentData = CommentData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_Comment, int): TComment $commentFactory
-	 * @return ($commentFactory is null ? CommentQueryData<CommentData> : CommentQueryData<TComment>)
+	 * @param class-string<TComment> $dataClass
+	 * @return CommentQueryData<TComment>
 	 */
 	public static function Get(
 		array $args,
 		int $avatarSize,
-		?\Closure $commentFactory = null,
+		string $dataClass = CommentData::class,
 	): CommentQueryData
 	{
+		DataClass::Validate($dataClass, CommentData::class);
 		$query = new \WP_Comment_Query();
 		$query->query($args);
 
-		return self::From($query, $avatarSize, $commentFactory);
+		return self::From($query, $avatarSize, $dataClass);
 	}
 
 	/**
-	 * @template TComment of CommentData
-	 * @param null|\Closure(\WP_Comment, int): TComment $commentFactory
-	 * @return ($commentFactory is null ? CommentQueryData<CommentData> : CommentQueryData<TComment>)
+	 * @template TComment of CommentData = CommentData
+	 * @param class-string<TComment> $dataClass
+	 * @return CommentQueryData<TComment>
 	 */
 	public static function From(
 		\WP_Comment_Query $query,
 		int $avatarSize,
-		?\Closure $commentFactory = null,
+		string $dataClass = CommentData::class,
 	): CommentQueryData
 	{
+		DataClass::Validate($dataClass, CommentData::class);
 		$queryVars = is_array($query->query_vars) ? $query->query_vars : [];
 		$fields = $queryVars['fields'] ?? '';
 		if (($queryVars['count'] ?? false) || ($fields !== '' && $fields !== 'all')) {
@@ -53,12 +55,7 @@ final class CommentQueryAdapter
 			if (! $comment instanceof \WP_Comment) {
 				throw new \UnexpectedValueException('WP_Comment_Queryの結果にWP_Comment以外の値が含まれています。');
 			}
-			$data = $commentFactory !== null
-				? $commentFactory($comment, $avatarSize)
-				: DtoFactory::CommentFromWpComment($comment, $avatarSize);
-			if (! $data instanceof CommentData) {
-				throw new \UnexpectedValueException('CommentQueryのcommentFactoryはCommentDataを返す必要があります。');
-			}
+			$data = $dataClass::From($comment, $avatarSize);
 			$comments[] = $data;
 		}
 

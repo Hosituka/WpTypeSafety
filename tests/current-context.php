@@ -33,8 +33,22 @@ class WP_Query
 	public function __construct(public ?object $object = null) {}
 	public function get_queried_object(): ?object { return $this->object; }
 }
-class ProjectPost extends PostData {}
-class ProjectUser extends WpUserData {}
+class ProjectPost extends PostData
+{
+	protected function initialize(WP_Post $post): void { $GLOBALS['postCalls']++; }
+}
+class ThrowingContextPost extends PostData
+{
+	protected function initialize(WP_Post $post): void { throw $GLOBALS['contextError']; }
+}
+class ProjectUser extends WpUserData
+{
+	protected function initialize(WP_User $user, int $avatarSize = 96): void { $GLOBALS['userCalls']++; }
+}
+class ThrowingContextUser extends WpUserData
+{
+	protected function initialize(WP_User $user, int $avatarSize = 96): void { throw $GLOBALS['contextError']; }
+}
 
 function get_permalink(WP_Post $post): string { return 'https://example.com/' . $post->ID . '/'; }
 function get_post_datetime(WP_Post $post, string $field = 'date'): false { return false; }
@@ -58,38 +72,35 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 $postCalls = 0;
-$postFactory = static function (WP_Post $post) use (&$postCalls): ProjectPost {
-	$postCalls++;
-	return new ProjectPost(PostGet::Props($post));
-};
+$postClass = ProjectPost::class;
 unset($GLOBALS['wp_the_query'], $GLOBALS['post']);
-$check(PostGet::Current($postFactory) === null && PostGet::Loop($postFactory) === null && $postCalls === 0, '取得元なしではFactory未実行');
+$check(PostGet::Current($postClass) === null && PostGet::Loop($postClass) === null && $postCalls === 0, '取得元なしでは生成未実行');
 $main = new WP_Query(new WP_Post(10));
 $GLOBALS['wp_the_query'] = $main;
 $GLOBALS['wp_query'] = new WP_Query(new WP_Post(999));
 $GLOBALS['post'] = new WP_Post(20);
 $check(PostGet::Current()?->Id === 10, '表示対象は元のメインクエリ');
 $check(PostGet::Loop()?->Id === 20, 'ループはグローバルpost');
-$check(PostGet::Current($postFactory) instanceof ProjectPost && $postCalls === 1, 'Currentで派生Data生成を一度実行');
-$check(PostGet::Loop($postFactory) instanceof ProjectPost && $postCalls === 2, 'Loopで派生Data生成を一度実行');
+$check(PostGet::Current($postClass) instanceof ProjectPost && $postCalls === 1, 'Currentで派生Data生成を一度実行');
+$check(PostGet::Loop($postClass) instanceof ProjectPost && $postCalls === 2, 'Loopで派生Data生成を一度実行');
 $GLOBALS['post'] = new WP_Post(30);
 $check(PostGet::Current()?->Id === 10 && PostGet::Loop()?->Id === 30, '独自ループで表示対象は変化しない');
 foreach ([null, new WP_Term(), new WP_User(1), new stdClass()] as $object) {
 	$main->object = $object;
-	$check(PostGet::Current($postFactory) === null && $postCalls === 2, '投稿以外の表示対象はnull');
+	$check(PostGet::Current($postClass) === null && $postCalls === 2, '投稿以外の表示対象はnull');
 }
 foreach ([null, 123, 'post', [], new stdClass()] as $object) {
 	$GLOBALS['post'] = $object;
-	$check(PostGet::Loop($postFactory) === null && $postCalls === 2, 'postの型不一致はnull');
+	$check(PostGet::Loop($postClass) === null && $postCalls === 2, 'postの型不一致はnull');
 }
 $main->object = new WP_Post(10);
 $GLOBALS['post'] = new WP_Post(20);
 foreach (['Current', 'Loop'] as $method) {
-	foreach ([null, new stdClass()] as $bad) {
+	foreach (['', 'MissingPostClass', stdClass::class] as $bad) {
 		try {
-			PostGet::$method(static fn () => $bad);
-			throw new RuntimeException('不正なpostFactoryを受け入れた');
-		} catch (UnexpectedValueException) {
+			PostGet::$method($bad);
+			throw new RuntimeException('不正なdataClassを受け入れた');
+		} catch (InvalidArgumentException) {
 			$checks++;
 		}
 	}
@@ -101,11 +112,8 @@ $GLOBALS['wp_the_query'] = $main;
 $GLOBALS['currentUserCalls'] = 0;
 $GLOBALS['loggedInUser'] = new WP_User(0);
 $userCalls = 0;
-$userFactory = static function (WP_User $user, int $avatarSize) use (&$userCalls): ProjectUser {
-	$userCalls++;
-	return new ProjectUser(UserGet::Props($user, $avatarSize));
-};
-$check(UserGet::LoggedIn(userFactory: $userFactory) === null && $userCalls === 0, '未ログインではFactory未実行');
+$userFactory = ProjectUser::class;
+$check(UserGet::LoggedIn(dataClass: $userFactory) === null && $userCalls === 0, '未ログインではFactory未実行');
 $GLOBALS['loggedInUser'] = new WP_User(7);
 $user = UserGet::LoggedIn();
 $check($user instanceof WpUserData && $user->Id === 7, 'ログインユーザーをData化');
@@ -119,17 +127,18 @@ $check($GLOBALS['avatarSizes'] === [96, 64], '指定サイズをFactoryへ渡す
 $check($GLOBALS['currentUserCalls'] === 3, '各呼び出しでユーザーを一度取得');
 foreach ([null, new stdClass()] as $bad) {
 	try {
-		UserGet::LoggedIn(userFactory: static fn () => $bad);
+		UserGet::LoggedIn(dataClass: stdClass::class);
 		throw new RuntimeException('不正なuserFactoryを受け入れた');
-	} catch (UnexpectedValueException) {
+	} catch (InvalidArgumentException) {
 		$checks++;
 	}
 }
 $error = new RuntimeException('factory failed');
+$GLOBALS['contextError'] = $error;
 foreach ([
-	static fn () => PostGet::Current(static fn () => throw $error),
-	static fn () => PostGet::Loop(static fn () => throw $error),
-	static fn () => UserGet::LoggedIn(userFactory: static fn () => throw $error),
+	static fn () => PostGet::Current(ThrowingContextPost::class),
+	static fn () => PostGet::Loop(ThrowingContextPost::class),
+	static fn () => UserGet::LoggedIn(dataClass: ThrowingContextUser::class),
 ] as $call) {
 	try {
 		$call();
@@ -142,11 +151,11 @@ $check($GLOBALS['wp_the_query'] === $main && $GLOBALS['post']->ID === 20 && $GLO
 $loginCalls = $GLOBALS['currentUserCalls'];
 $callsBeforeCurrent = $userCalls;
 unset($GLOBALS['wp_the_query']);
-$check(UserGet::Current(userFactory: $userFactory) === null, 'メインクエリ未設定ではCurrent Userはnull');
+$check(UserGet::Current(dataClass: $userFactory) === null, 'メインクエリ未設定ではCurrent Userはnull');
 $GLOBALS['wp_the_query'] = $main;
 foreach ([null, new WP_Post(10), new WP_Term(), new stdClass(), new WP_User(0)] as $object) {
 	$main->object = $object;
-	$check(UserGet::Current(userFactory: $userFactory) === null, '著者以外・無効ユーザーではnull');
+	$check(UserGet::Current(dataClass: $userFactory) === null, '著者以外・無効ユーザーではnull');
 }
 $check($userCalls === $callsBeforeCurrent, '著者以外ではFactory未実行');
 $main->object = new WP_User(42);
@@ -165,14 +174,14 @@ $check($userCalls === $callsBeforeCurrent + 2, 'CurrentのDataをキャッシュ
 $check($GLOBALS['currentUserCalls'] === $loginCalls, 'Currentはログインユーザーを参照しない');
 foreach ([null, new stdClass()] as $bad) {
 	try {
-		UserGet::Current(userFactory: static fn () => $bad);
+		UserGet::Current(dataClass: stdClass::class);
 		throw new RuntimeException('不正なCurrent User Factoryを受け入れた');
-	} catch (UnexpectedValueException) {
+	} catch (InvalidArgumentException) {
 		$checks++;
 	}
 }
 try {
-	UserGet::Current(userFactory: static fn () => throw $error);
+	UserGet::Current(dataClass: ThrowingContextUser::class);
 	throw new LogicException('Current Userの例外を握りつぶした');
 } catch (RuntimeException $caught) {
 	$check($caught === $error, 'Current UserのFactory例外を伝播');

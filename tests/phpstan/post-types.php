@@ -15,7 +15,7 @@ class Article extends PostData
 {
 	protected function createRelatedPost(\WP_Post $post): ?self
 	{
-		return new self(PostGet::Props($post));
+		return self::From($post);
 	}
 	public function GetAuthor(): ?Author { return null; }
 }
@@ -29,19 +29,25 @@ function VerifyPostTypes(
 	Author $author,
 	Category $category,
 ): void {
-	$termFactory = static fn (\WP_Term $native): Category => $category;
-	$data = new Article($props);
+	$termClass = Category::class;
+	$data = Article::From($post);
 	assertType('WpTypeSafetyTests\\PostTypes\\Article', $data);
 	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', $data->GetParent());
 	assertType('list<WpTypeSafetyTests\\PostTypes\\Article>', $data->GetChildren());
 	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', $data->GetPreviousPost());
 	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', $data->GetNextPost());
 	assertType('WpTypeSafetyTests\\PostTypes\\Author|null', $data->GetAuthor());
-	assertType('list<WpTypeSafetyTests\\PostTypes\\Category>', $data->GetTerms('category', $termFactory));
+	assertType('list<WpTypeSafetyTests\\PostTypes\\Category>', $data->GetTerms('category', $termClass));
 	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', $article->GetParent());
 	assertType('WpTypeSafetyTests\\PostTypes\\Author|null', $article->GetAuthor());
-	$from = PostGet::From($post);
+	$from = PostData::From($post);
 	assertType('list<WpTypeSafety\\Wp\\Data\\PostData>', $from->GetChildren());
 	assertType('WpTypeSafety\\Wp\\Data\\WpUserData|null', $from->GetAuthor());
-	assertType('WpTypeSafety\\Wp\\Data\\PostProps', PostGet::Props($post));
+	assertType('WpTypeSafetyTests\\PostTypes\\Article', Article::From($post));
+	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', PostGet::Current(Article::class));
+	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', PostGet::Loop(Article::class));
+	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', PostGet::ById(1, Article::class));
+	assertType('WpTypeSafetyTests\\PostTypes\\Article|null', PostGet::ByPath('article', dataClass: Article::class));
+	assertType('WpTypeSafety\\Wp\\Data\\PostQueryData<WpTypeSafetyTests\\PostTypes\\Article>', \WpTypeSafety\Wp\Get\PostQuery::Get([], Article::class));
+	assertType('WpTypeSafety\\Wp\\Data\\PostQueryData<WpTypeSafetyTests\\PostTypes\\Article>', \WpTypeSafety\Wp\Get\MainQueryGet::Current(Article::class));
 }

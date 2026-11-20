@@ -8,6 +8,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 require_once __DIR__ . '/../Wp/Data/TermData.php';
 require_once __DIR__ . '/../Wp/Data/TermProps.php';
 require_once __DIR__ . '/../Wp/Internal/TermAdapter.php';
@@ -51,17 +52,19 @@ function get_terms(array $args): mixed { $GLOBALS['termChildArgs'] = $args; retu
 class ProjectTermData extends TermData
 {
 	/** @param TermProps<TRelatedTerm> $props */
-	public function __construct(TermProps $props, public readonly string $Label)
+	public readonly string $Label;
+	protected function initialize(WP_Term $term): void
 	{
-		parent::__construct($props);
+		parent::initialize($term);
+		$this->Label = '派生ターム' . $term->term_id;
 	}
 
 	/** @return ProjectTermData<ProjectTermData>|null */
 	public static function FromWpTerm(WP_Term $term): ?self
 	{
 		/** @var TermProps<ProjectTermData>|null $props */
-		$props = TermGet::Props($term);
-		return $props !== null ? new self($props, '派生ターム' . $term->term_id) : null;
+		$props = \WpTypeSafety\Wp\Internal\TermAdapter::PropsFromWpTerm($term);
+		return static::From($term);
 	}
 }
 
@@ -77,10 +80,10 @@ class RelatedTermData extends ProjectTermData
 {
 	protected function createRelatedTerm(WP_Term $term): ?ProjectTermData { return ProjectTermData::FromWpTerm($term); }
 }
-$plain = new TermData(new TermProps(2, '海老名市', 'ebina', 'area', '/area/ebina/', 1));
+$plain = TestTermData::FromProps(new TermProps(2, '海老名市', 'ebina', 'area', '/area/ebina/', 1));
 $check($plain->HasParent(), '親IDがある');
 $check($plain->GetParent() === null, '取得先が欠損ならnull');
-$root = new TermData(new TermProps(1, '神奈川県', 'kanagawa', 'area', '/'));
+$root = TestTermData::FromProps(new TermProps(1, '神奈川県', 'kanagawa', 'area', '/'));
 $check(! $root->HasParent() && $root->GetParent() === null, 'ルートは取得しない');
 
 $GLOBALS['termCalls'] = [];
@@ -89,9 +92,9 @@ $GLOBALS['termValues'] = [
 	1 => new WP_Term(1, '神奈川県', 'kanagawa'),
 ];
 $wpChild = new WP_Term(2, '海老名市', 'ebina', parent: 1);
-$termMembers = TermGet::Props($wpChild);
+$termMembers = \WpTypeSafety\Wp\Internal\TermAdapter::PropsFromWpTerm($wpChild);
 $check($termMembers instanceof TermProps && $termMembers->Id === 2, '公開FactoryからTermPropsを生成する');
-$data = TermGet::From($wpChild);
+$data = \WpTypeSafety\Wp\Data\TermData::From($wpChild);
 $check($data instanceof TermData && $GLOBALS['termCalls'] === [], '公開Factoryも親の取得は遅延する');
 $result = $data->GetParent();
 $check($result?->Id === 1 && $result->Slug === 'kanagawa', '公開Factory経由で親を取得する');
@@ -110,47 +113,49 @@ foreach ([new WP_Error(), false, []] as $url) {
 }
 unset($GLOBALS['termLinks'][1]);
 $check($data->GetParent()?->Slug === 'kanagawa', '再取得で親を取得できる');
-$rootData = TermGet::From(new WP_Term(1, '神奈川県', 'kanagawa'));
+$rootData = \WpTypeSafety\Wp\Data\TermData::From(new WP_Term(1, '神奈川県', 'kanagawa'));
 $before = count($GLOBALS['termCalls']);
 $check($rootData->GetParent() === null && count($GLOBALS['termCalls']) === $before, 'Factoryで作ったルートも親を問い合わせない');
 $GLOBALS['termLinks'][2] = new WP_Error();
-$check(TermGet::From($wpChild) === null, '元のターム変換失敗の契約を維持する');
+$check(\WpTypeSafety\Wp\Data\TermData::From($wpChild) === null, '元のターム変換失敗の契約を維持する');
 unset($GLOBALS['termLinks'][2]);
 $GLOBALS['termValues'][1] = new WP_Term(1, '神奈川県', 'kanagawa');
 $GLOBALS['termValues'][2] = $wpChild;
 $GLOBALS['termChildren'] = [new WP_Term(3, '綾瀬市', 'ayase', parent: 2)];
-$derivedTerm = new RelatedTermData(TermGet::Props($wpChild), '生成フック');
+$derivedTerm = RelatedTermData::From($wpChild);
 $check($derivedTerm?->GetParent()?->Label === '派生ターム1', '関連Factoryで親タームの派生型を維持する');
 $check($derivedTerm?->GetChildren()[0]->Label === '派生ターム3', '関連Factoryで子タームの派生型を維持する');
-$baseRelations = new ProjectTermData(TermGet::Props($wpChild), '基底関連');
+$baseRelations = ProjectTermData::From($wpChild);
 $check(
 	$baseRelations->GetParent() instanceof TermData
 	&& ! $baseRelations->GetParent() instanceof ProjectTermData,
 	'関連Factory省略時は純粋なTermDataを返す',
 );
 
-$adjusted = TermGet::Props($wpChild);
+$adjusted = \WpTypeSafety\Wp\Internal\TermAdapter::PropsFromWpTerm($wpChild);
 $adjusted->Id = 4;
 $adjusted->ParentId = 3;
 $GLOBALS['termValues'][3] = new WP_Term(3, '変更後の親', 'changed-parent');
 $GLOBALS['termValues'][4] = new WP_Term(4, '変更後の自身', 'changed-self', parent: 3);
 $GLOBALS['termChildren'] = [8 => new WP_Term(5, '子', 'child'), 9 => 'invalid'];
-$snapshot = new TermData($adjusted);
+$snapshot = TestTermData::FromProps($adjusted);
 $adjusted->Id = 99;
 $check($snapshot->GetParent()?->Id === 3, '変更した親IDで取得');
 $check($snapshot->GetChildren()[0]->Id === 5 && $GLOBALS['termChildArgs']['parent'] === 4, '変更した自身のIDで取得');
 class ExcludedTerm extends TermData
 {
+	use TestTermProps;
 	protected function createRelatedTerm(WP_Term $term): ?TermData { return null; }
 }
 class InvalidTerm extends TermData
 {
+	use TestTermProps;
 	protected function createRelatedTerm(WP_Term $term): ?TermData { return new stdClass(); }
 }
 $adjusted->Id = 4;
-$excluded = new ExcludedTerm($adjusted);
+$excluded = ExcludedTerm::FromProps($adjusted);
 $check($excluded->GetParent() === null && $excluded->GetChildren() === [], '生成フックのnullを親子双方へ適用');
-$invalid = new InvalidTerm($adjusted);
+$invalid = InvalidTerm::FromProps($adjusted);
 foreach (['GetParent', 'GetChildren'] as $method) {
 	try {
 		$invalid->$method();

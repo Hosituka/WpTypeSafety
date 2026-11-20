@@ -12,26 +12,28 @@ final class TermQueryAdapter
 	private function __construct() {}
 
 	/**
-	 * @template TTerm of TermData
+	 * @template TTerm of TermData = TermData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermQueryData<TermData> : TermQueryData<TTerm>)
+	 * @param class-string<TTerm> $dataClass
+	 * @return TermQueryData<TTerm>
 	 */
-	public static function Get(array $args, ?\Closure $termFactory = null): TermQueryData
+	public static function Get(array $args, string $dataClass = TermData::class): TermQueryData
 	{
+		DataClass::Validate($dataClass, TermData::class);
 		$query = new \WP_Term_Query();
 		$query->query($args);
 
-		return self::From($query, $termFactory);
+		return self::From($query, $dataClass);
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermQueryData<TermData> : TermQueryData<TTerm>)
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TermQueryData<TTerm>
 	 */
-	public static function From(\WP_Term_Query $query, ?\Closure $termFactory = null): TermQueryData
+	public static function From(\WP_Term_Query $query, string $dataClass = TermData::class): TermQueryData
 	{
+		DataClass::Validate($dataClass, TermData::class);
 		$fields = is_array($query->query_vars) ? ($query->query_vars['fields'] ?? 'all') : 'all';
 		if ($fields !== 'all' && $fields !== 'all_with_object_id') {
 			throw new \InvalidArgumentException(
@@ -44,12 +46,7 @@ final class TermQueryAdapter
 			if (! $term instanceof \WP_Term) {
 				throw new \UnexpectedValueException('WP_Term_Queryの結果にWP_Term以外の値が含まれています。');
 			}
-			$data = $termFactory !== null
-				? $termFactory($term)
-				: TermAdapter::FromWpTerm($term);
-			if ($termFactory !== null && ! $data instanceof TermData) {
-				throw new \UnexpectedValueException('TermQueryのtermFactoryはTermDataを返す必要があります。');
-			}
+			$data = $dataClass::From($term);
 			if ($data === null) {
 				continue;
 			}

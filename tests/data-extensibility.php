@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 // WordPress・DBなしで、共通値の不変性と派生クラスの可変状態を検証する。
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/post-props.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostProps;
@@ -22,35 +24,35 @@ use WpTypeSafety\Wp\Data\TaxonomyProps;
 
 class EditablePost extends PostData
 {
+	use TestPostProps;
 	public ?string $PendingTitle = null;
 	public readonly string $Label;
 	public int $Revision = 0;
 	private array $cache = [];
 
-	public function __construct(PostProps $props)
+	protected function initialize(WP_Post $post): void
 	{
-		parent::__construct($props);
 		$this->Label = 'fixed label';
 	}
 
 	public function Remember(string $value): void { $this->cache['value'] = $value; }
 	public function Recall(): ?string { return $this->cache['value'] ?? null; }
 }
-class EditableTerm extends TermData { public int $Revision = 0; }
-class EditableComment extends CommentData { public int $Revision = 0; }
-class EditableUser extends WpUserData { public int $Revision = 0; }
-class EditableMenuNode extends MenuNodeData { public int $Revision = 0; }
-class EditablePostType extends PostTypeData { public int $Revision = 0; }
-class EditableTaxonomy extends TaxonomyData { public int $Revision = 0; }
+class EditableTerm extends TermData { use TestTermProps; public int $Revision = 0; }
+class EditableComment extends CommentData { use TestCommentProps; public int $Revision = 0; }
+class EditableUser extends WpUserData { use TestUserProps; public int $Revision = 0; }
+class EditableMenuNode extends MenuNodeData { use TestMenuNodeProps; public int $Revision = 0; }
+class EditablePostType extends PostTypeData { use TestPostTypeProps; public int $Revision = 0; }
+class EditableTaxonomy extends TaxonomyData { use TestTaxonomyProps; public int $Revision = 0; }
 
 $cases = [
-	[new EditablePost(new PostProps(1, '/', 'title', 'raw')), 'Id', 2],
-	[new EditableTerm(new TermProps(1, 'name', 'slug', 'area', '/')), 'Id', 2],
-	[new EditableComment(new CommentProps(1, 2, 0, 0, 'guest', '', '/', 'body', 'comment', 'approved')), 'Id', 2],
-	[new EditableUser(new UserProps(1, 'name')), 'Id', 2],
-	[new EditableMenuNode(new MenuNodeProps(1, 0, 'title', '/', '', [], 0, MenuItemType::Custom, 'custom', 0)), 'Id', 2],
-	[new EditablePostType(new PostTypeProps('post', 'Posts', 'Post')), 'Name', 'other'],
-	[new EditableTaxonomy(new TaxonomyProps('category', 'Categories', 'Category')), 'Name', 'other'],
+	[EditablePost::FromProps(new PostProps(1, '/', 'title', 'raw')), 'Id', 2],
+	[EditableTerm::FromProps(new TermProps(1, 'name', 'slug', 'area', '/')), 'Id', 2],
+	[EditableComment::FromProps(new CommentProps(1, 2, 0, 0, 'guest', '', '/', 'body', 'comment', 'approved')), 'Id', 2],
+	[EditableUser::FromProps(new UserProps(1, 'name')), 'Id', 2],
+	[EditableMenuNode::FromProps(new MenuNodeProps(1, 0, 'title', '/', '', [], 0, MenuItemType::Custom, 'custom', 0)), 'Id', 2],
+	[EditablePostType::FromProps(new PostTypeProps('post', 'Posts', 'Post')), 'Name', 'other'],
+	[EditableTaxonomy::FromProps(new TaxonomyProps('category', 'Categories', 'Category')), 'Name', 'other'],
 ];
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {

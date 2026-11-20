@@ -5,7 +5,8 @@ namespace WpTypeSafety\Wp\Data;
 
 use WpTypeSafety\Core\Data\ImgData;
 use WpTypeSafety\Core\Data\LinkData;
-use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Wp\Internal\DtoFactory;
+use WpTypeSafety\Wp\Internal\DataClass;
 use WpTypeSafety\Wp\Internal\DefinitionAdapter;
 use WpTypeSafety\Wp\Internal\PostAdapter;
 use WpTypeSafety\Wp\Internal\TermAdapter;
@@ -31,7 +32,7 @@ class PostData
 	public readonly bool $IsPasswordProtected;
 	public readonly bool $IsPubliclyViewable;
 
-	public function __construct(PostProps $props)
+	final protected function __construct(PostProps $props)
 	{
 		$this->Id = $props->Id;
 		$this->ParentId = $props->ParentId;
@@ -47,6 +48,25 @@ class PostData
 		$this->Slug = $props->Slug;
 		$this->IsPasswordProtected = $props->IsPasswordProtected;
 		$this->IsPubliclyViewable = $props->IsPubliclyViewable;
+	}
+
+	/** 指定クラスの生成手順を固定する。追加値はinitializeで設定する。 */
+	final public static function From(\WP_Post $post): static
+	{
+		$props = static::getProps($post);
+		$data = new static($props);
+		$data->initialize($post);
+		return $data;
+	}
+
+	protected static function getProps(\WP_Post $post): PostProps
+	{
+		return DtoFactory::PostPropsFromWpPost($post);
+	}
+
+	/** 派生クラスは先頭でparent::initialize($post)を呼ぶ。 */
+	protected function initialize(\WP_Post $post): void
+	{
 	}
 
 	/** 登録定義を遅延取得する。空の登録名・未登録時はnull。 */
@@ -81,14 +101,15 @@ class PostData
 
 	/**
 	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 * @param class-string<TTerm> $dataClass
+	 * @return list<TTerm>
 	 */
-	public function GetTerms(string $taxonomy, ?\Closure $termFactory = null): array
+	public function GetTerms(string $taxonomy, string $dataClass = TermData::class): array
 	{
+		DataClass::Validate($dataClass, TermData::class);
 		if ($this->Id <= 0 || $taxonomy === '')
 		{return [];}
-		$terms = TermAdapter::FromPost($this->Id, $taxonomy, $termFactory);
+		$terms = TermAdapter::FromPost($this->Id, $taxonomy, $dataClass);
 		if (! array_is_list($terms)) {
 			throw new \UnexpectedValueException('GetTerms must return a list of TermData.');
 		}
@@ -182,6 +203,6 @@ class PostData
 	protected function createRelatedPost(\WP_Post $post): ?PostData
 	{
 		// @phpstan-ignore return.type (既定型はPostData。別のTRelatedPostを宣言する派生クラスはこのフックを上書きする。)
-		return PostGet::From($post);
+		return PostData::From($post);
 	}
 }

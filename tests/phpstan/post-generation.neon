@@ -1,0 +1,13 @@
+parameters:
+	level: 5
+	treatPhpDocTypesAsCertain: false
+	bootstrapFiles:
+		- ../../autoload.php
+	scanFiles:
+		- post-stubs.php
+	paths:
+		- post-generation-types.php
+		- ../../Wp/Get/PostGet.php
+		- ../../Wp/Get/PostQuery.php
+		- ../../Wp/Get/MainQueryGet.php
+		- ../../Acf/Get/AcfGet.php

@@ -12,6 +12,13 @@ use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Data\MenuNodeData;
 use WpTypeSafety\Wp\Data\MenuNodeProps;
+use WpTypeSafety\Wp\Data\MenuData;
+use WpTypeSafety\Wp\Data\MenuProps;
+use WpTypeSafety\Wp\Get\MenuGet;
+use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Wp\Get\TermGet;
+use WpTypeSafety\Wp\Get\UserGet;
+use WpTypeSafety\Wp\Get\CommentGet;
 use function PHPStan\Testing\assertType;
 
 /** @extends TermData<Category> */
@@ -30,12 +37,40 @@ class Review extends CommentData
 }
 /** @extends MenuNodeData<Node> */
 class Node extends MenuNodeData {}
-
-function Verify(Category $category, Review $review, Node $node, TermProps $term, CommentProps $comment, PostProps $post): void
+/** @extends MenuData<Node> */
+class Menu extends MenuData
 {
-	$editable = new Article($post);
+	protected static function getNodeClass(): string { return Node::class; }
+}
+
+class ThirdAuthor extends Author {}
+class SitePostType extends \WpTypeSafety\Wp\Data\PostTypeData {}
+class SiteTaxonomy extends \WpTypeSafety\Wp\Data\TaxonomyData {}
+
+function Verify(Category $category, Review $review, Node $node, TermProps $term, CommentProps $comment, \WP_Post $post): void
+{
+	$editable = Article::From($post);
 	$editable->Revision = 1;
 	$editable->Revision++;
+	assertType('WpTypeSafetyTests\\PropsTypes\\Article|null', PostGet::ById(1, Article::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Article|null', PostGet::ByPath('company/about', dataClass: Article::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Category|null', TermGet::ById(1, dataClass: Category::class));
+	$userFactory = Author::class;
+	assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', UserGet::ById(1, dataClass: $userFactory));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', UserGet::BySlug('name', dataClass: $userFactory));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', UserGet::ByEmail('user@example.com', dataClass: $userFactory));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', UserGet::ByLogin('account', dataClass: $userFactory));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Review|null', CommentGet::ById(1, dataClass: Review::class));
+	assertType('WpTypeSafety\\Wp\\Data\\PostData|null', PostGet::ById(1));
+	assertType('WpTypeSafety\\Wp\\Data\\PostData|null', PostGet::ByPath('about'));
+	assertType('WpTypeSafety\\Wp\\Data\\TermData|null', TermGet::ById(1));
+	assertType('WpTypeSafety\\Wp\\Data\\WpUserData|null', UserGet::ById(1));
+	assertType('WpTypeSafety\\Wp\\Data\\CommentData|null', CommentGet::ById(1));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Category|null', \WpTypeSafety\Wp\Get\TermGet::BySlug(
+		'category',
+		'knowledge',
+		Category::class,
+	));
 	assertType('WpTypeSafetyTests\\PropsTypes\\Category|null', $category->GetParent());
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', $category->GetChildren());
 	assertType('WpTypeSafetyTests\\PropsTypes\\Review|null', $review->GetParent());
@@ -43,10 +78,33 @@ function Verify(Category $category, Review $review, Node $node, TermProps $term,
 	assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', $review->GetUser());
 	assertType('WpTypeSafetyTests\\PropsTypes\\Article|null', $review->GetPost());
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Node>', $node->Children);
-	$props = new MenuNodeProps(1, 0, '', '', '', [], 0, \WpTypeSafety\Wp\Data\MenuItemType::Custom, '', 0, Children: [$node]);
-	$copy = new MenuNodeData($props);
-	assertType('list<WpTypeSafetyTests\\PropsTypes\\Node>', $copy->Children);
-	assertType('WpTypeSafety\\Wp\\Data\\TermData<WpTypeSafety\\Wp\\Data\\TermData>', new TermData($term));
-	assertType('WpTypeSafety\\Wp\\Data\\CommentData<WpTypeSafety\\Wp\\Data\\CommentData, WpTypeSafety\\Wp\\Data\\WpUserData, WpTypeSafety\\Wp\\Data\\PostData>', new CommentData($comment));
-	assertType('WpTypeSafety\\Wp\\Data\\PostData<WpTypeSafety\\Wp\\Data\\PostData, WpTypeSafety\\Wp\\Data\\WpUserData>', new PostData($post));
+	$copy = Node::From($post, [$node]);
+	if ($copy !== null) {
+		assertType('list<WpTypeSafetyTests\\PropsTypes\\Node>', $copy->Children);
+	}
+	$customMenu = MenuGet::ByLocation('primary', Menu::class);
+	assertType('WpTypeSafetyTests\\PropsTypes\\Menu|null', $customMenu);
+	assertType('WpTypeSafetyTests\\PropsTypes\\Menu|null', MenuGet::ById(1, Menu::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Menu|null', MenuGet::BySlug('main', Menu::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Menu|null', Menu::From(new \WP_Term()));
+	assertType('WpTypeSafety\\Wp\\Data\\MenuData|null', MenuGet::ByLocation('primary'));
+	if ($customMenu !== null) {
+		assertType('WpTypeSafetyTests\\PropsTypes\\Node|null', $customMenu->FindCurrent());
+		assertType('list<WpTypeSafetyTests\\PropsTypes\\Node>', $customMenu->PathToId(1));
+	}
+	assertType('WpTypeSafetyTests\\PropsTypes\\SitePostType|null', \WpTypeSafety\Wp\Get\PostTypeGet::FromName('post', SitePostType::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\SitePostType|null', \WpTypeSafety\Wp\Get\PostTypeGet::Current(SitePostType::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\SiteTaxonomy|null', \WpTypeSafety\Wp\Get\TaxonomyGet::FromName('category', SiteTaxonomy::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\ThirdAuthor|null', ThirdAuthor::From(new \WP_User()));
+	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', \WpTypeSafety\Wp\Get\TermQuery::Get([], Category::class)->Terms);
+	assertType('list<WpTypeSafetyTests\\PropsTypes\\Author>', \WpTypeSafety\Wp\Get\UserQuery::Get([], dataClass: Author::class)->Users);
+	assertType('list<WpTypeSafetyTests\\PropsTypes\\Review>', \WpTypeSafety\Wp\Get\CommentQuery::Get([], dataClass: Review::class)->Comments);
+	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', TermGet::Roots([$category], Category::class));
+	$acf = new \WpTypeSafety\Acf\Get\AcfGet(1);
+	assertType('WpTypeSafetyTests\\PropsTypes\\Category|null', $acf->Term('term', Category::class));
+	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', $acf->Terms('terms', Category::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', $acf->User('user', dataClass: Author::class));
+	assertType('list<WpTypeSafetyTests\\PropsTypes\\Author>', $acf->Users('users', dataClass: Author::class));
+
+	assertType('WpTypeSafety\\Wp\\Data\\PostData', PostData::From($post));
 }

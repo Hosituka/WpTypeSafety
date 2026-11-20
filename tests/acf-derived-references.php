@@ -40,9 +40,32 @@ use WpTypeSafety\Wp\Data\TermProps;
 use WpTypeSafety\Wp\Data\UserProps;
 use WpTypeSafety\Wp\Data\WpUserData;
 
-class ProjectAcfPostData extends PostData {}
-class ProjectAcfTermData extends TermData {}
-class ProjectAcfUserData extends WpUserData {}
+class ProjectAcfPostData extends PostData
+{
+	protected static function getProps(WP_Post $post): PostProps
+	{
+		return new PostProps($post->ID, '/post/' . $post->ID, '投稿' . $post->ID, '');
+	}
+}
+class ThrowingAcfPostData extends ProjectAcfPostData
+{
+	protected function initialize(WP_Post $post): void { throw $GLOBALS['acfPostError']; }
+}
+class ProjectAcfTermData extends TermData
+{
+	protected static function getProps(WP_Term $term): ?TermProps
+	{
+		return new TermProps($term->term_id, $term->name, $term->slug, $term->taxonomy, '/term/' . $term->slug);
+	}
+}
+class ProjectAcfUserData extends WpUserData
+{
+	protected static function getProps(WP_User $user, int $avatarSize = 96): ?UserProps
+	{
+		$GLOBALS['factoryAvatarSizes'][] = $avatarSize;
+		return new UserProps($user->ID, $user->display_name, $avatarSize);
+	}
+}
 
 final class DerivedReferenceAdapter extends AcfAdapter
 {
@@ -105,34 +128,9 @@ $adapter = new DerivedReferenceAdapter([
 ]);
 $acfGet = new AcfGet(1, $adapter);
 
-$postFactory = static fn (WP_Post $post): ProjectAcfPostData => new ProjectAcfPostData(
-	new PostProps(
-		Id: $post->ID,
-		Url: '/post/' . $post->ID,
-		Title: '投稿' . $post->ID,
-		RawContent: '',
-	),
-);
-$termFactory = static fn (WP_Term $term): ProjectAcfTermData => new ProjectAcfTermData(
-	new TermProps(
-		Id: $term->term_id,
-		Name: $term->name,
-		Slug: $term->slug,
-		TaxonomyName: $term->taxonomy,
-		Url: '/term/' . $term->slug,
-	),
-);
+$termFactory = ProjectAcfTermData::class;
+$userFactory = ProjectAcfUserData::class;
 $factoryAvatarSizes = [];
-$userFactory = static function (WP_User $user, int $avatarSize) use (&$factoryAvatarSizes): ProjectAcfUserData {
-	$factoryAvatarSizes[] = $avatarSize;
-	return new ProjectAcfUserData(
-		new UserProps(
-			Id: $user->ID,
-			DisplayName: $user->display_name,
-			AvatarSize: $avatarSize,
-		),
-	);
-};
 
 $checks = 0;
 $check = static function (bool $ok, string $label) use (&$checks): void {
@@ -142,36 +140,63 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-$check($acfGet->Post('post', $postFactory) instanceof ProjectAcfPostData, '単一投稿で派生Dataを返す');
-$check($acfGet->Posts('posts', $postFactory)[1] instanceof ProjectAcfPostData, '複数投稿で派生Dataを返す');
+$check($acfGet->Post('post', ProjectAcfPostData::class) instanceof ProjectAcfPostData, '単一投稿で派生Dataを返す');
+$check($acfGet->Posts('posts', ProjectAcfPostData::class)[1] instanceof ProjectAcfPostData, '複数投稿で派生Dataを返す');
 $check($acfGet->Term('term', $termFactory) instanceof ProjectAcfTermData, '単一タームで派生Dataを返す');
 $check($acfGet->Terms('terms', $termFactory)[1] instanceof ProjectAcfTermData, '複数タームで派生Dataを返す');
-$check($acfGet->User('user', avatarSize: 160, userFactory: $userFactory) instanceof ProjectAcfUserData, '単一ユーザーで派生Dataを返す');
-$check($acfGet->Users('users', avatarSize: 180, userFactory: $userFactory)[1] instanceof ProjectAcfUserData, '複数ユーザーで派生Dataを返す');
+$check($acfGet->User('user', avatarSize: 160, dataClass: $userFactory) instanceof ProjectAcfUserData, '単一ユーザーで派生Dataを返す');
+$check($acfGet->Users('users', avatarSize: 180, dataClass: $userFactory)[1] instanceof ProjectAcfUserData, '複数ユーザーで派生Dataを返す');
 $check($factoryAvatarSizes === [160, 180, 180], 'ユーザーFactoryへアバター寸法を渡す');
 
-$calls = 0;
-$missing = $acfGet->Post('missing', static function (WP_Post $post) use (&$calls): ProjectAcfPostData {
-	$calls++;
-	throw new RuntimeException('欠損フィールドでFactoryが呼ばれた');
-});
-$check($missing === null && $calls === 0, '未選択の単一参照ではFactoryを呼ばない');
-$check($acfGet->Posts('missing', $postFactory) === [], '未選択の複数参照は空配列');
+$missing = $acfGet->Post('missing', ThrowingAcfPostData::class);
+$check($missing === null, '未選択の単一参照ではinitializeを呼ばない');
+$check($acfGet->Posts('missing', ThrowingAcfPostData::class) === [], '未選択の複数参照は空配列');
+
+foreach (['Post', 'Posts'] as $method) {
+	foreach (['', 'MissingAcfPostClass', stdClass::class] as $badClass) {
+		foreach (['post', 'posts', 'missing'] as $field) {
+			try {
+				$acfGet->$method($field, dataClass: $badClass);
+				throw new RuntimeException('不正なACF dataClassを受け入れた');
+			} catch (InvalidArgumentException) {
+				$checks++;
+			}
+		}
+	}
+}
+$GLOBALS['acfPostError'] = new LogicException('ACF initialize');
+foreach (['Post' => 'post', 'Posts' => 'posts'] as $method => $field) {
+	try {
+		$acfGet->$method($field, ThrowingAcfPostData::class);
+		throw new RuntimeException('initialize例外を握りつぶした');
+	} catch (LogicException $error) {
+		$check($error === $GLOBALS['acfPostError'], 'ACF投稿生成の例外をそのまま伝播');
+	}
+}
 
 foreach ([
-	static fn () => $acfGet->Post('post', static fn (WP_Post $post): mixed => null),
-	static fn () => $acfGet->Posts('posts', static fn (WP_Post $post): mixed => null),
-	static fn () => $acfGet->Term('term', static fn (WP_Term $term): mixed => null),
-	static fn () => $acfGet->Terms('terms', static fn (WP_Term $term): mixed => null),
-	static fn () => $acfGet->User('user', userFactory: static fn (WP_User $user, int $avatarSize): mixed => null),
-	static fn () => $acfGet->Users('users', userFactory: static fn (WP_User $user, int $avatarSize): mixed => null),
+	static fn () => $acfGet->Term('term', stdClass::class),
+	static fn () => $acfGet->Terms('terms', stdClass::class),
+	static fn () => $acfGet->User('user', dataClass: stdClass::class),
+	static fn () => $acfGet->Users('users', dataClass: stdClass::class),
 ] as $invalidFactory) {
 	try {
 		$invalidFactory();
 		throw new RuntimeException('ACF参照のFactoryがnullを返せた');
-	} catch (UnexpectedValueException) {
+	} catch (InvalidArgumentException) {
 		$check(true, 'ACF参照のFactoryは対応するDataを必ず返す');
 	}
 }
+
+class ExcludedAcfTerm extends ProjectAcfTermData
+{
+	protected static function getProps(WP_Term $term): ?TermProps { return null; }
+}
+class ExcludedAcfUser extends ProjectAcfUserData
+{
+	protected static function getProps(WP_User $user, int $avatarSize = 96): ?UserProps { return null; }
+}
+$check($acfGet->Term('term', ExcludedAcfTerm::class) === null && $acfGet->Terms('terms', ExcludedAcfTerm::class) === [], 'ACF Termのnull生成を単数・複数で処理');
+$check($acfGet->User('user', dataClass: ExcludedAcfUser::class) === null && $acfGet->Users('users', dataClass: ExcludedAcfUser::class) === [], 'ACF Userのnull生成を単数・複数で処理');
 
 echo "ACF derived references: {$checks} checks passed.\n";

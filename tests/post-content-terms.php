@@ -6,6 +6,7 @@ if (PHP_SAPI !== 'cli') {
 	exit;
 }
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/post-props.php';
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostProps;
@@ -84,32 +85,33 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	}
 	$checks++;
 };
-$plain = new PostData(new PostProps(1, '', '', '未加工'));
+$plain = TestPostData::FromProps(new PostProps(1, '', '', '未加工'));
 $check($plain->RawContent === '未加工' && $plain->HasContent(), '直接構築とRawContent');
 $check($plain->GetRenderedContent() === '', '投稿が存在しなければ描画しない');
 $check(! property_exists($plain, 'Content'), '旧Contentは廃止');
 $check((new ReflectionProperty(PostData::class, 'RawContent'))->isReadOnly(), 'RawContentはreadonly');
-$empty = new PostData(new PostProps(1, '', '', " \n\t"));
+$empty = TestPostData::FromProps(new PostProps(1, '', '', " \n\t"));
 $check(! $empty->HasContent(), '空白のみの本文');
 class OverriddenContentPost extends PostData
 {
+	use TestPostProps;
 	public function GetRenderedContent(): string { return '<p>' . $this->RawContent . '</p>'; }
 }
-$check((new OverriddenContentPost(new PostProps(1, '', '', 'raw')))->GetRenderedContent() === '<p>raw</p>', 'メソッドの上書き');
+$check(OverriddenContentPost::FromProps(new PostProps(1, '', '', 'raw'))->GetRenderedContent() === '<p>raw</p>', 'メソッドの上書き');
 $GLOBALS['setupCalls'] = 0;
 $GLOBALS['filterCalls'] = 0;
 $GLOBALS['termCalls'] = [];
 $GLOBALS['contentFilter'] = static fn (string $raw): string => '<p>' . $GLOBALS['post']->ID . ':' . $raw . ']]></p>';
 $sourcePost = new WP_Post(7, 'original');
 $GLOBALS['nativePosts'][7] = $sourcePost;
-$props = PostGet::Props($sourcePost);
+$props = \WpTypeSafety\Wp\Internal\DtoFactory::PostPropsFromWpPost($sourcePost);
 $props->RawContent = 'adjusted';
 $props->Title = 'adjusted title';
 $props->RawExcerpt = 'adjusted excerpt';
 $props->AuthorId = 8;
 $props->ParentId = 4;
 $props->PublishedAt = new DateTimeImmutable('2026-11-18T12:00:00+09:00');
-$data = new PostData($props);
+$data = TestPostData::FromProps($props);
 $check($GLOBALS['setupCalls'] === 0 && $GLOBALS['termCalls'] === [], '構築時は遅延処理しない');
 $keys = ['post', 'id', 'authordata', 'currentday', 'currentmonth', 'page', 'pages', 'multipage', 'more', 'numpages', 'preview'];
 foreach ($keys as $key) {
@@ -171,7 +173,7 @@ $GLOBALS['termsResult'] = [5 => new WP_Term(2), 8 => 'invalid', 9 => new WP_Term
 $terms = $data->GetTerms('category');
 $check(array_is_list($terms) && count($terms) === 2 && $terms[0]->Id === 2, '型フィルタリングと連番化');
 $check($GLOBALS['termCalls'] === [[7, 'category']], '対象IDとタクソノミー');
-$factory = static fn (WP_Term $term): ProjectTerm => new ProjectTerm(TermGet::Props($term));
+$factory = ProjectTerm::class;
 $derived = $data->GetTerms('category', $factory);
 $check($derived[0] instanceof ProjectTerm && $derived[1] instanceof ProjectTerm, '案件固有Term Factory');
 $beforeCalls = count($GLOBALS['termCalls']);
@@ -182,9 +184,9 @@ foreach ([false, null, new WP_Error(), []] as $bad) {
 }
 $GLOBALS['termsResult'] = [new WP_Term(2)];
 try {
-	$data->GetTerms('category', static fn () => new stdClass());
+	$data->GetTerms('category', stdClass::class);
 	throw new RuntimeException('不正なTerm Factoryを受け入れた');
-} catch (UnexpectedValueException) {
+} catch (InvalidArgumentException) {
 	$checks++;
 }
 echo "Post content and terms: {$checks} checks passed.\n";

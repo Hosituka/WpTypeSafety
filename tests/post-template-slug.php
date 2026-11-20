@@ -8,6 +8,7 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/post-props.php';
 require_once __DIR__ . '/../Wp/Data/PostData.php';
 require_once __DIR__ . '/../Wp/Data/PostProps.php';
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
@@ -79,16 +80,11 @@ function get_author_posts_url(int $id): string { return 'https://example.com/aut
  */
 class ProjectPostData extends PostData
 {
-	/** @param PostProps $props */
-	public function __construct(PostProps $props, public readonly string $Label)
-	{
-		parent::__construct($props);
-	}
+	public readonly string $Label;
 
-	/** @return ProjectPostData<ProjectPostData, WpUserData> */
-	public static function FromWpPost(WP_Post $post): self
+	protected function initialize(WP_Post $post): void
 	{
-		return new self(PostGet::Props($post), '派生投稿' . $post->ID);
+		$this->Label = '派生投稿' . $post->ID;
 	}
 }
 
@@ -96,14 +92,16 @@ class SameTypePostData extends ProjectPostData
 {
 	protected function createRelatedPost(WP_Post $post): ?ProjectPostData
 	{
-		return ProjectPostData::FromWpPost($post);
+		return ProjectPostData::From($post);
 	}
 }
 class ProjectUserData extends WpUserData
 {
-	public function __construct(UserProps $props, public readonly string $Label)
+	public readonly string $Label;
+	protected function initialize(WP_User $user, int $avatarSize = 96): void
 	{
-		parent::__construct($props);
+		parent::initialize($user, $avatarSize);
+		$this->Label = '派生投稿者';
 	}
 }
 
@@ -113,7 +111,7 @@ class AuthorPostData extends PostData
 	{
 		$user = get_userdata($this->AuthorId);
 		return $user instanceof WP_User
-			? new ProjectUserData(new UserProps($user->ID, $user->display_name), '派生投稿者')
+			? ProjectUserData::From($user)
 			: null;
 	}
 }
@@ -128,14 +126,14 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 
 $GLOBALS['templateCalls'] = [];
 $GLOBALS['templateValues'] = [1 => 'templates/custom-service-subpage.php'];
-$plain = new PostData(new PostProps(1, '/', 'title', ''));
+$plain = TestPostData::FromProps(new PostProps(1, '/', 'title', ''));
 $check($GLOBALS['templateCalls'] === [], '構築時には取得しない');
 $check($plain->GetTemplateSlug() === 'templates/custom-service-subpage.php', '直接構築でも標準取得');
 $plain->GetTemplateSlug();
 $check($GLOBALS['templateCalls'] === [1, 1], 'キャッシュせず取得');
 $check($plain->Status === '' && ! $plain->IsPublished(), '省略時の値');
 $mutableMembers = new PostProps(2, '/original/', '変更前', '本文');
-$snapshot = new PostData($mutableMembers);
+$snapshot = TestPostData::FromProps($mutableMembers);
 $mutableMembers->Title = '変更後';
 $check($snapshot->Title === '変更前', 'DataはMembersを構築時の値として保持する');
 
@@ -148,28 +146,28 @@ $GLOBALS['templateValues'] = [
 	5 => 123,
 	6 => [],
 ];
-$factoryMembers = PostGet::Props(new WP_Post(20));
+$factoryMembers = \WpTypeSafety\Wp\Internal\DtoFactory::PostPropsFromWpPost(new WP_Post(20));
 $check($factoryMembers instanceof PostProps && $factoryMembers->Id === 20, '公開FactoryからPostPropsを生成する');
 $GLOBALS['postCalls'] = [];
 $GLOBALS['postValues'] = [21 => new WP_Post(21)];
-$check(PostGet::FromId(21)?->Id === 21, '投稿IDからPostDataを生成する');
+$check(PostGet::ById(21)?->Id === 21, '投稿IDからPostDataを生成する');
 $check($GLOBALS['postCalls'] === [21], '投稿IDをget_postへ渡す');
-$check(PostGet::FromId(22) === null, '存在しない投稿IDはnull');
+$check(PostGet::ById(22) === null, '存在しない投稿IDはnull');
 $check($GLOBALS['postCalls'] === [21, 22], '存在しない投稿も1回だけ取得する');
-$check(PostGet::FromId(0) === null && PostGet::FromId(-1) === null, '0以下の投稿IDはnull');
+$check(PostGet::ById(0) === null && PostGet::ById(-1) === null, '0以下の投稿IDはnull');
 $check($GLOBALS['postCalls'] === [21, 22], '0以下の投稿IDは問い合わせない');
 foreach ($GLOBALS['templateValues'] as $id => $value) {
 	$before = count($GLOBALS['templateCalls']);
-	$data = PostGet::From(new WP_Post($id));
+	$data = PostData::From(new WP_Post($id));
 	$check(count($GLOBALS['templateCalls']) === $before, 'Factory構築時は未取得');
 	$check($data->GetTemplateSlug() === (is_string($value) ? $value : ''), 'Factoryの取得・正規化');
 	$check(end($GLOBALS['templateCalls']) === $id, '投稿IDを渡す');
 }
 $GLOBALS['templateValues'][1] = 'changed-template.php';
-$check(PostGet::From(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
-$check(PostGet::From(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
+$check(PostData::From(new WP_Post(1))->GetTemplateSlug() === 'changed-template.php', '新しい値を取得');
+$check(PostData::From(new WP_Post(999))->GetTemplateSlug() === '', '存在しない投稿を空文字にする');
 
-$published = PostGet::From(new WP_Post(
+$published = PostData::From(new WP_Post(
 	ID: 10,
 	post_status: 'publish',
 	post_type: 'page',
@@ -179,7 +177,7 @@ $check($published->Status === 'publish' && $published->IsPublished(), '公開状
 $check($published->PostTypeName === 'page' && $published->Slug === 'published-page', '投稿タイプとスラッグを保持する');
 $check(! $published->IsPasswordProtected && $published->IsPubliclyViewable, '公開閲覧可能な投稿を判定する');
 
-$private = PostGet::From(new WP_Post(
+$private = PostData::From(new WP_Post(
 	ID: 11,
 	post_status: 'private',
 	post_type: 'page',
@@ -193,10 +191,10 @@ $rootPost = new WP_Post(30, post_type: 'page');
 $GLOBALS['postValues'][30] = $rootPost;
 $GLOBALS['postChildren'] = [new WP_Post(31, post_type: 'page')];
 $GLOBALS['nextPost'] = new WP_Post(32, post_type: 'page');
-$derivedPost = new SameTypePostData(PostGet::Props($rootPost), '生成フック');
+$derivedPost = SameTypePostData::From($rootPost);
 $check($derivedPost->GetChildren()[0]->Label === '派生投稿31', '生成フックで子投稿の派生型を維持する');
 $check($derivedPost->GetNextPost()?->Label === '派生投稿32', '生成フックで隣接投稿の派生型を維持する');
-$baseRelations = new ProjectPostData(PostGet::Props($rootPost), '基底関連');
+$baseRelations = ProjectPostData::From($rootPost);
 $check(
 	$baseRelations->GetChildren()[0] instanceof PostData
 	&& ! $baseRelations->GetChildren()[0] instanceof ProjectPostData,
@@ -204,9 +202,9 @@ $check(
 );
 $GLOBALS['users'][7] = new WP_User(7);
 $postWithAuthor = new WP_Post(40, post_author: 7);
-$customAuthorPost = new AuthorPostData(PostGet::Props($postWithAuthor));
+$customAuthorPost = AuthorPostData::From($postWithAuthor);
 $check($customAuthorPost->GetAuthor() instanceof ProjectUserData, 'GetAuthorのオーバーライドで投稿者の派生型を返す');
-$baseAuthorPost = PostGet::From($postWithAuthor);
+$baseAuthorPost = PostData::From($postWithAuthor);
 $check(
 	$baseAuthorPost->GetAuthor() instanceof WpUserData
 	&& ! $baseAuthorPost->GetAuthor() instanceof ProjectUserData,

@@ -13,31 +13,31 @@ final class UserQuery
 	private function __construct() {}
 
 	/**
-	 * @template TUser of WpUserData
+	 * @template TUser of WpUserData = WpUserData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? UserQueryData<WpUserData> : UserQueryData<TUser>)
+	 * @param class-string<TUser> $dataClass
+	 * @return UserQueryData<TUser>
 	 */
 	public static function Get(
 		array $args = [],
 		int $avatarSize = 96,
-		?\Closure $userFactory = null,
+		string $dataClass = WpUserData::class,
 	): UserQueryData
 	{
-		return UserQueryAdapter::Get($args, $avatarSize, $userFactory);
+		return UserQueryAdapter::Get($args, $avatarSize, $dataClass);
 	}
 
 	/**
-	 * @template TUser of WpUserData
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? UserQueryData<WpUserData> : UserQueryData<TUser>)
+	 * @template TUser of WpUserData = WpUserData
+	 * @param class-string<TUser> $dataClass
+	 * @return UserQueryData<TUser>
 	 */
 	public static function From(
 		\WP_User_Query $query,
 		int $avatarSize = 96,
-		?\Closure $userFactory = null,
+		string $dataClass = WpUserData::class,
 	): UserQueryData
 	{
-		return UserQueryAdapter::From($query, $avatarSize, $userFactory);
+		return UserQueryAdapter::From($query, $avatarSize, $dataClass);
 	}
 }

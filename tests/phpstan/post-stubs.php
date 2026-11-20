@@ -6,3 +6,6 @@ class WP_Post {}
 class WP_User {}
 class WP_Term {}
 class WP_Comment {}
+class WP_Query {}
+class WP_Post_Type {}
+class WP_Taxonomy {}

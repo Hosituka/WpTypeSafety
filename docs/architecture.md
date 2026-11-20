@@ -15,13 +15,15 @@
 | `Acf/Get` | 公開 | `AcfGet`と`AcfDataFactory` |
 | `Acf/Internal` | 内部 | ACF APIとの接続・正規化 |
 
-公開名前空間には`Public`を含めず、`Data`・`Get`を含めます。WordPressの対象別Getは`PostGet`・`CommentGet`・`UserGet`・`TermGet`・`MenuNodeGet`・`AttachmentGet`、対象別Queryは`PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery`です。
+公開名前空間には`Public`を含めず、`Data`・`Get`を含めます。WordPressの対象別Getは`PostGet`・`CommentGet`・`UserGet`・`TermGet`・`MenuGet`・`AttachmentGet`、対象別Queryは`PostQuery`・`TermQuery`・`UserQuery`・`CommentQuery`です。
 
 ## GetとQuery
 
 投稿タイプ・タクソノミーの登録定義には`PostTypeGet`・`TaxonomyGet`を使用します。両Getは`DefinitionAdapter`へ委譲し、`PostTypeProps`・`TaxonomyProps`または対応するDataを返します。名前からの検索は`FromName()`、取得済みのWordPress定義オブジェクトからの変換は`From()`・`Props()`です。投稿タイプに紐づく分類名は保持したNameで内部Adapterから遅延取得し、他の定義情報は生成時のスナップショットとして保持します。
 
-各対象別Getは通常利用向けの公開入口で、`Wp/Internal/DtoFactory.php`または対象別Adapterへ処理を委譲します。`PostGet`・`CommentGet`・`UserGet`・`TermGet`・`MenuNodeGet`は、完成したDataを返す`From()`と、案件固有Dataの構築に使う`Props()`を提供します。Propsは値だけを保持し、共通プロパティがreadonlyのDataへコピーします。Dataの標準取得は内部static Adapter、拡張はGetter・protected生成フックのオーバーライドで行います。Dataのジェネリクスと実装を揃えて関連型を維持します。
+各対象別Getは検索・コンテキスト取得を担当します。8種類のWordPress Dataはfinal public static Fromで、protected static getProps → final protectedコンストラクター → protected initialize →返却を固定します。派生initializeは親を先に呼びます。Get・Query・ACF参照のdataClassはclass-string<T>で、未知・別系統・abstractクラスは取得前にInvalidArgumentExceptionです。GetのFrom/Propsは廃止しました。Propsは値だけを保持し、Dataの個別readonlyプロパティへコピーします。関連DataはGetter・protected生成フックで拡張し、関連Adapterの内部Closureは維持します。
+
+メニュー全体の取得は`MenuGet`、セットアップ済み項目の変換は`MenuNodeData::From`、取得済みツリーの探索は`MenuData`が担当します。`FindCurrent()`も取得時の`IsCurrent`を探索するだけで、WPコンテキストを再取得しません。メニューの静的ツリーキャッシュは持ちません。
 
 対象別Queryも`Wp/Get/`の公開入口ですが、クエリビルダーの責務は持ちません。`Get()`はWordPressネイティブの引数配列をクエリクラスへ渡し、`From()`は生成済みのネイティブクエリを受け取ります。実行とData変換は`Wp/Internal/*QueryAdapter.php`へ委譲し、結果は`Wp/Data/*QueryData.php`へまとめます。`TermQueryData`はWordPress側に共通のページ総数プロパティがないため、タームのリストだけを保持します。取得手段を表す`Query`はクラス名で区別し、`Wp/Get/Query/`のような取得層内の追加階層は設けません。
 
@@ -71,7 +73,7 @@ PowerShellでは、次のように全件実行できます。
 
 ```powershell
 Get-ChildItem tests/*.php | ForEach-Object {
-    php $_.FullName
-    if ($LASTEXITCODE -ne 0) { throw "Test failed: $($_.Name)" }
+	php $_.FullName
+	if ($LASTEXITCODE -ne 0) { throw "Test failed: $($_.Name)" }
 }
 ```

@@ -28,6 +28,7 @@ function get_author_posts_url(int $id): mixed
 }
 
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 function get_avatar_url(mixed $subject, array $args): false { return false; }
 require_once __DIR__ . '/../Wp/Data/WpUserData.php';
 require_once __DIR__ . '/../Wp/Data/UserProps.php';
@@ -42,15 +43,15 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	}
 	$checks++;
 };
-$plain = new WpUserData(new UserProps(1, '名前'));
+$plain = TestUserData::FromProps(new UserProps(1, '名前'));
 $check($plain->WebsiteUrl === '', 'website defaults to empty');
-$withWebsite = new WpUserData(new UserProps(1, '名前', WebsiteUrl: 'https://example.com/'));
+$withWebsite = TestUserData::FromProps(new UserProps(1, '名前', WebsiteUrl: 'https://example.com/'));
 $check($withWebsite->WebsiteUrl === 'https://example.com/' && $withWebsite->ArchiveUrl === '', 'website and archive are independent');
 $check((new ReflectionProperty(WpUserData::class, 'WebsiteUrl'))->isReadOnly(), 'readonly website');
 $check($plain->ArchiveUrl === '', 'direct construction default');
-$direct = new WpUserData(new UserProps(Id: 2, DisplayName: '名前', ArchiveUrl: 'https://example.com/author/test/'));
+$direct = TestUserData::FromProps(new UserProps(Id: 2, DisplayName: '名前', ArchiveUrl: 'https://example.com/author/test/'));
 $check($direct->ArchiveUrl === 'https://example.com/author/test/', 'direct construction with URL');
-$withAvatarSize = new WpUserData(new UserProps(3, '名前', 64));
+$withAvatarSize = TestUserData::FromProps(new UserProps(3, '名前', 64));
 $check($withAvatarSize->ArchiveUrl === '' && $withAvatarSize->GetAvatar() === null, 'Membersの位置引数を利用する');
 foreach ([
 	['https://example.com/author/test/', 'https://example.com/author/test/'],
@@ -67,7 +68,7 @@ foreach ([
 ] as [$value, $expected]) {
 	$GLOBALS['authorCalls'] = [];
 	$GLOBALS['authorResult'] = $value;
-	$user = UserGet::From(new WP_User(7));
+	$user = \WpTypeSafety\Wp\Data\WpUserData::From(new WP_User(7));
 	$check($GLOBALS['authorCalls'] === [7], 'URL acquired once at construction');
 	$check($user->ArchiveUrl === $expected, 'factory URL normalization');
 	$check($user->Id === 7 && $user->DisplayName === '名前', 'existing fields preserved');
@@ -75,18 +76,18 @@ foreach ([
 	$check($GLOBALS['authorCalls'] === [7], 'reading does not reacquire URL');
 }
 $GLOBALS['authorResult'] = 'https://example.com/author/7/';
-$props = UserGet::Props(new WP_User(7));
+$props = \WpTypeSafety\Wp\Internal\DtoFactory::UserPropsFromWpUser(new WP_User(7));
 $check($props instanceof UserProps && $props->Id === 7, 'public factory creates UserProps');
 $GLOBALS['authorCalls'] = [];
-$check(UserGet::From(new WP_User(0)) === null, 'nonexistent user');
+$check(\WpTypeSafety\Wp\Data\WpUserData::From(new WP_User(0)) === null, 'nonexistent user');
 $check($GLOBALS['authorCalls'] === [], 'nonexistent user does not acquire URL');
 $check((new ReflectionProperty(WpUserData::class, 'ArchiveUrl'))->isReadOnly(), 'readonly URL');
-$check((new WpUserData(new UserProps(1, '名前')))->Description === '', 'description defaults to empty');
-$direct = new WpUserData(new UserProps(1, '名前', Description: "自己紹介\n2行目"));
+$check((TestUserData::FromProps(new UserProps(1, '名前')))->Description === '', 'description defaults to empty');
+$direct = TestUserData::FromProps(new UserProps(1, '名前', Description: "自己紹介\n2行目"));
 $check($direct->Description === "自己紹介\n2行目", 'description direct construction');
 $check((new ReflectionProperty(WpUserData::class, 'Description'))->isReadOnly(), 'readonly description');
 foreach (["自己紹介\n2行目", '<strong>紹介文</strong>', '', '0', null, false, 123, []] as $value) {
-	$user = UserGet::From(new WP_User(7, '名前', $value));
+	$user = \WpTypeSafety\Wp\Data\WpUserData::From(new WP_User(7, '名前', $value));
 	$check($user->Description === (is_string($value) ? $value : ''), 'factory description normalization');
 }
 foreach ([
@@ -103,7 +104,7 @@ foreach ([
 	[123, ''],
 	[[], ''],
 ] as [$value, $expected]) {
-	$user = UserGet::From(new WP_User(7, user_url: $value));
+	$user = \WpTypeSafety\Wp\Data\WpUserData::From(new WP_User(7, user_url: $value));
 	$check($user->WebsiteUrl === $expected, 'factory website normalization');
 	$check($user->ArchiveUrl === $GLOBALS['authorResult'], 'website does not replace archive');
 }

@@ -77,6 +77,7 @@ function get_comments(array $args): mixed
 }
 
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 require_once __DIR__ . '/../Core/Data/ImgData.php';
 require_once __DIR__ . '/../Core/Data/LinkData.php';
 require_once __DIR__ . '/../Core/Internal/UrlCheck.php';
@@ -106,34 +107,43 @@ use WpTypeSafety\Wp\Get\CommentGet;
 class ProjectCommentData extends CommentData
 {
 	/** @param CommentProps<TRelatedComment, TUser, TPost> $props */
-	public function __construct(CommentProps $props, public readonly string $Label)
+	use TestCommentProps;
+	public readonly string $Label;
+	protected function initialize(WP_Comment $comment, int $avatarSize = 96): void
 	{
-		parent::__construct($props);
+		parent::initialize($comment, $avatarSize);
+		$this->Label = '派生コメント' . $this->Id;
 	}
 
 	/** @return ProjectCommentData<ProjectCommentData, WpUserData, PostData> */
 	public static function FromWpComment(WP_Comment $comment): self
 	{
-		return new self(
-			CommentGet::Props($comment),
-			'派生コメント' . $comment->comment_ID,
-		);
+		return static::From($comment);
 	}
 }
 
 class ProjectCommentUserData extends WpUserData
 {
-	public function __construct(UserProps $props, public readonly string $Label)
+	public readonly string $Label;
+	protected function initialize(WP_User $user, int $avatarSize = 96): void
 	{
-		parent::__construct($props);
+		parent::initialize($user, $avatarSize);
+		$this->Label = '派生ユーザー';
 	}
 }
 
 class ProjectCommentPostData extends PostData
 {
-	public function __construct(PostProps $props, public readonly string $Label)
+	public readonly string $Label;
+
+	protected static function getProps(WP_Post $post): PostProps
 	{
-		parent::__construct($props);
+		return new PostProps($post->ID, '/', '投稿', '');
+	}
+
+	protected function initialize(WP_Post $post): void
+	{
+		$this->Label = '派生投稿';
 	}
 }
 
@@ -146,10 +156,11 @@ class RelatedProjectComment extends ProjectCommentData
 }
 class DirectComment extends CommentData
 {
+	use TestCommentProps;
 	public function GetUser(): ?WpUserData
 	{
 		$GLOBALS['userCalls']++;
-		return new WpUserData(new UserProps(7, '登録ユーザー'));
+		return TestUserData::FromProps(new UserProps(7, '登録ユーザー'));
 	}
 	public function GetParent(): ?CommentData { return $GLOBALS['plain']; }
 	public function GetChildren(string $status = 'approve', string $order = 'ASC'): array { return [$GLOBALS['plain']]; }
@@ -158,21 +169,22 @@ class CrossComment extends ProjectCommentData
 {
 	protected function createRelatedComment(WP_Comment $comment): ?self
 	{
-		return new self(CommentGet::Props($comment), '派生関連');
+		return static::From($comment);
 	}
 	public function GetUser(): ?ProjectCommentUserData
 	{
 		$user = get_userdata($this->AuthorUserId);
-		return $user instanceof WP_User ? new ProjectCommentUserData(new UserProps($user->ID, $user->display_name), '派生ユーザー') : null;
+		return $user instanceof WP_User ? ProjectCommentUserData::From($user) : null;
 	}
 	public function GetPost(): ?ProjectCommentPostData
 	{
 		$post = get_post($this->PostId);
-		return $post instanceof WP_Post ? new ProjectCommentPostData(new PostProps($post->ID, '/', '投稿', ''), '派生投稿') : null;
+		return $post instanceof WP_Post ? ProjectCommentPostData::From($post) : null;
 	}
 }
 class InvalidHookComment extends CommentData
 {
+	use TestCommentProps;
 	protected function createRelatedComment(WP_Comment $comment): ?CommentData { return new stdClass(); }
 }
 
@@ -184,7 +196,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 
-$plain = new CommentData(
+$plain = TestCommentData::FromProps(
 	new CommentProps(
 		Id: 1,
 		PostId: 2,
@@ -204,7 +216,7 @@ $check(! $plain->HasParent() && $plain->GetParent() === null, '親なしはResol
 $check($plain->GetAvatar() === null && $plain->GetPost() === null && $plain->GetChildren() === [], 'Resolver省略時の空値');
 
 $userCalls = 0;
-$direct = new DirectComment(
+$direct = DirectComment::FromProps(
 	new CommentProps(
 		Id: 2,
 		PostId: 3,
@@ -247,9 +259,9 @@ $comment = new WP_Comment(
 	user_id: '7',
 );
 $GLOBALS['comments'][8] = $comment;
-$commentMembers = CommentGet::Props($comment, 80);
+$commentMembers = \WpTypeSafety\Wp\Internal\DtoFactory::CommentPropsFromWpComment($comment, 80);
 $check($commentMembers instanceof CommentProps && $commentMembers->Id === 8, '公開FactoryからCommentPropsを生成する');
-$data = CommentGet::From($comment, 80);
+$data = \WpTypeSafety\Wp\Data\CommentData::From($comment, 80);
 $check($data->Id === 8 && $data->PostId === 12 && $data->ParentId === 4, 'IDを整数へ正規化する');
 $check($data->AuthorUserId === 7 && $data->AuthorName === '登録ユーザー', '投稿者情報を保持する');
 $check($data->WebsiteUrl === 'https://example.com/profile/', 'HTTPの投稿者URLを保持する');
@@ -280,12 +292,12 @@ foreach ([
 	['spam', 'spam', false],
 	['trash', 'trash', false],
 ] as [$rawStatus, $expectedStatus, $approved]) {
-	$value = CommentGet::From(new WP_Comment(20, comment_approved: $rawStatus));
+	$value = \WpTypeSafety\Wp\Data\CommentData::From(new WP_Comment(20, comment_approved: $rawStatus));
 	$check($value->Status === $expectedStatus && $value->IsApproved() === $approved, 'コメント状態を正規化する');
 }
 
 $GLOBALS['commentLinks'][30] = false;
-$invalid = CommentGet::From(new WP_Comment(
+$invalid = \WpTypeSafety\Wp\Data\CommentData::From(new WP_Comment(
 	comment_ID: 30,
 	comment_author_url: 'javascript:alert(1)',
 	comment_date: 'invalid',
@@ -294,7 +306,7 @@ $check($invalid->Url === '' && $invalid->WebsiteUrl === '', '不正なURLを空�
 $check($invalid->CreatedAt === null, '不正な日時をnullへ正規化する');
 $check($invalid->GetUser() === null && $invalid->GetParent() === null, '匿名・親なしは問い合わせない');
 
-$invalidChildren = new InvalidHookComment(
+$invalidChildren = InvalidHookComment::FromProps(
 	new CommentProps(
 		Id: 1,
 		PostId: 1,
@@ -316,10 +328,10 @@ try {
 }
 
 $GLOBALS['children'] = [new WP_Comment(9, 12, '返信者', comment_parent: 8)];
-$derivedComment = new RelatedProjectComment(CommentGet::Props($comment), '共通フック');
+$derivedComment = RelatedProjectComment::From($comment);
 $check($derivedComment->GetParent()?->Label === '派生コメント4', '生成フックで親コメントの派生型を維持する');
 $check($derivedComment->GetChildren()[0]->Label === '派生コメント9', '生成フックで子コメントの派生型を維持する');
-$baseRelations = new ProjectCommentData(CommentGet::Props($comment), '基底関連');
+$baseRelations = ProjectCommentData::From($comment);
 $check(
 	$baseRelations->GetParent() instanceof CommentData
 	&& ! $baseRelations->GetParent() instanceof ProjectCommentData,
@@ -327,7 +339,7 @@ $check(
 );
 
 $GLOBALS['comments'][4] = new WP_Comment(4, 12, '親投稿者', user_id: 7);
-$crossData = new CrossComment(CommentGet::Props($comment), '異種Data');
+$crossData = CrossComment::From($comment);
 $check($crossData->GetUser()?->Label === '派生ユーザー', 'GetUser上書きでコメント投稿者の派生型を返す');
 $check($crossData->GetPost()?->Label === '派生投稿', 'GetPost上書きで関連投稿の派生型を返す');
 $crossParent = $crossData->GetParent();
@@ -347,11 +359,11 @@ $check(
 $guest = new WP_Comment(41, 12, 'guest');
 $guest->comment_author_email = 'guest@example.invalid';
 $GLOBALS['comments'][41] = $guest;
-$guestProps = CommentGet::Props($guest, 0);
+$guestProps = \WpTypeSafety\Wp\Internal\DtoFactory::CommentPropsFromWpComment($guest, 0);
 $guestProps->AuthorUserId = 7;
 $guestProps->AuthorName = 'adjusted guest';
 $guestProps->WebsiteUrl = 'https://example.com/changed/';
-$guestData = new CommentData($guestProps);
+$guestData = TestCommentData::FromProps($guestProps);
 $check($guestData->GetAvatar()?->Width === 1, 'アバターは最小1');
 $avatarSubject = $GLOBALS['avatarCalls'][array_key_last($GLOBALS['avatarCalls'])][0];
 $check($avatarSubject !== $guest && $avatarSubject->comment_author_email === 'guest@example.invalid', '現在のゲスト情報を複製して使う');

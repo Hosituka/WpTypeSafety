@@ -97,9 +97,13 @@ Core, WordPress metadata, subject-specific Get, and Query entry points are also 
 
 Read the displayed post or term with `PostGet::Current()` or `TermGet::Current()`, the loop post with `PostGet::Loop()`, and the logged-in user with `UserGet::LoggedIn()`. See [context-based access](docs/wordpress.md#現在の表示対象ループ投稿ログインユーザー).
 
-To create project-specific Data, start with `PostGet::Props($post)` or the matching `Props()` method, then extend the Data class with your own values and methods. Shared values remain `readonly`; added state can be mutable. Override a protected hook to create related posts, terms, or comments, and override a Getter to change one retrieval method. See [Data and derived classes](docs/data.md) for the extension contract.
+Create posts with `PostData::From($post)` or an inherited `ProjectPostData::From($post)`. PostData fixes construction with `final public static From(WP_Post): static` and a `final protected __construct(PostProps)`. Customize shared values in `protected static getProps()` and added properties in `protected initialize()`, calling `parent::initialize($post)` first. Term, User, Comment, Menu and definition Data use the same lifecycle; public Get::From/Props and direct construction are removed. Shared values remain `readonly`; added state can be mutable. Related-data hooks and Getter overrides remain available. See [Data and derived classes](docs/data.md).
 
 Registered post type and taxonomy definitions are available through `PostTypeGet` and `TaxonomyGet`. See the [definition APIs](docs/wordpress.md#投稿タイプタクソノミーの登録定義).
+
+Retrieve a single post, term, user, or comment with the corresponding `ById()` method. Posts also support `ByPath()`, terms support `BySlug(taxonomy, slug)`, and users support `BySlug()`, `ByEmail()`, and `ByLogin()`. PostGet, PostQuery, MainQueryGet::Current(), and AcfGet::Post()/Posts() accept `dataClass: ProjectPostData::class` (`class-string<T>`, default `PostData::class`); other WordPress Data entry points also accept class-string dataClass. Unknown, unrelated, or abstract post classes throw `InvalidArgumentException` before lookup; missing posts still return `null` (or an empty list). See [single-item retrieval](docs/wordpress.md#識別子からの単体取得). The former `PostGet::FromId()` is now `ById()`.
+
+Read classic navigation menus with `MenuGet::ByLocation()`, `ById()`, or `BySlug()`. The resulting `MenuData` holds the menu definition and root nodes, with `FindBy*()`, `PathTo*()`, and `FindCurrent()` for snapshot-based traversal. `MenuNodeData::From()` converts prepared native items; a derived MenuData selects its node class with protected static getNodeClass(). See [menus](docs/wordpress.md#wordpressメニュー).
 
 ## Choose between WpTypeSafety Data and native WordPress types
 

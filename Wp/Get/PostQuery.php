@@ -13,23 +13,23 @@ final class PostQuery
 	private function __construct() {}
 
 	/**
-	 * @template TPost of PostData
+	 * @template TPost of PostData = PostData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostQueryData<PostData> : PostQueryData<TPost>)
+	 * @param class-string<TPost> $dataClass
+	 * @return PostQueryData<TPost>
 	 */
-	public static function Get(array $args = [], ?\Closure $postFactory = null): PostQueryData
+	public static function Get(array $args = [], string $dataClass = PostData::class): PostQueryData
 	{
-		return PostQueryAdapter::Get($args, $postFactory);
+		return PostQueryAdapter::Get($args, $dataClass);
 	}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostQueryData<PostData> : PostQueryData<TPost>)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return PostQueryData<TPost>
 	 */
-	public static function From(\WP_Query $query, ?\Closure $postFactory = null): PostQueryData
+	public static function From(\WP_Query $query, string $dataClass = PostData::class): PostQueryData
 	{
-		return PostQueryAdapter::From($query, $postFactory);
+		return PostQueryAdapter::From($query, $dataClass);
 	}
 }

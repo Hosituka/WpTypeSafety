@@ -20,84 +20,76 @@ final class DtoFactory
 	private function __construct() {}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
 	 */
-	public static function CurrentPost(?\Closure $postFactory = null): ?PostData
+	public static function CurrentPost(string $dataClass = PostData::class): ?PostData
 	{
-		return self::contextPost(MainQueryAdapter::QueriedObject(), $postFactory);
+		DataClass::Validate($dataClass, PostData::class);
+		return self::contextPost(MainQueryAdapter::QueriedObject(), $dataClass);
 	}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
 	 */
-	public static function LoopPost(?\Closure $postFactory = null): ?PostData
+	public static function LoopPost(string $dataClass = PostData::class): ?PostData
 	{
+		DataClass::Validate($dataClass, PostData::class);
 		global $post;
 
-		return self::contextPost($post ?? null, $postFactory);
+		return self::contextPost($post ?? null, $dataClass);
 	}
 
 	/**
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
 	 */
-	private static function contextPost(mixed $post, ?\Closure $postFactory): ?PostData
+	private static function contextPost(mixed $post, string $dataClass): ?PostData
 	{
 		if (! $post instanceof \WP_Post)
 		{return null;}
 
-		$data = $postFactory !== null ? $postFactory($post) : self::PostFromWpPost($post);
-		if (! $data instanceof PostData)
-		{throw new \UnexpectedValueException('PostGetのpostFactoryはPostDataを返す必要があります。');}
-
-		return $data;
+		return $dataClass::From($post);
 	}
 
 	/**
-	 * @template TUser of WpUserData
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? WpUserData|null : TUser|null)
+	 * @template TUser of WpUserData = WpUserData
+	 * @param class-string<TUser> $dataClass
+	 * @return TUser|null
 	 */
-	public static function LoggedInUser(int $avatarSize = 96, ?\Closure $userFactory = null): ?WpUserData
+	public static function LoggedInUser(int $avatarSize = 96, string $dataClass = WpUserData::class): ?WpUserData
 	{
+		DataClass::Validate($dataClass, WpUserData::class);
 		$user = \wp_get_current_user();
 		if (! $user->exists())
 		{return null;}
 
-		$data = $userFactory !== null ? $userFactory($user, $avatarSize) : self::UserFromWpUser($user, $avatarSize);
-		if (! $data instanceof WpUserData)
-		{throw new \UnexpectedValueException('UserGetのuserFactoryはWpUserDataを返す必要があります。');}
-
-		return $data;
+		return $dataClass::From($user, $avatarSize);
 	}
 
 	/**
-	 * @template TUser of WpUserData
-	 * @param null|\Closure(\WP_User, int): TUser $userFactory
-	 * @return ($userFactory is null ? WpUserData|null : TUser|null)
+	 * @template TUser of WpUserData = WpUserData
+	 * @param class-string<TUser> $dataClass
+	 * @return TUser|null
 	 */
-	public static function CurrentUser(int $avatarSize = 96, ?\Closure $userFactory = null): ?WpUserData
+	public static function CurrentUser(int $avatarSize = 96, string $dataClass = WpUserData::class): ?WpUserData
 	{
+		DataClass::Validate($dataClass, WpUserData::class);
 		$user = MainQueryAdapter::QueriedObject();
 		if (! $user instanceof \WP_User || ! $user->exists())
 		{return null;}
 
-		$data = $userFactory !== null ? $userFactory($user, $avatarSize) : self::UserFromWpUser($user, $avatarSize);
-		if (! $data instanceof WpUserData)
-		{throw new \UnexpectedValueException('UserGetのuserFactoryはWpUserDataを返す必要があります。');}
-
-		return $data;
+		return $dataClass::From($user, $avatarSize);
 	}
 
 	/** @return CommentData<CommentData, WpUserData, PostData> */
 	public static function CommentFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentData
 	{
-		return new CommentData(self::CommentPropsFromWpComment($comment, $avatarSize));
+		return CommentData::From($comment, $avatarSize);
 	}
 
 	public static function CommentPropsFromWpComment(\WP_Comment $comment, int $avatarSize = 96): CommentProps
@@ -149,7 +141,7 @@ final class DtoFactory
 	/** @return PostData<PostData, WpUserData> */
 	public static function PostFromWpPost(\WP_Post $post): PostData
 	{
-		return new PostData(self::PostPropsFromWpPost($post));
+		return PostData::From($post);
 	}
 
 	public static function PostPropsFromWpPost(\WP_Post $post): PostProps
@@ -197,8 +189,7 @@ final class DtoFactory
 
 	public static function UserFromWpUser(\WP_User $user, int $avatarSize = 96): ?WpUserData
 	{
-		$props = self::UserPropsFromWpUser($user, $avatarSize);
-		return $props !== null ? new WpUserData($props) : null;
+		return WpUserData::From($user, $avatarSize);
 	}
 
 	public static function UserPropsFromWpUser(\WP_User $user, int $avatarSize = 96): ?UserProps

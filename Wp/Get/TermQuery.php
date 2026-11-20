@@ -13,23 +13,23 @@ final class TermQuery
 	private function __construct() {}
 
 	/**
-	 * @template TTerm of TermData
+	 * @template TTerm of TermData = TermData
 	 * @param array<string, mixed> $args
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermQueryData<TermData> : TermQueryData<TTerm>)
+	 * @param class-string<TTerm> $dataClass
+	 * @return TermQueryData<TTerm>
 	 */
-	public static function Get(array $args = [], ?\Closure $termFactory = null): TermQueryData
+	public static function Get(array $args = [], string $dataClass = TermData::class): TermQueryData
 	{
-		return TermQueryAdapter::Get($args, $termFactory);
+		return TermQueryAdapter::Get($args, $dataClass);
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermQueryData<TermData> : TermQueryData<TTerm>)
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TermQueryData<TTerm>
 	 */
-	public static function From(\WP_Term_Query $query, ?\Closure $termFactory = null): TermQueryData
+	public static function From(\WP_Term_Query $query, string $dataClass = TermData::class): TermQueryData
 	{
-		return TermQueryAdapter::From($query, $termFactory);
+		return TermQueryAdapter::From($query, $dataClass);
 	}
 }

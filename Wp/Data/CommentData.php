@@ -3,8 +3,9 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Data;
 
+use WpTypeSafety\Wp\Internal\DtoFactory;
+
 use WpTypeSafety\Core\Data\ImgData;
-use WpTypeSafety\Wp\Get\CommentGet;
 use WpTypeSafety\Wp\Get\PostGet;
 use WpTypeSafety\Wp\Internal\CommentAdapter;
 use WpTypeSafety\Wp\Internal\UserAdapter;
@@ -29,7 +30,7 @@ class CommentData
 	public readonly ?\DateTimeImmutable $CreatedAt;
 	private readonly ?int $avatarSize;
 
-	public function __construct(CommentProps $props)
+	final protected function __construct(CommentProps $props)
 	{
 		$this->Id = $props->Id;
 		$this->PostId = $props->PostId;
@@ -43,6 +44,23 @@ class CommentData
 		$this->Status = $props->Status;
 		$this->CreatedAt = $props->CreatedAt;
 		$this->avatarSize = $props->AvatarSize;
+	}
+
+	final public static function From(\WP_Comment $comment, int $avatarSize = 96): static
+	{
+		$props = static::getProps($comment, $avatarSize);
+		$data = new static($props);
+		$data->initialize($comment, $avatarSize);
+		return $data;
+	}
+
+	protected static function getProps(\WP_Comment $comment, int $avatarSize = 96): CommentProps
+	{
+		return DtoFactory::CommentPropsFromWpComment($comment, $avatarSize);
+	}
+
+	protected function initialize(\WP_Comment $comment, int $avatarSize = 96): void
+	{
 	}
 
 	public function HasUser(): bool
@@ -69,7 +87,7 @@ class CommentData
 	public function GetUser(): ?WpUserData
 	{
 		// @phpstan-ignore return.type (既定型はWpUserData。別のTUserを宣言する派生クラスは上書きする。)
-		return UserAdapter::FromId($this->AuthorUserId);
+		return UserAdapter::ById($this->AuthorUserId);
 	}
 
 	public function GetAvatar(?int $size = null): ?ImgData
@@ -81,7 +99,7 @@ class CommentData
 	public function GetPost(): ?PostData
 	{
 		// @phpstan-ignore return.type (既定型はPostData。別のTPostを宣言する派生クラスは上書きする。)
-		return PostGet::FromId($this->PostId);
+		return PostGet::ById($this->PostId);
 	}
 
 	/** @return TRelatedComment|null */
@@ -99,6 +117,6 @@ class CommentData
 	protected function createRelatedComment(\WP_Comment $comment): ?CommentData
 	{
 		// @phpstan-ignore return.type (既定型はCommentData。別のTRelatedCommentを宣言する派生クラスは上書きする。)
-		return CommentGet::From($comment, $this->avatarSize ?? 96);
+		return CommentData::From($comment, $this->avatarSize ?? 96);
 	}
 }

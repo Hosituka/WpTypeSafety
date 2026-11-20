@@ -14,6 +14,41 @@ final class PostAdapter
 
 	/**
 	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
+	 */
+	public static function ById(int $postId, string $dataClass = PostData::class): ?PostData
+	{
+		DataClass::Validate($dataClass, PostData::class);
+		if ($postId <= 0)
+		{return null;}
+		$post = \get_post($postId);
+		return $post instanceof \WP_Post ? $dataClass::From($post) : null;
+	}
+
+	/**
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
+	 */
+	public static function ByPath(string $path, string $postType = 'page', string $dataClass = PostData::class): ?PostData
+	{
+		DataClass::Validate($dataClass, PostData::class);
+		if (str_starts_with($path, '//'))
+		{return null;}
+		$path = trim($path, '/');
+		if ($path === '' || $postType === '' || strpbrk($path, "?#:\\") !== false)
+		{return null;}
+		// 文字列指定時にネイティブが添付ファイルまで検索する挙動を避ける。
+		$post = \get_page_by_path($path, OBJECT, [$postType]);
+		return $post instanceof \WP_Post && $post->post_type === $postType
+			? $dataClass::From($post)
+			: null;
+	}
+
+
+	/**
+	 * @template TPost of PostData = PostData
 	 * @param \Closure(\WP_Post): (TPost|null) $postFactory
 	 * @return TPost|null
 	 */

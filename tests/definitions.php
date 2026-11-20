@@ -6,6 +6,7 @@ if (PHP_SAPI !== 'cli')
 {exit;}
 
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 
 use WpTypeSafety\Wp\Data\PostTypeData;
 use WpTypeSafety\Wp\Data\PostTypeProps;
@@ -67,16 +68,22 @@ function get_object_taxonomies(string $name, string $output): mixed
 
 class ProjectPostTypeData extends PostTypeData
 {
-	public function __construct(PostTypeProps $props, public readonly string $Extra)
+	use TestPostTypeProps;
+	public readonly string $Extra;
+	protected function initialize(WP_Post_Type $source): void
 	{
-		parent::__construct($props);
+		parent::initialize($source);
+		$this->Extra = '追加値';
 	}
 }
 class ProjectTaxonomyData extends TaxonomyData
 {
-	public function __construct(TaxonomyProps $props, public readonly string $Extra)
+	use TestTaxonomyProps;
+	public readonly string $Extra;
+	protected function initialize(WP_Taxonomy $source): void
 	{
-		parent::__construct($props);
+		parent::initialize($source);
+		$this->Extra = '追加分類';
 	}
 }
 
@@ -89,13 +96,13 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 
 // Data単独で構築でき、WordPress関数を呼ばない。
 $postMembers = new PostTypeProps('cases', '実績', '実績1件');
-$postData = new ProjectPostTypeData($postMembers, '追加値');
+$postData = ProjectPostTypeData::FromProps($postMembers);
 $postMembers->Label = '変更後';
 $check($postData->Label === '実績' && $postData->Extra === '追加値', '派生Dataと値のコピー');
 $check($postData->GetTaxonomyNames() === [], 'Resolver省略時は空配列');
 $check($postData->ArchiveUrl === '' && ! $postData->HasArchive && ! $postData->IsPublic, '既定値');
 $taxMembers = new TaxonomyProps('area', '地域', '地域', ObjectTypes: ['cases']);
-$taxonomyData = new ProjectTaxonomyData($taxMembers, '追加分類');
+$taxonomyData = ProjectTaxonomyData::FromProps($taxMembers);
 $taxMembers->ObjectTypes[] = 'post';
 $check($taxonomyData->ObjectTypes === ['cases'] && $taxonomyData->Extra === '追加分類', '配列のコピーと派生Data');
 $check($taxonomyData->HasObjectType('cases') && ! $taxonomyData->HasObjectType('post'), '対象投稿タイプ判定');
@@ -104,6 +111,7 @@ $check(! isset($GLOBALS['archiveRequests']), '値の構築ではアーカイブU
 
 class CustomPostTypeData extends PostTypeData
 {
+	use TestPostTypeProps;
 	public function GetTaxonomyNames(): array
 	{
 		$GLOBALS['customNamesCalls']++;
@@ -111,17 +119,18 @@ class CustomPostTypeData extends PostTypeData
 	}
 }
 $GLOBALS['customNamesCalls'] = 0;
-$resolvedData = new CustomPostTypeData($postMembers);
+$resolvedData = CustomPostTypeData::FromProps($postMembers);
 $check($GLOBALS['customNamesCalls'] === 0, '構築時は取得しない');
 $check($resolvedData->GetTaxonomyNames() === ['custom'], 'メソッドのオーバーライド');
 $resolvedData->GetTaxonomyNames();
 $check($GLOBALS['customNamesCalls'] === 2, '非キャッシュ');
 class ThrowingPostTypeData extends PostTypeData
 {
+	use TestPostTypeProps;
 	public function GetTaxonomyNames(): array { throw new LogicException('getter failure'); }
 }
 try {
-	(new ThrowingPostTypeData($postMembers))->GetTaxonomyNames();
+	(ThrowingPostTypeData::FromProps($postMembers))->GetTaxonomyNames();
 	throw new RuntimeException('例外を握り潰した');
 } catch (LogicException $error) {
 	$check($error->getMessage() === 'getter failure', 'Getter例外の伝播');
@@ -148,29 +157,29 @@ $GLOBALS['taxonomyNames']['cases'] = false;
 $check($fromPost->GetTaxonomyNames() === [], '関連取得の型違いは空配列');
 $nativePost->label = '変更後';
 $check($fromPost->Label === '制作実績', '元WPオブジェクトの変更から独立');
-$factoryPostMembers = PostTypeGet::Props($nativePost);
+$factoryPostMembers = \WpTypeSafety\Wp\Internal\DefinitionAdapter::PostTypePropsFromWp($nativePost);
 $factoryPostMembers->Label = '案件表示名';
-$derivedPost = new ProjectPostTypeData($factoryPostMembers, '派生');
+$derivedPost = ProjectPostTypeData::FromProps($factoryPostMembers);
 $check($derivedPost->Label === '案件表示名', 'Factory Membersの調整');
 
 foreach ([false, true, 'works'] as $archiveFlag) {
 	$nativePost->has_archive = $archiveFlag;
-	$data = PostTypeGet::From($nativePost);
+	$data = \WpTypeSafety\Wp\Data\PostTypeData::From($nativePost);
 	$check($data->HasArchive === (bool) $archiveFlag, 'has_archiveのbool化');
 }
 foreach ([false, '', 'javascript:alert(1)', '/works/', 123] as $url) {
 	$GLOBALS['archives']['cases'] = $url;
-	$data = PostTypeGet::From($nativePost);
+	$data = \WpTypeSafety\Wp\Data\PostTypeData::From($nativePost);
 	$check($data->ArchiveUrl === '', '不正・取得失敗のURLは空文字');
 }
 $standardPost = new WP_Post_Type('post');
 $standardPost->has_archive = false;
 $GLOBALS['archives']['post'] = 'https://example.com/news/';
-$data = PostTypeGet::From($standardPost);
+$data = \WpTypeSafety\Wp\Data\PostTypeData::From($standardPost);
 $check(! $data->HasArchive && $data->ArchiveUrl === 'https://example.com/news/', '標準投稿の一覧URLはhas_archiveと独立');
 $nativePost->labels = null;
 $nativePost->description = false;
-$data = PostTypeGet::From($nativePost);
+$data = \WpTypeSafety\Wp\Data\PostTypeData::From($nativePost);
 $check($data->SingularLabel === '変更後' && $data->Description === '', 'ラベル欠損と説明型違い');
 
 $fromTax = TaxonomyGet::FromName('area');
@@ -180,13 +189,13 @@ $check(! $fromTax->IsPublic && $fromTax->IsPubliclyQueryable && $fromTax->IsHier
 $nativeTax->object_type = [4 => 'cases', 9 => false, 11 => '', 12 => 'post'];
 $nativeTax->labels = (object) [];
 $nativeTax->description = [];
-$props = TaxonomyGet::Props($nativeTax);
+$props = \WpTypeSafety\Wp\Internal\DefinitionAdapter::TaxonomyPropsFromWp($nativeTax);
 $check($props->ObjectTypes === ['cases', 'post'] && $props->Description === '' && $props->SingularLabel === '地域', '分類欠損値・要素型違い');
 $props->Label = '案件分類';
-$derivedTax = new ProjectTaxonomyData($props, '派生');
+$derivedTax = ProjectTaxonomyData::FromProps($props);
 $check($derivedTax->Label === '案件分類' && $derivedTax->HasObjectType('cases'), '分類Factoryから派生Data');
 $nativeTax->object_type = null;
-$data = TaxonomyGet::From($nativeTax);
+$data = \WpTypeSafety\Wp\Data\TaxonomyData::From($nativeTax);
 $check($data->ObjectTypes === [] && ! $data->HasObjectType('cases'), '対象投稿タイプの型違い');
 
 foreach ([null, false, new stdClass()] as $missing) {

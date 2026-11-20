@@ -3,9 +3,8 @@ declare(strict_types=1);
 
 namespace WpTypeSafety\Wp\Get;
 
-use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
-use WpTypeSafety\Wp\Data\TermProps;
+use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Internal\TermAdapter;
 
 /** タームの取得・Data生成・階層による選別の公開入口。 */
@@ -14,54 +13,70 @@ final class TermGet
 	private function __construct() {}
 
 	/**
-	 * クエリ確定後、現在のタームアーカイブを取得する。投稿の割り当てタームは選ばない。
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermData|null : TTerm|null)
+	 * taxonomy指定時は所属タクソノミーも検証する。
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TTerm|null
 	 */
-	public static function Current(?\Closure $termFactory = null): ?TermData
+	public static function ById(int $termId, ?string $taxonomy = null, string $dataClass = TermData::class): ?TermData
 	{
-		return TermAdapter::Current($termFactory);
-	}
-
-	public static function Props(\WP_Term $term): ?TermProps
-	{
-		return TermAdapter::PropsFromWpTerm($term);
-	}
-
-	/** @return TermData<TermData>|null */
-	public static function From(\WP_Term $term): ?TermData
-	{
-		return TermAdapter::FromWpTerm($term);
+		return TermAdapter::ById($termId, $taxonomy, $dataClass);
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 * タクソノミー名とスラッグから単一タームを取得する。該当なしはnull。
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TTerm|null
+	 */
+	public static function BySlug(
+		string $taxonomy,
+		string $slug,
+		string $dataClass = TermData::class,
+	): ?TermData
+	{
+		return TermAdapter::BySlug($taxonomy, $slug, $dataClass);
+	}
+
+	/**
+	 * クエリ確定後、現在のタームアーカイブを取得する。投稿の割り当てタームは選ばない。
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TTerm|null
+	 */
+	public static function Current(string $dataClass = TermData::class): ?TermData
+	{
+		return TermAdapter::Current($dataClass);
+	}
+
+	/**
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return list<TTerm>
 	 */
 	public static function FromPost(
 		\WP_Post|PostData|int $post,
 		string $taxonomy,
-		?\Closure $termFactory = null,
+		string $dataClass = TermData::class,
 	): array
 	{
-		return TermAdapter::FromPost($post, $taxonomy, $termFactory);
+		return TermAdapter::FromPost($post, $taxonomy, $dataClass);
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param list<TTerm> $terms
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 * @template TInput of TermData
+	 * @template TTerm of TermData = TermData
+	 * @param list<TInput> $terms
+	 * @param class-string<TTerm> $dataClass
+	 * @return list<TInput|TTerm>
 	 */
-	public static function Roots(array $terms, ?\Closure $termFactory = null): array
+	public static function Roots(array $terms, string $dataClass = TermData::class): array
 	{
-		return TermAdapter::Roots($terms, $termFactory);
+		return TermAdapter::Roots($terms, $dataClass);
 	}
 
 	/**
-	 * @template TTerm of TermData
+	 * @template TTerm of TermData = TermData
 	 * @param list<TTerm> $terms
 	 * @return list<TTerm>
 	 */
@@ -71,7 +86,7 @@ final class TermGet
 	}
 
 	/**
-	 * @template TTerm of TermData
+	 * @template TTerm of TermData = TermData
 	 * @param list<TTerm> $terms
 	 * @return list<TTerm>
 	 */

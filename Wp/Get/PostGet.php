@@ -4,55 +4,54 @@ declare(strict_types=1);
 namespace WpTypeSafety\Wp\Get;
 
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Internal\DtoFactory;
+use WpTypeSafety\Wp\Internal\PostAdapter;
 
-/** WP_Postから投稿のPropsまたはDataを生成します。 */
+/** 表示コンテキスト・識別子から投稿を取得する公開入口。 */
 final class PostGet
 {
 	private function __construct() {}
 
 	/**
 	 * メインクエリの表示対象を取得する。ループ中の投稿とは独立する。
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
 	 */
-	public static function Current(?\Closure $postFactory = null): ?PostData
+	public static function Current(string $dataClass = PostData::class): ?PostData
 	{
-		return DtoFactory::CurrentPost($postFactory);
+		return DtoFactory::CurrentPost($dataClass);
 	}
 
 	/**
 	 * グローバル$postの現在値を取得する。ループ外での有効性は保証しない。
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostData|null : TPost|null)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
 	 */
-	public static function Loop(?\Closure $postFactory = null): ?PostData
+	public static function Loop(string $dataClass = PostData::class): ?PostData
 	{
-		return DtoFactory::LoopPost($postFactory);
+		return DtoFactory::LoopPost($dataClass);
 	}
 
-	/** 投稿の構築用の値を取得する。 */
-	public static function Props(\WP_Post $post): PostProps
+	/**
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
+	 */
+	public static function ById(int $postId, string $dataClass = PostData::class): ?PostData
 	{
-		return DtoFactory::PostPropsFromWpPost($post);
+		return PostAdapter::ById($postId, $dataClass);
 	}
 
-	/** @return PostData<PostData, \WpTypeSafety\Wp\Data\WpUserData> */
-	public static function From(\WP_Post $post): PostData
+	/**
+	 * 親子のslug列から取得する。URL全体・クエリ・フラグメントは受け付けない。
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return TPost|null
+	 */
+	public static function ByPath(string $path, string $postType = 'page', string $dataClass = PostData::class): ?PostData
 	{
-		return DtoFactory::PostFromWpPost($post);
-	}
-
-	/** @return PostData<PostData, \WpTypeSafety\Wp\Data\WpUserData>|null */
-	public static function FromId(int $postId): ?PostData
-	{
-		if ($postId <= 0)
-		{return null;}
-
-		$post = \get_post($postId);
-		return $post instanceof \WP_Post ? self::From($post) : null;
+		return PostAdapter::ByPath($path, $postType, $dataClass);
 	}
 }

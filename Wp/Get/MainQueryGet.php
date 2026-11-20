@@ -14,13 +14,13 @@ final class MainQueryGet
 
 	/**
 	 * 実行済みのメインクエリを変換する。呼び出しごとにDataを生成する。
-	 * @template TPost of PostData
-	 * @param null|\Closure(\WP_Post): TPost $postFactory
-	 * @return ($postFactory is null ? PostQueryData<PostData> : PostQueryData<TPost>)
+	 * @template TPost of PostData = PostData
+	 * @param class-string<TPost> $dataClass
+	 * @return PostQueryData<TPost>
 	 */
-	public static function Current(?\Closure $postFactory = null): PostQueryData
+	public static function Current(string $dataClass = PostData::class): PostQueryData
 	{
-		return MainQueryAdapter::Current($postFactory);
+		return MainQueryAdapter::Current($dataClass);
 	}
 
 	public static function CurrentPageNumber(): int

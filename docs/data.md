@@ -1,27 +1,29 @@
 # Dataと派生クラス
 
-WordPress Dataをそのまま使う場合は`PostGet::From($post)`などの対象別Getで取得します。案件固有の値や動作が必要になったら、次の順に拡張します。
+投稿は`PostData::From($post)`で生成します。同じ生成ライフサイクルをTerm・User・Comment・Menu・登録定義Dataにも適用します。案件固有の投稿Dataは次の順に拡張します。
 
-1. `*Get::Props()`で構築用の値を取得し、必要なら変更する。
-2. `*Data`を継承し、Propsと案件固有の値からインスタンスを作る。
+1. PostDataを継承し、必要なら`protected static getProps()`で親のPropsを調整する。
+2. `protected initialize()`で`parent::initialize($post)`を先に呼び、自身が宣言した追加プロパティを初期化する。
 3. 標準の取得動作を変えるときだけGetterや関連Dataの生成フックを上書きする。
-4. `Current()`・`Loop()`・Queryなどの取得口へ派生Dataの生成メソッドを渡す。
+4. `Current()`・`Loop()`・Query・ACFの投稿取得口へ派生Dataのクラス名を渡す。
 
 ```php
 use WpTypeSafety\Wp\Data\PostData;
-use WpTypeSafety\Wp\Get\PostGet;
 
-$postData = PostGet::From($post); // 共通Data
-$props = PostGet::Props($post);
-$props->Title = '表示用：' . $props->Title;
-$customData = new PostData($props); // 調整した値から構築
+$postData = PostData::From($post); // 共通Data
 ```
 
-`From()`は共通Dataを直接返します。`Props()`はDataを生成する前に値を調整する入口です。派生クラスと型付きの関連Dataを扱う例は[案件用Dataの生成と継承](#案件用dataの生成と継承)を参照してください。各GetとQueryの取得元は[WordPressの取得API](wordpress.md)にまとめています。
+`final public static From(\WP_Post $post): static`は、`static::getProps($post)`→`new static($props)`→`$data->initialize($post)`→返却の順を固定します。`final protected __construct(PostProps $props)`は基底のreadonly値だけを初期化します。外部new・From/コンストラクターの上書き・任意Propsの公開注入経路は設けません。initializeはコンストラクターから呼びません。[案件用Dataの生成と継承](#案件用dataの生成と継承)も参照してください。
 
 ## データクラスと取得契約
 
 WordPress Dataは値だけのPropsから構築します。値の調整はProps、動作変更はGetter・生成フックのオーバーライドで行います。
+
+| 対象 | 利用側の生成方法 | 拡張方法 |
+|---|---|---|
+| PostDataとその派生型 | 継承したfinal public static From。外部new不可 | protected static getPropsと、親を先に呼ぶprotected initialize |
+| Term・User・Comment・Menu・登録定義Data | final From・protectedコンストラクター | getProps・initialize・関連フック・Getter |
+| Core・ACFのData | 現行の直接new・Factoryを維持 | それぞれの既存契約。Postのライフサイクルを適用しない |
 
 このライブラリの`Data`は、利用側のコードでひとまとまりとして扱う対象を表します。WordPress Dataは共通値を保持し、関連情報の標準取得を内部Adapterへ委譲します。`Get`は外部から得た値の取得・型確認・正規化を担当します。
 
@@ -53,7 +55,7 @@ URLプロパティは`string`で保持し、未設定・取得できないURLは
 
 `WpUserData->Description` はWP標準の「プロフィール情報」（自己紹介文）です。Factoryが生成時に `WP_User->description` から取得します。未設定・文字列以外は空文字です。直接構築時は`UserProps`の`Description:`で指定でき、省略時は空文字です。HTML出力やエスケープは利用側で行い、Dataは値をそのまま保持します。
 
-`WpUserData->ArchiveUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。直接構築する場合は`UserProps`の`ArchiveUrl:`で指定でき、省略時は空文字です。コンストラクターはURL形式を検証しないため、直接渡す値は呼び出し元で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
+`WpUserData->ArchiveUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。派生getPropsでUserPropsのArchiveUrlを調整できます。調整値の妥当性は派生側で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
 
 `WpUserData->WebsiteUrl` はユーザーに登録されたWebサイト（`WP_User->user_url`）です。FactoryではHTTP(S) URLを検証し、不正・未設定・文字列以外は空文字にします。著者一覧の`ArchiveUrl`とは独立した値です。直接構築時は`UserProps`の`WebsiteUrl:`で指定できます。
 
@@ -104,33 +106,43 @@ $image = new ImgData(
 
 ## Propsと共通値のreadonly
 
-| Data | 構築用Props | 公開取得口 |
+| Data | 構築用Props | 生成入口 |
 |---|---|---|
-| PostData | PostProps | PostGet::Props(WP_Post) |
-| TermData | TermProps | TermGet::Props(WP_Term): ?TermProps |
-| CommentData | CommentProps | CommentGet::Props(WP_Comment, avatarSize: 96) |
-| WpUserData | UserProps | UserGet::Props(WP_User, avatarSize: 96): ?UserProps |
-| MenuNodeData | MenuNodeProps<TChild> | MenuNodeGet::Props(WP_Post, children: []) |
-| PostTypeData | PostTypeProps | PostTypeGet::Props(WP_Post_Type) |
-| TaxonomyData | TaxonomyProps | TaxonomyGet::Props(WP_Taxonomy) |
+| PostData | PostProps | From(WP_Post): static |
+| TermData | TermProps | From(WP_Term): ?static |
+| CommentData | CommentProps | From(WP_Comment, avatarSize: 96): static |
+| WpUserData | UserProps | From(WP_User, avatarSize: 96): ?static |
+| MenuNodeData | MenuNodeProps<TChild> | From(WP_Post, children: []): ?static |
+| MenuData | MenuProps<TNode> | From(WP_Term): ?static |
+| PostTypeData | PostTypeProps | From(WP_Post_Type): static |
+| TaxonomyData | TaxonomyProps | From(WP_Taxonomy): static |
+
+全種類でfinal public static From → protected static getProps → final protectedコンストラクター → protected initializeの順です。外部new・Get::From/Propsは廃止しました。Coreの値型・Query結果Dataの手動構築は維持します。
 
 Propsは変更可能な値の集合です。Dataは構築時の値をreadonlyプロパティへコピーします。元のPropsの後続変更は反映しません。Propsを再利用したい場合は変更前にcloneしてください。コンストラクターではWordPress・ACFへ問い合わせません。
 
-継承可能な7種類のWordPress Dataは、クラス全体ではなく共通プロパティへ個別にreadonlyを指定します。サブクラスの追加状態まで不変とは保証しません。案件側は追加プロパティをreadonlyにするか、編集状態・キャッシュ等として変更可能にするかを選べます。配列プロパティ自体の変更はできませんが、保持するオブジェクトの内部状態まで固定する深い不変性は保証しません。
+継承可能な8種類のWordPress Dataは、クラス全体ではなく共通プロパティへ個別にreadonlyを指定します。サブクラスの追加状態まで不変とは保証しません。案件側は追加プロパティをreadonlyにするか、編集状態・キャッシュ等として変更可能にするかを選べます。配列プロパティ自体の変更はできませんが、保持するオブジェクトの内部状態まで固定する深い不変性は保証しません。
 
 PHPでは非readonlyクラスをreadonlyクラスで継承できません。案件側も通常のclassで継承し、固定したい追加プロパティへreadonlyを付けてください。親のId・Title等のreadonlyは解除できません。編集用の追加状態を保存する処理は案件側の責務であり、保存後に共通値を更新したい場合はDataを再取得します。保存APIは提供しません。Coreのfinal値型、finalなQuery結果・ACF Dataはクラス全体をreadonlyにします。
 
-TermGet::Props()/From()はURLの取得失敗時にnullを返します。UserGet::Props()/From()は存在しないユーザーならnullです。直接構築するPropsの値の妥当性は呼び出し側の責任です。
+TermData::FromはURL取得失敗時、WpUserData::Fromは存在しないユーザーならnullです。nullableなgetPropsではnullにより生成を中止でき、その場合initializeは呼ばれません。
 
 ```php
-use WpTypeSafety\Wp\Get\PostGet;
-use WpTypeSafety\Wp\Data\PostData;
+use WpTypeSafety\Wp\Data\TermData;
+use WpTypeSafety\Wp\Data\TermProps;
 
-$props = PostGet::Props($post);
-$props->Title = '表示用タイトル';
-$props->RawContent = '変更した本文';
-$props->RawExcerpt = '変更した手入力抜粋';
-$data = new PostData($props);
+class DisplayTerm extends TermData
+{
+	protected static function getProps(\WP_Term $term): ?TermProps
+	{
+		$props = parent::getProps($term);
+		if ($props === null)
+		{return null;}
+		$props->Name = '表示用名称';
+		return $props;
+	}
+}
+$data = DisplayTerm::From($term);
 ```
 
 ## 案件用Dataの生成と継承
@@ -145,32 +157,38 @@ use WpTypeSafety\Acf\Get\AcfGet;
 /** @extends PostData<ArticlePostData, WpUserData> */
 final class ArticlePostData extends PostData
 {
-	public function __construct(PostProps $props, public readonly string $Subtitle)
+	public readonly string $Subtitle;
+
+	protected static function getProps(\WP_Post $post): PostProps
 	{
-		parent::__construct($props);
+		$props = parent::getProps($post);
+		$props->Title = '表示用：' . $props->Title;
+		return $props;
 	}
 
 	protected function createRelatedPost(\WP_Post $post): ?self
 	{
-		return self::FromWpPost($post);
+		return self::From($post);
 	}
 
-	public static function FromWpPost(\WP_Post $post): self
+	protected function initialize(\WP_Post $post): void
 	{
+		parent::initialize($post);
 		$postGet = new AcfGet($post);
-		return new self(
-			props: PostGet::Props($post),
-			Subtitle: $postGet->Text('subtitle'),
-		);
+		$this->Subtitle = $postGet->Text('subtitle');
 	}
 }
 ```
 
 ```php
-$article = ArticlePostData::FromWpPost($post);
-$loopArticle = PostGet::Loop(ArticlePostData::FromWpPost(...)); // ?ArticlePostData
+$article = ArticlePostData::From($post);
+$loopArticle = PostGet::Loop(dataClass: ArticlePostData::class); // ?ArticlePostData
 $children = $article->GetChildren(); // list<ArticlePostData>
 ```
+
+`getProps()`は内部DtoFactory/Adapterへ委譲する親実装を利用でき、mutableなfinal PostPropsを調整します。独自の必須コンストラクター引数や案件Propsクラスは不要です。3階層以上でも各initializeが親を先に呼び、readonly追加値は宣言クラスのメソッドで代入します（PHP 8.2以上）。生成中の例外は伝播し、未完成のDataを返したり初期化中の$thisを外へ公開したりしません。
+
+Fromが保証するのは生成手順であり、全追加値の初期化完了ではありません。親initializeの呼び忘れは受容するリスクとして規約とテストで扱います。Reflectionによる親の自動走査・自動呼び出しは追加しません。2・3階層の初期化、親呼び忘れ、readonly未初期化・再代入、finalと可視性の検証が必要です。WPなしのテストはネイティブ入力スタブやgetPropsのテスト用上書きで行い、公開newを復活させません。
 
 複数のGetterで共通する関連Data生成は、次のprotectedフックを上書きします。
 
@@ -180,7 +198,7 @@ $children = $article->GetChildren(); // list<ArticlePostData>
 | TermData | createRelatedTerm(WP_Term): ?TermData | GetParent・GetChildren |
 | CommentData | createRelatedComment(WP_Comment): ?CommentData | GetParent・GetChildren |
 
-標準フックは基底Dataを生成します。派生型を返す場合は生成フックを上書きしてください。nullは単一取得ではnull、リストでは要素の除外を意味します。順序を維持して再採番します。戻り値型違反はPHPのTypeError、フック内の例外はそのまま伝播します。前後投稿の処理では一時的なグローバルpostを例外時も復元します。
+標準フックは基底Dataを生成します。投稿は`PostData::From($post)`を使い、一律にstatic::Fromへ変更しません。関連投稿は所有者とは別型でもよく、TRelatedPostとTAuthorは独立です。派生型を返す場合は生成フックを上書きしてください。関連Adapterへ渡す既存のClosureも維持します。nullは単一取得ではnull、リストでは要素の除外を意味します。順序を維持して再採番します。戻り値型違反はPHPのTypeError、フック内の例外はそのまま伝播します。前後投稿の処理では一時的なグローバルpostを例外時も復元します。
 
 一つのGetterだけの変更には、別のFactoryやフックを設けません。PostData::GetAuthor()、CommentData::GetUser()/GetPost()/GetAvatar()、TermData::GetTaxonomy()等を直接オーバーライドします。標準処理は内部static Adapterへ委譲します。Internalは公開拡張点ではありません。
 
@@ -204,7 +222,7 @@ $children = $article->GetChildren(); // list<ArticlePostData>
 
 外部取得は呼び出しごとに実行し、Dataは結果をキャッシュしません。元のWordPressオブジェクトは保持しません。PropsのId等を変更した場合も変更後の保持値を使用します。
 
-値の参照・GetLink・HasContent・HasExcerpt・HasParent・IsPublished・IsApproved・HasObjectTypeなどはWordPressなしで利用できます。標準のGetExcerptのタグ除去や外部取得・描画にはWordPressが必要です。直接newしたDataでも標準の取得処理を実行します。オーバーライド内でparent::を呼べば、親処理のWordPress依存も残ります。
+構築済みDataの値の参照・GetLink・HasContent・HasExcerpt・HasParent・IsPublished・IsApproved・HasObjectTypeなどはWordPressなしで利用できます。PostDataの標準From/getPropsによる生成や、標準のGetExcerptのタグ除去・外部取得・描画にはWordPressが必要です。他のWordPress Dataも標準From/getPropsではWordPressを利用します。オーバーライド内でparent::を呼べば、親処理のWordPress依存も残ります。
 
 ### PostData
 
@@ -228,17 +246,17 @@ CommentData::GetAvatar()は保持したIdで現在のWP_Commentを取得し、�
 
 ### メニュー
 
-MenuNodeProps<TChild>・MenuNodeData<TChild>のChildrenは構築済みのlist<TChild>です。Childrenを取得・再生成するフックはありません。TreeFromLocation()のnodeFactoryは木を構築する入口です。木のキャッシュはTreeFromLocation()側で扱います。
+MenuNodeProps<TChild>・MenuNodeData<TChild>のChildrenは構築済みのlist<TChild>です。Childrenを取得・再生成するフックはありません。MenuDataのprotected static getNodeClass(): class-string<TNode>でノードクラスを指定します。子から親の順でそのクラスのFromを呼び、nullのノードは子孫ごと除外します。MenuData<TNode>は定義とNodesを保持し、FindBy*・PathTo*・FindCurrentで取得済みツリーを探索します。静的ツリーキャッシュは持ちません。IsCurrentは取得時の判定を保持し、FindCurrentは再取得しません。
 
 GetThumbnail()は固定ページを参照するメニュー項目（TypeがPostType、Objectがpage）だけを対象とします。リンク・判定メソッドは保持値から動作します。
 
-## ジェネリクス・取得入口のFactory
+## ジェネリクス・取得入口のクラス指定
 
 関連Dataの型はPostData<TRelatedPost, TAuthor>、TermData<TRelatedTerm>、CommentData<TRelatedComment, TUser, TPost>、MenuNodeData<TChild>で表します。MenuNodeProps以外のPropsは値だけなので関連型のパラメーターを持ちません。
 
 型パラメーターの宣言だけでは実行時の生成型は変わりません。@extendsと生成フック・Getterの実装を一致させてください。既定実装は基底型を返すため、その2つを静的解析だけで完全には保証できません。PHPStanの回帰テストと実行時テストを併用します。
 
-`Current()`・`Loop()`・Query・ACF・`TreeFromLocation()`・`GetTerms()`などの取得入口は、呼び出しごとに派生DataのFactoryを受け取れます。一方、DataのコンストラクターはPropsだけを受け取り、関連Dataの生成方法は派生クラス側のフックやGetterで定義します。
+投稿の`ById()`・`ByPath()`・`Current()`・`Loop()`、PostQueryのGet/From、MainQueryGetのCurrent、AcfGetのPost/Postsは`string $dataClass = PostData::class`（PHPDocは`@template T of PostData`・`@param class-string<T> $dataClass`）を受け取ります。指定クラスのFromを呼び、単体はT|null、QueryはPostQueryData<T>、ACF複数はlist<T>です。不明・別系統・abstractクラスは検索前にInvalidArgumentExceptionとし、未発見のnull・空リストと区別します。Term/User/CommentのGet・Query・ACF参照、MenuGet、登録定義Get、PostData::GetTermsもclass-string方式です。MenuDataがgetNodeClassでノード型を決めます。関連Dataの生成方法は通常取得のクラス指定とは独立してフックやGetterで定義します。
 
 ACFブロックの描画情報やCore DataはこのWordPress Dataの継承方式とは別の契約です。
 

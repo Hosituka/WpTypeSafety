@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 // WordPress APIスタブ。DB更新なしで保持値・Factory・上書きを検証する。
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/post-props.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 
 use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\PostProps;
@@ -26,27 +28,28 @@ class WP_Post
 	) {}
 }
 class WP_User { public function __construct(public int $ID) {} }
-class ProjectUser extends WpUserData {}
+class ProjectUser extends WpUserData { use TestUserProps; }
 /** @extends PostData<ProjectPost, ProjectUser> */
 class ProjectPost extends PostData
 {
+	use TestPostProps;
 	protected function createRelatedPost(WP_Post $post): ?self
 	{
-		return self::FromWpPost($post);
+		return self::From($post);
 	}
 	public function GetAuthor(): ?ProjectUser
 	{
 		$user = get_userdata($this->AuthorId);
 		return $user instanceof WP_User ? self::UserFromWpUser($user) : null;
 	}
-	public static function FromWpPost(WP_Post $post): self { return new self(PostGet::Props($post)); }
 	public static function UserFromWpUser(WP_User $user): ProjectUser
 	{
-		return new ProjectUser(new UserProps($user->ID, 'author'));
+		return ProjectUser::FromProps(new UserProps($user->ID, 'author'));
 	}
 }
 class CustomExcerptPost extends PostData
 {
+	use TestPostProps;
 	public function GetExcerpt(): string { return 'custom:' . $this->RawContent; }
 }
 function get_permalink(WP_Post $post): string { return '/post/' . $post->ID; }
@@ -70,7 +73,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 	$checks++;
 };
 $source = new WP_Post();
-$props = PostGet::Props($source);
+$props = \WpTypeSafety\Wp\Internal\DtoFactory::PostPropsFromWpPost($source);
 $check($props->AuthorId === 7 && $props->RawExcerpt === '<b>native excerpt</b>', '値の取得');
 $check(! method_exists(PostGet::class, 'Members'), '旧Members入口を廃止');
 $check(! class_exists('WpTypeSafety\\Wp\\Data\\PostMembers'), '旧PostMembersを廃止');
@@ -84,7 +87,7 @@ $props->Title = 'adjusted';
 $props->Url = '/adjusted/';
 $props->RawExcerpt = '<i>adjusted excerpt</i>';
 $props->RawContent = 'adjusted content';
-$data = new ProjectPost($props);
+$data = ProjectPost::FromProps($props);
 $props->Id = 99;
 $props->Title = 'later';
 $props->RawExcerpt = '';
@@ -101,27 +104,29 @@ $childData = $data->GetChildren();
 $check(count($childData) === 2 && array_is_list($childData) && $childData[0] instanceof ProjectPost, '子取得の型と連番');
 $check($GLOBALS['childrenArgs']['post_parent'] === 9, '変更した自身のIDで関連取得');
 $check($data->GetExcerpt() === 'adjusted excerpt', '後のDB抜粋変更を参照しない');
-$empty = new PostData(new PostProps(0, '', '', 'content'));
+$empty = TestPostData::FromProps(new PostProps(0, '', '', 'content'));
 $check($empty->GetExcerpt() === '' && ! $empty->HasExcerpt(), '自動抜粋を追加しない');
 $check($empty->GetChildren() === [] && $empty->GetParent() === null && $empty->GetAuthor() === null, '無効なIDでは取得しない');
-$custom = new CustomExcerptPost(new PostProps(1, '', '', 'body'));
+$custom = CustomExcerptPost::FromProps(new PostProps(1, '', '', 'body'));
 $check($custom->GetExcerpt() === 'custom:body', 'Resolverではなくメソッドで変更');
 class FilteredPost extends PostData
 {
+	use TestPostProps;
 	protected function createRelatedPost(WP_Post $post): ?PostData
 	{
 		return $post->ID === 11 ? null : parent::createRelatedPost($post);
 	}
 	public function GetAuthor(): ?WpUserData { return null; }
 }
-$filtered = new FilteredPost(new PostProps(9, '', '', '', ParentId: 3, AuthorId: 8));
+$filtered = FilteredPost::FromProps(new PostProps(9, '', '', '', ParentId: 3, AuthorId: 8));
 $check($filtered->GetAuthor() === null, 'GetAuthorを直接オーバーライド');
 $filteredChildren = $filtered->GetChildren();
 $check(count($filteredChildren) === 1 && array_is_list($filteredChildren) && $filteredChildren[0]->Id === 10, '生成フックで除外して再採番');
 $check($filteredChildren[0]::class === PostData::class, 'parentフックなら純粋なPostData');
 $check(count((new ReflectionMethod(PostData::class, '__construct'))->getParameters()) === 1, '構築引数は値のみ');
-$check(count((new ReflectionMethod(PostGet::class, 'From'))->getParameters()) === 1, 'Fromにも関連Factory引数なし');
-$check(count((new ReflectionMethod(PostGet::class, 'FromId'))->getParameters()) === 1, 'FromIdにも関連Factory引数なし');
+$check(! method_exists(PostGet::class, 'From') && ! method_exists(PostGet::class, 'Props'), 'PostGetの変換・Props入口を廃止');
+$check(count((new ReflectionMethod(PostData::class, 'From'))->getParameters()) === 1, 'Fromにも関連Factory引数なし');
+$check(count((new ReflectionMethod(PostGet::class, 'ById'))->getParameters()) === 2, 'ByIdは取得入口のFactoryを受け取りDataに保持しない');
 $check((new ReflectionMethod(PostData::class, 'createRelatedPost'))->isProtected(), '生成フックはサブクラス向け');
 $check(! property_exists($data, 'relatedPostFactory') && ! property_exists($data, 'authorFactory'), 'Factoryを保持しない');
 $GLOBALS['previousNative'] = new WP_Post(12);
@@ -130,21 +135,24 @@ $check($data->GetPreviousPost() instanceof ProjectPost && $data->GetPreviousPost
 $check($data->GetNextPost() instanceof ProjectPost && $data->GetNextPost()->Id === 13, '次投稿も生成フック');
 class ExcludedPost extends PostData
 {
+	use TestPostProps;
 	protected function createRelatedPost(WP_Post $post): ?PostData { return null; }
 }
 class InvalidHookPost extends PostData
 {
+	use TestPostProps;
 	protected function createRelatedPost(WP_Post $post): ?PostData { return new stdClass(); }
 }
 class ThrowingHookPost extends PostData
 {
+	use TestPostProps;
 	protected function createRelatedPost(WP_Post $post): ?PostData { throw $GLOBALS['hookError']; }
 }
 $hookProperty = new PostProps(9, '', '', '', ParentId: 3);
-$excluded = new ExcludedPost($hookProperty);
+$excluded = ExcludedPost::FromProps($hookProperty);
 $check($excluded->GetChildren() === [] && $excluded->GetParent() === null && $excluded->GetPreviousPost() === null && $excluded->GetNextPost() === null, '全関連取得でフックのnullを許可');
-$bad = new InvalidHookPost($hookProperty);
-$throwing = new ThrowingHookPost($hookProperty);
+$bad = InvalidHookPost::FromProps($hookProperty);
+$throwing = ThrowingHookPost::FromProps($hookProperty);
 $GLOBALS['hookError'] = new RuntimeException('hook error');
 foreach (['GetParent', 'GetChildren', 'GetPreviousPost', 'GetNextPost'] as $method) {
 	try {

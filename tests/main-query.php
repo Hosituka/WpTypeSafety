@@ -8,7 +8,19 @@ use WpTypeSafety\Wp\Get\MainQueryGet;
 use WpTypeSafety\Wp\Data\PostData;
 
 class WP_Post {}
-class FixturePostData extends PostData {}
+class FixturePostData extends PostData
+{
+	protected static function getProps(WP_Post $post): \WpTypeSafety\Wp\Data\PostProps
+	{
+		return new \WpTypeSafety\Wp\Data\PostProps(1, '/', 'fixture', '');
+	}
+	protected function initialize(WP_Post $post): void
+	{
+		if ($post !== $GLOBALS['expectedPost'])
+		{throw new RuntimeException('元の投稿を渡していない');}
+		$GLOBALS['calls']++;
+	}
+}
 
 class WP_Query
 {
@@ -84,29 +96,23 @@ $result = MainQueryGet::Current();
 $check($result->Posts === [] && ! $result->HasPosts(), '空のメインクエリもDataを返す');
 $check($result->CurrentPageNumber === 4, 'Currentも固定フロントのpageを参照');
 $check($result->TotalCount === 77 && $result->MaxPageCount === 8, '元のメインクエリの集計を維持');
-$fixture = (new ReflectionClass(FixturePostData::class))->newInstanceWithoutConstructor();
 $post = new WP_Post();
+$GLOBALS['expectedPost'] = $post;
 $main->posts = [$post, $post];
 $calls = 0;
-$factory = static function (WP_Post $value) use ($fixture, $post, &$calls): FixturePostData {
-	if ($value !== $post)
-	{throw new RuntimeException('元の投稿を渡していない');}
-	$calls++;
-	return $fixture;
-};
-$result = MainQueryGet::Current($factory);
-$check($result->Posts === [$fixture, $fixture], 'Factoryの派生Dataと投稿順を維持');
+$result = MainQueryGet::Current(FixturePostData::class);
+$check(count($result->Posts) === 2 && $result->Posts[0] instanceof FixturePostData && $result->Posts[1] instanceof FixturePostData && $result->Posts[0] !== $result->Posts[1], '派生Dataを投稿ごとに新規生成');
 $check($calls === 2, '各投稿を一度だけ変換');
-MainQueryGet::Current($factory);
+MainQueryGet::Current(FixturePostData::class);
 $check($calls === 4, '変換結果をキャッシュしない');
 $main->queryVars['no_found_rows'] = true;
-$result = MainQueryGet::Current($factory);
+$result = MainQueryGet::Current(FixturePostData::class);
 $check($result->TotalCount === null && $result->MaxPageCount === null, '集計省略時はnull');
 $check($GLOBALS['wp_the_query'] === $main && $GLOBALS['wp_query']->found_posts === 999, 'Currentはグローバルを変更しない');
 try {
-	MainQueryGet::Current(static fn(WP_Post $value) => null);
-	throw new RuntimeException('不正Factoryを受け入れた');
-} catch (UnexpectedValueException) {
+	MainQueryGet::Current(stdClass::class);
+	throw new RuntimeException('不正dataClassを受け入れた');
+} catch (InvalidArgumentException) {
 	$checks++;
 }
 $main->posts = [];

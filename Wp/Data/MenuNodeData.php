@@ -24,11 +24,13 @@ class MenuNodeData
 	public readonly MenuItemType $Type;
 	public readonly string $Object;
 	public readonly int $ObjectId;
+	/** メニュー取得時点のWordPressによる現在位置判定。 */
+	public readonly bool $IsCurrent;
 	/** @var list<TChild> */
 	public readonly array $Children;
 
 	/** @param MenuNodeProps<TChild> $props */
-	public function __construct(MenuNodeProps $props)
+	final protected function __construct(MenuNodeProps $props)
 	{
 		$this->Id = $props->Id;
 		$this->ParentId = $props->ParentId;
@@ -43,7 +45,36 @@ class MenuNodeData
 		$this->Type = $props->Type;
 		$this->Object = $props->Object;
 		$this->ObjectId = $props->ObjectId;
+		$this->IsCurrent = $props->IsCurrent;
 		$this->Children = $props->Children;
+	}
+
+	/**
+	 * @param list<TChild> $children
+	 * @return static|null
+	 */
+	final public static function From(\WP_Post $item, array $children = []): ?static
+	{
+		$props = static::getProps($item, $children);
+		if ($props === null)
+		{return null;}
+		$data = new static($props);
+		$data->initialize($item, $children);
+		return $data;
+	}
+
+	/**
+	 * @param list<TChild> $children
+	 * @return MenuNodeProps<TChild>|null
+	 */
+	protected static function getProps(\WP_Post $item, array $children = []): ?MenuNodeProps
+	{
+		return MenuAdapter::PropsFromWpPost($item, $children);
+	}
+
+	/** @param list<TChild> $children */
+	protected function initialize(\WP_Post $item, array $children = []): void
+	{
 	}
 
 	/** @param string|array{0: int, 1: int} $size */

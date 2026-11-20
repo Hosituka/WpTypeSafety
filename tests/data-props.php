@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 // WordPressなしで構築、コピー、公開API・拡張契約を検証する。
 require_once __DIR__ . '/../autoload.php';
+require_once __DIR__ . '/fixtures/post-props.php';
+require_once __DIR__ . '/fixtures/data-props.php';
 
 use WpTypeSafety\Wp\Data\PostProps;
 use WpTypeSafety\Wp\Data\TermProps;
@@ -31,7 +33,7 @@ $check = static function (bool $ok, string $label) use (&$checks): void {
 foreach ($cases as [$prefix, $dataName, $props, $field]) {
 	$dataClass = 'WpTypeSafety\\Wp\\Data\\' . $dataName;
 	$getClass = 'WpTypeSafety\\Wp\\Get\\' . $prefix . 'Get';
-	$data = new $dataClass($props);
+	$data = ('Test' . $prefix . 'Data')::FromProps($props);
 	$original = $data->$field;
 	$props->$field = is_int($original) ? 99 : 'changed';
 	$check($data->$field === $original, $prefix . ': 構築時の値をコピー');
@@ -44,7 +46,7 @@ foreach ($cases as [$prefix, $dataName, $props, $field]) {
 		$check($property->isReadOnly(), $prefix . ': 共通プロパティはreadonly');
 		$check(! str_contains((string) $property->getType(), 'Closure'), $prefix . ': DataにResolverなし');
 	}
-	$check(method_exists($getClass, 'Props') && ! method_exists($getClass, 'Members') && ! method_exists($getClass, 'Property'), $prefix . ': 取得APIをPropsに統一');
+	$check(!method_exists($getClass, 'Props') && ! method_exists($getClass, 'Members') && ! method_exists($getClass, 'Property'), $prefix . ': 投稿だけProps公開入口を廃止');
 	$parameters = (new ReflectionClass($data))->getConstructor()->getParameters();
 	$check(count($parameters) === 1 && $parameters[0]->getName() === 'props', $prefix . ': コンストラクターはPropsのみ');
 }
@@ -55,6 +57,6 @@ foreach (['PostData' => 'createRelatedPost', 'TermData' => 'createRelatedTerm', 
 	$check((new ReflectionMethod('WpTypeSafety\\Wp\\Data\\' . $name, $hook))->isProtected(), '生成フックはprotected');
 }
 $check(! method_exists('WpTypeSafety\\Wp\\Data\\MenuNodeData', 'createRelatedNode'), 'メニューの子は取得済みの値');
-$check(count((new ReflectionMethod('WpTypeSafety\\Wp\\Get\\CommentGet', 'From'))->getParameters()) === 2, 'CommentGetの関連Factory廃止');
-$check(count((new ReflectionMethod('WpTypeSafety\\Wp\\Get\\TermGet', 'From'))->getParameters()) === 1, 'TermGetの関連Factory廃止');
+$check(count((new ReflectionMethod('WpTypeSafety\\Wp\\Data\\CommentData', 'From'))->getParameters()) === 2, 'CommentGetの関連Factory廃止');
+$check(count((new ReflectionMethod('WpTypeSafety\\Wp\\Data\\TermData', 'From'))->getParameters()) === 1, 'TermGetの関連Factory廃止');
 echo "Data Props: {$checks} checks passed.\n";

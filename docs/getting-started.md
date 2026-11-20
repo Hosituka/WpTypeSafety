@@ -33,7 +33,7 @@ WpTypeSafetyが行うのは、取得時の型確認と正規化です。HTMLへ�
 | ACFのフィールド | `AcfGet` | `$postGet->Text('heading')` |
 | 投稿などのmeta | `MetaGet` | `$metaGet->Int('view_count')` |
 | `$args`や任意のPHP配列 | `ArrayGet` | `$argsGet->String('heading')` |
-| `WP_Post`などのWordPressオブジェクト | 対象別`Get` | `PostGet::From($post)` |
+| `WP_Post`などのWordPressオブジェクト | 投稿は`PostData`、他は対象別`Get` | `PostData::From($post)` |
 | WordPressの検索結果 | 対象別`Query` | `PostQuery::Get($args)` |
 
 迷った場合は、テーマでACFを使っているなら`AcfGet`、使っていないなら現在の`get_post_meta()`を`MetaGet`へ置き換えるところから始めるのがおすすめです。`Get`や`Query`は、取得した投稿全体を同じデータ形式で扱いたくなってから導入できます。
@@ -140,20 +140,20 @@ $itemIds = $argsGet->IntList('item_ids');
 
 ## 3. 必要になったらDataを使う
 
-フィールド単位ではなく、投稿のタイトル、URL、日時、サムネイルなどをひとまとまりで扱いたい場合は`PostGet`を使います。
+フィールド単位ではなく、取得済み投稿のタイトル、URL、日時、サムネイルなどをひとまとまりで扱いたい場合は`PostData::From()`を使います。
 
 ```php
 <?php
-use WpTypeSafety\Wp\Get\PostGet;
+use WpTypeSafety\Wp\Data\PostData;
 
-$postData = PostGet::From($post);
+$postData = PostData::From($post);
 echo esc_html($postData->Title);
 echo esc_url($postData->Url);
 ```
 
-`From()`は取得済みの`WP_Post`を受け取って`PostData`を返します。投稿IDから探す場合は`PostGet::FromId($postId)`を使用し、取得できないときの`null`を確認してください。
+`From()`は取得済みの`WP_Post`を受け取って`PostData`を返します。投稿IDから探す場合は`PostGet::ById($postId)`、親子のslug列なら`PostGet::ByPath('company/about')`を使用し、取得できないときの`null`を確認してください。
 
-共通Dataに案件固有の値を足す場合は`PostGet::Props($post)`で構築用の値を受け取り、`PostData`の派生クラスへ渡します。値の調整、取得メソッドの上書き、関連投稿の型の指定は[Dataと派生クラス](data.md)を参照してください。
+案件固有の投稿Dataは`getProps()`で共通値を調整し、`initialize()`で親を先に初期化してから自身の追加値を設定します。Fromとコンストラクターはfinalなので上書きせず、外部newもしません。取得口には`dataClass: ArticleData::class`を指定します。Term/User/Comment/Menu/登録定義Dataも同じ生成ライフサイクルです。Core・Query結果・ACF Dataの構築は変更しません。[Dataと派生クラス](data.md)を参照してください。
 
 投稿一覧を取得する処理では`PostQuery`を使うと、クエリ結果が最初から`PostData`のリストになります。
 

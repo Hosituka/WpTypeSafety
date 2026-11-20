@@ -14,27 +14,64 @@ final class TermAdapter
 	private function __construct() {}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermData|null : TTerm|null)
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TTerm|null
 	 */
-	public static function Current(?\Closure $termFactory = null): ?TermData
+	public static function ById(int $termId, ?string $taxonomy = null, string $dataClass = TermData::class): ?TermData
 	{
-		$term = MainQueryAdapter::QueriedObject();
-		return $term instanceof \WP_Term ? self::termData($term, $termFactory) : null;
+		DataClass::Validate($dataClass, TermData::class);
+		if ($termId <= 0 || $taxonomy === '')
+		{return null;}
+		$term = \get_term($termId, $taxonomy ?? '');
+		if (!$term instanceof \WP_Term || ($taxonomy !== null && $term->taxonomy !== $taxonomy))
+		{return null;}
+		return $dataClass::From($term);
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TTerm|null
+	 */
+	public static function BySlug(
+		string $taxonomy,
+		string $slug,
+		string $dataClass = TermData::class,
+	): ?TermData
+	{
+		DataClass::Validate($dataClass, TermData::class);
+		if ($taxonomy === '' || $slug === '')
+		{return null;}
+
+		$term = \get_term_by('slug', $slug, $taxonomy);
+		return $term instanceof \WP_Term ? $dataClass::From($term) : null;
+	}
+
+	/**
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return TTerm|null
+	 */
+	public static function Current(string $dataClass = TermData::class): ?TermData
+	{
+		DataClass::Validate($dataClass, TermData::class);
+		$term = MainQueryAdapter::QueriedObject();
+		return $term instanceof \WP_Term ? $dataClass::From($term) : null;
+	}
+
+	/**
+	 * @template TTerm of TermData = TermData
+	 * @param class-string<TTerm> $dataClass
+	 * @return list<TTerm>
 	 */
 	public static function FromPost(
 		\WP_Post|PostData|int $post,
 		string $taxonomy,
-		?\Closure $termFactory = null,
+		string $dataClass = TermData::class,
 	): array
 	{
+		DataClass::Validate($dataClass, TermData::class);
 		if ($post instanceof \WP_Post) {
 			$postId = $post->ID;
 		} elseif ($post instanceof PostData) {
@@ -52,7 +89,7 @@ final class TermAdapter
 			if (! $term instanceof \WP_Term) {
 				continue;
 			}
-			$data = self::termData($term, $termFactory);
+			$data = $dataClass::From($term);
 			if ($data !== null) {
 				$result[] = $data;
 			}
@@ -61,13 +98,15 @@ final class TermAdapter
 	}
 
 	/**
-	 * @template TTerm of TermData
-	 * @param list<TTerm> $terms
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? list<TermData> : list<TTerm>)
+	 * @template TInput of TermData
+	 * @template TTerm of TermData = TermData
+	 * @param list<TInput> $terms
+	 * @param class-string<TTerm> $dataClass
+	 * @return list<TInput|TTerm>
 	 */
-	public static function Roots(array $terms, ?\Closure $termFactory = null): array
+	public static function Roots(array $terms, string $dataClass = TermData::class): array
 	{
+		DataClass::Validate($dataClass, TermData::class);
 		$roots = [];
 		foreach ($terms as $term) {
 			if (! $term instanceof TermData) {
@@ -80,7 +119,7 @@ final class TermAdapter
 				if ($ancestors !== []) {
 					$root = \get_term((int) end($ancestors), $term->TaxonomyName);
 					if ($root instanceof \WP_Term) {
-						$rootData = self::termData($root, $termFactory) ?? $term;
+						$rootData = $dataClass::From($root) ?? $term;
 					}
 				}
 			}
@@ -92,7 +131,7 @@ final class TermAdapter
 	}
 
 	/**
-	 * @template TTerm of TermData
+	 * @template TTerm of TermData = TermData
 	 * @param list<TTerm> $terms
 	 * @return list<TTerm>
 	 */
@@ -116,7 +155,7 @@ final class TermAdapter
 	}
 
 	/**
-	 * @template TTerm of TermData
+	 * @template TTerm of TermData = TermData
 	 * @param list<TTerm> $terms
 	 * @return list<TTerm>
 	 */
@@ -139,30 +178,10 @@ final class TermAdapter
 		return $selected;
 	}
 
-	/**
-	 * @template TTerm of TermData
-	 * @param null|\Closure(\WP_Term): TTerm $termFactory
-	 * @return ($termFactory is null ? TermData|null : TTerm)
-	 */
-	private static function termData(\WP_Term $term, ?\Closure $termFactory): ?TermData
-	{
-		if ($termFactory === null) {
-			return self::FromWpTerm($term);
-		}
-
-		$data = $termFactory($term);
-		if (! $data instanceof TermData) {
-			throw new \UnexpectedValueException('TermGetのtermFactoryはTermDataを返す必要があります。');
-		}
-
-		return $data;
-	}
-
 	/** @return TermData<TermData>|null */
 	public static function FromWpTerm(\WP_Term $term): ?TermData
 	{
-		$props = self::PropsFromWpTerm($term);
-		return $props !== null ? new TermData($props) : null;
+		return TermData::From($term);
 	}
 
 	public static function PropsFromWpTerm(\WP_Term $term): ?TermProps
