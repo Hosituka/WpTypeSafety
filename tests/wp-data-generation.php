@@ -452,8 +452,8 @@ foreach ([
 	[AbstractMenu::class, static fn (string $class) => \WpTypeSafety\Wp\Get\MenuGet::BySlug('', $class)],
 	[AbstractMenu::class, static fn (string $class) => \WpTypeSafety\Wp\Get\MenuGet::ByLocation('', $class)],
 	[AbstractPostType::class, static fn (string $class) => \WpTypeSafety\Wp\Get\PostTypeGet::Current($class)],
-	[AbstractPostType::class, static fn (string $class) => \WpTypeSafety\Wp\Get\PostTypeGet::FromName('', $class)],
-	[AbstractTaxonomy::class, static fn (string $class) => \WpTypeSafety\Wp\Get\TaxonomyGet::FromName('', $class)],
+	[AbstractPostType::class, static fn (string $class) => \WpTypeSafety\Wp\Get\PostTypeGet::ByName('', $class)],
+	[AbstractTaxonomy::class, static fn (string $class) => \WpTypeSafety\Wp\Get\TaxonomyGet::ByName('', $class)],
 ] as [$abstractClass, $call]) {
 	foreach (['', 'MissingGenerationClass', stdClass::class, $abstractClass] as $class) {
 		try {

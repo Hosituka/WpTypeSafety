@@ -98,13 +98,14 @@ final class TermAdapter
 	}
 
 	/**
-	 * @template TInput of TermData
-	 * @template TTerm of TermData = TermData
-	 * @param list<TInput> $terms
+	 * 現在のWordPress階層からルートを取得し、指定クラスで新しく生成する。
+	 * 取得・変換に失敗した要素は除外し、入力インスタンスは返さない。
+	 * @template TTerm of TermData
+	 * @param list<TermData> $terms
 	 * @param class-string<TTerm> $dataClass
-	 * @return list<TInput|TTerm>
+	 * @return list<TTerm>
 	 */
-	public static function Roots(array $terms, string $dataClass = TermData::class): array
+	public static function Roots(array $terms, string $dataClass): array
 	{
 		DataClass::Validate($dataClass, TermData::class);
 		$roots = [];
@@ -113,16 +114,22 @@ final class TermAdapter
 				continue;
 			}
 
-			$rootData = $term;
-			if ($term->HasParent()) {
-				$ancestors = \get_ancestors($term->Id, $term->TaxonomyName, 'taxonomy');
-				if ($ancestors !== []) {
-					$root = \get_term((int) end($ancestors), $term->TaxonomyName);
-					if ($root instanceof \WP_Term) {
-						$rootData = $dataClass::From($root) ?? $term;
-					}
-				}
-			}
+			if ($term->Id <= 0 || $term->TaxonomyName === '')
+			{continue;}
+
+			// 入力のParentIdではなく、現在のWordPress階層を基準にする。
+			$ancestors = \get_ancestors($term->Id, $term->TaxonomyName, 'taxonomy');
+			$rootId = $ancestors !== [] ? (int) end($ancestors) : $term->Id;
+			if ($rootId <= 0)
+			{continue;}
+
+			$root = \get_term($rootId, $term->TaxonomyName);
+			if (!$root instanceof \WP_Term || $root->taxonomy !== $term->TaxonomyName || (int) $root->parent !== 0)
+			{continue;}
+
+			$rootData = $dataClass::From($root);
+			if ($rootData === null)
+			{continue;}
 
 			$key = $rootData->TaxonomyName . ':' . $rootData->Id;
 			$roots[$key] ??= $rootData;

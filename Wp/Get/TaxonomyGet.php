@@ -17,7 +17,7 @@ final class TaxonomyGet
 	 * @param class-string<TData> $dataClass
 	 * @return TData|null
 	 */
-	public static function FromName(string $name, string $dataClass = TaxonomyData::class): ?TaxonomyData
+	public static function ByName(string $name, string $dataClass = TaxonomyData::class): ?TaxonomyData
 	{
 		return DefinitionAdapter::TaxonomyFromName($name, $dataClass);
 	}

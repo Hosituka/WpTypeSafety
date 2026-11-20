@@ -400,6 +400,20 @@ $relatedSubtitle = $relatedPostMetaGet->String('subtitle');
 
 `Post()`などの名前は、取得値をどのWordPress IDとして解釈するかを利用側が明示します。値の形から投稿・ユーザー等を推測しません。Data中心の処理には`Post()`等、WordPressやプラグインのAPIへ渡す場合は`WpPost()`等を使用します。ネイティブ型への変換はIDから現在のWPオブジェクトを取得する読み取り処理であり、DataやWordPressの値を書き換えません。`MetaGet::FromTree()`または配列・オブジェクトを渡す`new MetaGet()`から、取得済みのPHP木構造だけを入口にすることもできます。
 
+
+### MetaGetで派生Dataを指定する
+
+```php
+$article = $relationsGet->Post('post_id', dataClass: ArticleData::class);
+$user = $relationsGet->User('user_id', avatarSize: 96, dataClass: ProjectUser::class);
+$term = $relationsGet->Term('term_id', taxonomy: 'category', dataClass: ProjectTerm::class);
+$comment = $relationsGet->Comment('comment_id', avatarSize: 96, dataClass: ProjectComment::class);
+```
+
+4種類とも末尾のdataClassにclass-string<T>を指定し、T|nullを返します。省略時は標準Dataです。既存の位置引数、IDの解釈、Userのget_user_by経由の取得、Termのtaxonomy引数を維持します。クラスはメタ値・IDの読み取り前に検証し、未知・別系統・abstractはInvalidArgumentExceptionです。欠損はnull、nullableなFromのnullもそのまま返し、生成例外は伝播します。
+
+FromTree・Nested・NestedPath・NestedList・Transformなど、MetaGet型を維持するReaderでも同じAPIを使用できます。NestedArray・NestedObject等はCore Readerを返すため対象外です。WpPost等のネイティブ取得、PostMeta等のメタReader取得は変更していません。
+
 `WithModes()`・`WithRules()`は、同じ取得元を保持した新しい取得口を返します。元の`MetaGet`の判定基準は変更しません。渡した`ValueRules`は生成時にcloneされ、同じ規則は`Nested()`後と再進入先の`MetaGet`にも継承されます。
 
 Coreの各Getterと同様に、`MetaGet`の最終的な値を返すGetterにも省略可能な`predicate`を指定できます。predicateにはWordPress向けの`ValueRules`で正規化できた値だけが渡され、単数Getterで条件に合わなければ既定値、List系Getterでは条件に合う要素だけを返します。欠損したメタ値ではpredicateを実行しません。
@@ -463,9 +477,10 @@ $url = $term?->Url ?? '';
 ```php
 <?php
 use WpTypeSafety\Wp\Get\TermGet;
+use WpTypeSafety\Wp\Data\TermData;
 
 $terms = TermGet::FromPost($postId, 'category');
-$roots = TermGet::Roots($terms);
+$roots = TermGet::Roots($terms, TermData::class);
 $children = $roots !== [] ? $roots[0]->GetChildren() : [];
 ```
 
@@ -473,7 +488,7 @@ $children = $roots !== [] ? $roots[0]->GetChildren() : [];
 
 `TermGet::FromPost()`は`WP_Post | PostData | int`を受け取ります。`ArticlePostData`などの派生DTOも渡せます。オブジェクトから投稿IDを取り出して取得し、DTOの内容を更新したり作り直したりはしません。
 
-案件固有の派生`TermData`を使用する場合は、`dataClass`を指定します。`Deepest()`と`Shallowest()`は入力されたDataと同じインスタンスを選別するため派生型を維持します。`Roots()`はWordPressから最上位祖先を新たに取得するため、派生型を維持する場合は同じクラス名を渡します。
+案件固有の派生`TermData`を使用する場合は、`dataClass`を指定します。`Deepest()`と`Shallowest()`は入力されたDataと同じインスタンスを選別するため派生型を維持します。Roots()はdataClassが必須です。親なしも含めて現在のWordPress階層からルートを取得し、指定クラスで新しく生成します。入力型と生成型は別でよく、結果は指定型のlist<T>だけになります。入力のインスタンスや編集済みPropsは引き継ぎません。
 
 ```php
 <?php
@@ -492,7 +507,7 @@ $deepest = TermGet::Deepest($areas);
 
 Factoryが呼ばれた場合は`TermData`の派生型を必ず返す必要があり、`null`による要素除外はできません。Factory未指定時は共通`TermData`を返します。
 
-`Deepest()`・`Shallowest()`は各タームの祖先数を深さとして比較します。同じ深さのタームが複数ある場合はすべて入力順で返し、空入力は空配列です。`Roots()`は各タームの最上位祖先を取得し、同じタクソノミーとIDの重複を除きます。
+`Deepest()`・`Shallowest()`は各タームの祖先数を深さとして比較します。同じ深さのタームが複数ある場合はすべて入力順で返し、空入力は空配列です。Roots()は各タームの最上位祖先を取得し、同じタクソノミーとIDの重複を除きます。取得・変換失敗、参照切れなどでルートを解決できない要素は除外し、入力Dataへフォールバックしません。生成例外は伝播します。
 
 ## WordPressメニュー
 
@@ -605,21 +620,21 @@ use WpTypeSafety\Wp\Get\TaxonomyGet;
 use WpTypeSafety\Wp\Data\TaxonomyData;
 
 // 投稿タイプ・タクソノミーの登録完了後に呼び出す。
-$postTypeData = PostTypeGet::FromName('cases');
+$postTypeData = PostTypeGet::ByName('cases');
 $currentPostType = PostTypeGet::Current();
-$taxonomyData = TaxonomyGet::FromName('area');
+$taxonomyData = TaxonomyGet::ByName('area');
 
 $archiveUrl = $postTypeData?->ArchiveUrl;
 $taxonomyNames = $postTypeData?->GetTaxonomyNames() ?? [];
 $isCasesTaxonomy = $taxonomyData?->HasObjectType('cases') ?? false;
 ```
 
-| 取得口 | `From()`の入力・戻り値 | `Props()`の戻り値 | `FromName()`の戻り値 |
+| 検索API | 入力 | 戻り値 | ネイティブ変換 |
 |---|---|---|---|
-| `PostTypeGet` | `WP_Post_Type` → `PostTypeData` | `PostTypeProps` | `PostTypeData|null` |
-| `TaxonomyGet` | `WP_Taxonomy` → `TaxonomyData` | `TaxonomyProps` | `TaxonomyData|null` |
+| PostTypeGet::ByName | 登録投稿タイプ名・dataClass | TPostTypeまたはnull | PostTypeData::From(WP_Post_Type) |
+| TaxonomyGet::ByName | 登録タクソノミー名・dataClass | TTaxonomyまたはnull | TaxonomyData::From(WP_Taxonomy) |
 
-`FromName()`は登録名を検索し、未登録・空文字では`null`を返します。`From()`と`Props()`は取得済みのWordPressオブジェクトを受け取ります。`Props()`で調整してから派生Dataへ渡すこともできます。これらの取得口は登録・更新を行いません。
+ByName()は登録名で検索し、未登録・空文字ならnullです。dataClassで派生Dataを指定できます。不正クラスは検索前にInvalidArgumentExceptionです。取得済みの定義はData::Fromで変換し、Propsは派生getPropsで調整します。旧FromNameは破壊的変更として削除し、互換エイリアスは残しません。登録・更新は行いません。
 
 共通プロパティは`Name`・`Label`・`SingularLabel`・`Description`・`IsPublic`・`IsPubliclyQueryable`・`IsHierarchical`です。文字列以外の表示名・説明は空文字、欠損または空の単数形ラベルは`Label`へフォールバックします。公開設定は登録上のbool値であり、現在の閲覧者の権限や記事単位の閲覧可否を保証しません。
 

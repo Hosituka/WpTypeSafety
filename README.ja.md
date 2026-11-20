@@ -195,3 +195,5 @@ Coreは厳密な型確認を既定値とします。`NumericMode`・`BoolMode`�
 ## ライセンス
 
 WpTypeSafety本体は[MIT License](LICENSE)です。同梱したComposerの`ClassLoader.php`は[別のライセンス表記](Autoload/Internal/Composer/LICENSE)を保持しています。
+
+MetaGetのdataClass対応と、FromName → ByNameの破壊的変更は[未リリースの変更点](docs/releases.md)を参照してください。

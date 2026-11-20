@@ -143,7 +143,7 @@ $GLOBALS['taxonomies'] = ['area' => $nativeTax];
 $GLOBALS['archives'] = ['cases' => 'https://example.com/works/'];
 $GLOBALS['taxonomyNames'] = ['cases' => ['area']];
 $GLOBALS['taxonomyNameRequests'] = [];
-$fromPost = PostTypeGet::FromName('cases');
+$fromPost = PostTypeGet::ByName('cases');
 $check($fromPost?->Name === 'cases' && $fromPost->SingularLabel === '制作実績1件', '投稿タイプの名前検索');
 $check($fromPost->Description === '投稿タイプの説明' && $fromPost->Label === '制作実績', '投稿タイプの表示値');
 $check($fromPost->IsPublic && ! $fromPost->IsPubliclyQueryable && ! $fromPost->IsHierarchical, '投稿タイプ設定');
@@ -182,7 +182,7 @@ $nativePost->description = false;
 $data = \WpTypeSafety\Wp\Data\PostTypeData::From($nativePost);
 $check($data->SingularLabel === '変更後' && $data->Description === '', 'ラベル欠損と説明型違い');
 
-$fromTax = TaxonomyGet::FromName('area');
+$fromTax = TaxonomyGet::ByName('area');
 $check($fromTax?->Name === 'area' && $fromTax->Label === '地域' && $fromTax->SingularLabel === '地域1件', 'タクソノミー名前検索');
 $check($fromTax->Description === '分類の説明' && $fromTax->ObjectTypes === ['cases', 'post'], 'タクソノミー値の正規化');
 $check(! $fromTax->IsPublic && $fromTax->IsPubliclyQueryable && $fromTax->IsHierarchical, 'タクソノミー設定');
@@ -201,11 +201,30 @@ $check($data->ObjectTypes === [] && ! $data->HasObjectType('cases'), '対象投�
 foreach ([null, false, new stdClass()] as $missing) {
 	$GLOBALS['postTypes']['missing'] = $missing;
 	$GLOBALS['taxonomies']['missing'] = $missing;
-	$check(PostTypeGet::FromName('missing') === null, '投稿タイプ未登録・型違い');
-	$check(TaxonomyGet::FromName('missing') === null, 'タクソノミー未登録・型違い');
+	$check(PostTypeGet::ByName('missing') === null, '投稿タイプ未登録・型違い');
+	$check(TaxonomyGet::ByName('missing') === null, 'タクソノミー未登録・型違い');
 }
 $before = count($GLOBALS['postTypeRequests']) + count($GLOBALS['taxonomyRequests']);
-$check(PostTypeGet::FromName('') === null && TaxonomyGet::FromName('') === null, '空名はnull');
+$check(PostTypeGet::ByName('') === null && TaxonomyGet::ByName('') === null, '空名はnull');
 $check(count($GLOBALS['postTypeRequests']) + count($GLOBALS['taxonomyRequests']) === $before, '空名は検索しない');
+
+$check(!method_exists(PostTypeGet::class, 'FromName') && !method_exists(TaxonomyGet::class, 'FromName'), '旧FromNameは互換エイリアスを残さない');
+$check(PostTypeGet::ByName('cases', ProjectPostTypeData::class) instanceof ProjectPostTypeData, 'ByNameで派生PostTypeData');
+$check(TaxonomyGet::ByName('area', dataClass: ProjectTaxonomyData::class) instanceof ProjectTaxonomyData, 'ByNameで派生TaxonomyData');
+abstract class AbstractPostType extends PostTypeData {}
+abstract class AbstractTaxonomy extends TaxonomyData {}
+foreach ([[PostTypeGet::class, AbstractPostType::class], [TaxonomyGet::class, AbstractTaxonomy::class]] as [$getClass, $abstractClass]) {
+	foreach (['', 'MissingDefinitionDataClass', stdClass::class, $abstractClass] as $dataClass) {
+		foreach (['cases', 'missing', ''] as $name) {
+			$before = count($GLOBALS['postTypeRequests']) + count($GLOBALS['taxonomyRequests']);
+			try {
+				$getClass::ByName($name, $dataClass);
+				$check(false, 'invalid definition class');
+			} catch (InvalidArgumentException) {
+				$check(count($GLOBALS['postTypeRequests']) + count($GLOBALS['taxonomyRequests']) === $before, 'ByNameは検索前にクラス検証');
+			}
+		}
+	}
+}
 
 echo "Definitions: {$checks} checks passed.\n";

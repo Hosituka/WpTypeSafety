@@ -92,19 +92,39 @@ function Verify(Category $category, Review $review, Node $node, TermProps $term,
 		assertType('WpTypeSafetyTests\\PropsTypes\\Node|null', $customMenu->FindCurrent());
 		assertType('list<WpTypeSafetyTests\\PropsTypes\\Node>', $customMenu->PathToId(1));
 	}
-	assertType('WpTypeSafetyTests\\PropsTypes\\SitePostType|null', \WpTypeSafety\Wp\Get\PostTypeGet::FromName('post', SitePostType::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\SitePostType|null', \WpTypeSafety\Wp\Get\PostTypeGet::ByName('post', SitePostType::class));
 	assertType('WpTypeSafetyTests\\PropsTypes\\SitePostType|null', \WpTypeSafety\Wp\Get\PostTypeGet::Current(SitePostType::class));
-	assertType('WpTypeSafetyTests\\PropsTypes\\SiteTaxonomy|null', \WpTypeSafety\Wp\Get\TaxonomyGet::FromName('category', SiteTaxonomy::class));
+	assertType('WpTypeSafetyTests\\PropsTypes\\SiteTaxonomy|null', \WpTypeSafety\Wp\Get\TaxonomyGet::ByName('category', SiteTaxonomy::class));
 	assertType('WpTypeSafetyTests\\PropsTypes\\ThirdAuthor|null', ThirdAuthor::From(new \WP_User()));
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', \WpTypeSafety\Wp\Get\TermQuery::Get([], Category::class)->Terms);
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Author>', \WpTypeSafety\Wp\Get\UserQuery::Get([], dataClass: Author::class)->Users);
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Review>', \WpTypeSafety\Wp\Get\CommentQuery::Get([], dataClass: Review::class)->Comments);
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', TermGet::Roots([$category], Category::class));
+	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', TermGet::Roots([], Category::class));
+	$baseTerm = \WpTypeSafety\Wp\Data\TermData::From(new \WP_Term());
+	if ($baseTerm !== null) {
+		assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', TermGet::Roots([$baseTerm], Category::class));
+	}
 	$acf = new \WpTypeSafety\Acf\Get\AcfGet(1);
 	assertType('WpTypeSafetyTests\\PropsTypes\\Category|null', $acf->Term('term', Category::class));
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Category>', $acf->Terms('terms', Category::class));
 	assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', $acf->User('user', dataClass: Author::class));
 	assertType('list<WpTypeSafetyTests\\PropsTypes\\Author>', $acf->Users('users', dataClass: Author::class));
+
+	$meta = new \WpTypeSafety\Wp\Get\MetaGet($post);
+	$nestedMeta = $meta->NestedPath('settings', 'relations');
+	$treeMeta = \WpTypeSafety\Wp\Get\MetaGet::FromTree(['related_post' => 1]);
+	foreach ([$meta, $nestedMeta, $treeMeta, $meta->Nested('settings'), $meta->NestedList('items')[0]] as $reader) {
+		assertType('WpTypeSafetyTests\\PropsTypes\\Article|null', $reader->Post('related_post', Article::class));
+		assertType('WpTypeSafetyTests\\PropsTypes\\Author|null', $reader->User('author', dataClass: Author::class));
+		assertType('WpTypeSafetyTests\\PropsTypes\\Category|null', $reader->Term('category', taxonomy: 'category', dataClass: Category::class));
+		assertType('WpTypeSafetyTests\\PropsTypes\\Review|null', $reader->Comment('comment', 64, Review::class));
+		assertType('WpTypeSafety\\Wp\\Data\\PostData|null', $reader->Post('related_post'));
+		assertType('WpTypeSafety\\Wp\\Data\\WpUserData|null', $reader->User('author'));
+		assertType('WpTypeSafety\\Wp\\Data\\TermData|null', $reader->Term('category'));
+		assertType('WpTypeSafety\\Wp\\Data\\CommentData|null', $reader->Comment('comment'));
+		assertType('WP_Post|null', $reader->WpPost('related_post'));
+	}
 
 	assertType('WpTypeSafety\\Wp\\Data\\PostData', PostData::From($post));
 }

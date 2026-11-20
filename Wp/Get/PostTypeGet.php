@@ -28,7 +28,7 @@ final class PostTypeGet
 	 * @param class-string<TData> $dataClass
 	 * @return TData|null
 	 */
-	public static function FromName(string $name, string $dataClass = PostTypeData::class): ?PostTypeData
+	public static function ByName(string $name, string $dataClass = PostTypeData::class): ?PostTypeData
 	{
 		return DefinitionAdapter::PostTypeFromName($name, $dataClass);
 	}

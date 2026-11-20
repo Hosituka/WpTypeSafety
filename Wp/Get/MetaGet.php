@@ -13,6 +13,7 @@ use WpTypeSafety\Wp\Data\PostData;
 use WpTypeSafety\Wp\Data\TermData;
 use WpTypeSafety\Wp\Data\WpUserData;
 use WpTypeSafety\Wp\Internal\MetaAdapter;
+use WpTypeSafety\Wp\Internal\DataClass;
 use WpTypeSafety\Wp\Internal\ReferenceAdapter;
 use WpTypeSafety\Wp\Internal\WpValueRules;
 
@@ -156,9 +157,17 @@ final class MetaGet extends TreeGet
 			: [];
 	}
 
-	public function Post(int|string $segment): ?PostData
-	{
-		return ReferenceAdapter::Post($this->Int($segment) ?? 0);
+	/**
+	 * @template TData of PostData = PostData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public function Post(
+		int|string $segment,
+		string $dataClass = PostData::class,
+	): ?PostData {
+		DataClass::Validate($dataClass, PostData::class);
+		return ReferenceAdapter::Post($this->Int($segment) ?? 0, $dataClass);
 	}
 
 	public function WpPost(int|string $segment): ?\WP_Post
@@ -171,9 +180,18 @@ final class MetaGet extends TreeGet
 		return self::FromPost($this->Int($segment) ?? 0, $this->publicRulesSnapshot());
 	}
 
-	public function User(int|string $segment, int $avatarSize = 96): ?WpUserData
-	{
-		return ReferenceAdapter::User($this->Int($segment) ?? 0, $avatarSize);
+	/**
+	 * @template TData of WpUserData = WpUserData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public function User(
+		int|string $segment,
+		int $avatarSize = 96,
+		string $dataClass = WpUserData::class,
+	): ?WpUserData {
+		DataClass::Validate($dataClass, WpUserData::class);
+		return ReferenceAdapter::User($this->Int($segment) ?? 0, $avatarSize, $dataClass);
 	}
 
 	public function WpUser(int|string $segment): ?\WP_User
@@ -186,9 +204,18 @@ final class MetaGet extends TreeGet
 		return self::FromUser($this->Int($segment) ?? 0, $this->publicRulesSnapshot());
 	}
 
-	public function Term(int|string $segment, ?string $taxonomy = null): ?TermData
-	{
-		return ReferenceAdapter::Term($this->Int($segment) ?? 0, $taxonomy);
+	/**
+	 * @template TData of TermData = TermData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public function Term(
+		int|string $segment,
+		?string $taxonomy = null,
+		string $dataClass = TermData::class,
+	): ?TermData {
+		DataClass::Validate($dataClass, TermData::class);
+		return ReferenceAdapter::Term($this->Int($segment) ?? 0, $taxonomy, $dataClass);
 	}
 
 	public function WpTerm(int|string $segment, ?string $taxonomy = null): ?\WP_Term
@@ -201,9 +228,18 @@ final class MetaGet extends TreeGet
 		return self::FromTerm($this->Int($segment) ?? 0, $this->publicRulesSnapshot());
 	}
 
-	public function Comment(int|string $segment, int $avatarSize = 96): ?CommentData
-	{
-		return ReferenceAdapter::Comment($this->Int($segment) ?? 0, $avatarSize);
+	/**
+	 * @template TData of CommentData = CommentData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public function Comment(
+		int|string $segment,
+		int $avatarSize = 96,
+		string $dataClass = CommentData::class,
+	): ?CommentData {
+		DataClass::Validate($dataClass, CommentData::class);
+		return ReferenceAdapter::Comment($this->Int($segment) ?? 0, $avatarSize, $dataClass);
 	}
 
 	public function WpComment(int|string $segment): ?\WP_Comment

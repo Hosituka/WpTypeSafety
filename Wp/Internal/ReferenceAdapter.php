@@ -73,35 +73,59 @@ final class ReferenceAdapter
 		return $comment instanceof \WP_Comment ? $comment : null;
 	}
 
-	public static function Post(int $postId): ?PostData
+	/**
+	 * @template TData of PostData = PostData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public static function Post(int $postId, string $dataClass = PostData::class): ?PostData
 	{
+		DataClass::Validate($dataClass, PostData::class);
 		$post = self::WpPost($postId);
 		return $post !== null
-			? DtoFactory::PostFromWpPost($post)
+			? $dataClass::From($post)
 			: null;
 	}
 
-	public static function User(int $userId, int $avatarSize = 96): ?WpUserData
+	/**
+	 * @template TData of WpUserData = WpUserData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public static function User(int $userId, int $avatarSize = 96, string $dataClass = WpUserData::class): ?WpUserData
 	{
+		DataClass::Validate($dataClass, WpUserData::class);
 		$user = self::WpUser($userId);
 		return $user !== null
-			? DtoFactory::UserFromWpUser($user, $avatarSize)
+			? $dataClass::From($user, $avatarSize)
 			: null;
 	}
 
-	public static function Term(int $termId, ?string $taxonomy = null): ?TermData
+	/**
+	 * @template TData of TermData = TermData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public static function Term(int $termId, ?string $taxonomy = null, string $dataClass = TermData::class): ?TermData
 	{
+		DataClass::Validate($dataClass, TermData::class);
 		$term = self::WpTerm($termId, $taxonomy);
 		return $term !== null
-			? TermAdapter::FromWpTerm($term)
+			? $dataClass::From($term)
 			: null;
 	}
 
-	public static function Comment(int $commentId, int $avatarSize = 96): ?CommentData
+	/**
+	 * @template TData of CommentData = CommentData
+	 * @param class-string<TData> $dataClass
+	 * @return TData|null
+	 */
+	public static function Comment(int $commentId, int $avatarSize = 96, string $dataClass = CommentData::class): ?CommentData
 	{
+		DataClass::Validate($dataClass, CommentData::class);
 		$comment = self::WpComment($commentId);
 		return $comment !== null
-			? DtoFactory::CommentFromWpComment($comment, $avatarSize)
+			? $dataClass::From($comment, $avatarSize)
 			: null;
 	}
 

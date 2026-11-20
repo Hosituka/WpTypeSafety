@@ -64,13 +64,14 @@ final class TermGet
 	}
 
 	/**
-	 * @template TInput of TermData
-	 * @template TTerm of TermData = TermData
-	 * @param list<TInput> $terms
+	 * 現在のWordPress階層からルートを取得し、指定クラスで新しく生成する。
+	 * 取得・変換に失敗した要素は除外し、入力インスタンスは返さない。
+	 * @template TTerm of TermData
+	 * @param list<TermData> $terms
 	 * @param class-string<TTerm> $dataClass
-	 * @return list<TInput|TTerm>
+	 * @return list<TTerm>
 	 */
-	public static function Roots(array $terms, string $dataClass = TermData::class): array
+	public static function Roots(array $terms, string $dataClass): array
 	{
 		return TermAdapter::Roots($terms, $dataClass);
 	}

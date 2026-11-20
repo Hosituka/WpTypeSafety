@@ -124,13 +124,14 @@ function get_permalink(WP_Post $post): string { return 'https://example.com/post
 function get_post_datetime(WP_Post $post, string $field = 'date'): false { return false; }
 function get_the_title(WP_Post $post): string { return '投稿' . $post->ID; }
 function is_post_publicly_viewable(WP_Post $post): bool { return true; }
-function get_user_by(string $field, int $userId): WP_User|false { return $GLOBALS['users'][$userId] ?? false; }
+function get_user_by(string $field, int $userId): WP_User|false { $GLOBALS['lastUserLookup'] = [$field, $userId]; return $GLOBALS['users'][$userId] ?? false; }
 function get_author_posts_url(int $userId): string { return 'https://example.com/author/' . $userId . '/'; }
-function get_term(int $termId, string $taxonomy = ''): WP_Term|WP_Error|null { return $GLOBALS['terms'][$termId] ?? null; }
+function get_term(int $termId, string $taxonomy = ''): WP_Term|WP_Error|null { $GLOBALS['lastTermLookup'] = [$termId, $taxonomy]; return $GLOBALS['terms'][$termId] ?? null; }
 function get_term_link(WP_Term $term): string { return 'https://example.com/term/' . $term->term_id . '/'; }
 function is_wp_error(mixed $value): bool { return $value instanceof WP_Error; }
 function get_comment(int $commentId): ?WP_Comment { return $GLOBALS['comments'][$commentId] ?? null; }
 function get_comment_link(WP_Comment $comment): string { return 'https://example.com/#comment-' . $comment->comment_ID; }
+function get_avatar_url(mixed $value, array $args): string { return 'https://example.com/avatar.png'; }
 function wp_timezone(): DateTimeZone { return new DateTimeZone('Asia/Tokyo'); }
 
 require_once __DIR__ . '/../autoload.php';
@@ -274,5 +275,145 @@ $invalidGet = MetaGet::FromPost(0);
 $check(! $invalidGet->Exists('title'), '0以下のIDを空の取得元として扱う');
 $check($invalidGet->Native('title') === null, '無効なIDの値はnull');
 $check($GLOBALS['metaCalls'] === [], '無効なIDではWordPress APIを呼ばない');
+
+
+// Derived Data selection must not change reference resolution or Reader propagation.
+
+class MetaPost extends \WpTypeSafety\Wp\Data\PostData
+{
+	public readonly string $Marker;
+	protected function initialize(WP_Post $source): void
+	{
+		parent::initialize($source);
+		$this->Marker = 'derived';
+		$GLOBALS['derivedMetaCalls'][] = 'Post';
+	}
+}
+abstract class AbstractMetaPost extends MetaPost {}
+class ThrowingMetaPost extends MetaPost
+{
+	protected function initialize(WP_Post $source): void { throw $GLOBALS['metaGenerationError']; }
+}
+
+class MetaUser extends \WpTypeSafety\Wp\Data\WpUserData
+{
+	public readonly string $Marker;
+	protected function initialize(WP_User $source, int $avatarSize = 96): void
+	{
+		parent::initialize($source, $avatarSize);
+		$this->Marker = 'derived';
+		$GLOBALS['derivedMetaCalls'][] = 'User';
+	}
+}
+abstract class AbstractMetaUser extends MetaUser {}
+class ThrowingMetaUser extends MetaUser
+{
+	protected function initialize(WP_User $source, int $avatarSize = 96): void { throw $GLOBALS['metaGenerationError']; }
+}
+
+class MetaTerm extends \WpTypeSafety\Wp\Data\TermData
+{
+	public readonly string $Marker;
+	protected function initialize(WP_Term $source): void
+	{
+		parent::initialize($source);
+		$this->Marker = 'derived';
+		$GLOBALS['derivedMetaCalls'][] = 'Term';
+	}
+}
+abstract class AbstractMetaTerm extends MetaTerm {}
+class ThrowingMetaTerm extends MetaTerm
+{
+	protected function initialize(WP_Term $source): void { throw $GLOBALS['metaGenerationError']; }
+}
+
+class MetaComment extends \WpTypeSafety\Wp\Data\CommentData
+{
+	public readonly string $Marker;
+	protected function initialize(WP_Comment $source, int $avatarSize = 96): void
+	{
+		parent::initialize($source, $avatarSize);
+		$this->Marker = 'derived';
+		$GLOBALS['derivedMetaCalls'][] = 'Comment';
+	}
+}
+abstract class AbstractMetaComment extends MetaComment {}
+class ThrowingMetaComment extends MetaComment
+{
+	protected function initialize(WP_Comment $source, int $avatarSize = 96): void { throw $GLOBALS['metaGenerationError']; }
+}
+
+class ExcludedMetaTerm extends MetaTerm
+{
+	protected static function getProps(WP_Term $source): ?\WpTypeSafety\Wp\Data\TermProps { return null; }
+}
+class ExcludedMetaUser extends MetaUser
+{
+	protected static function getProps(WP_User $source, int $avatarSize = 96): ?\WpTypeSafety\Wp\Data\UserProps { return null; }
+}
+$values = ['Post' => '20', 'User' => '30', 'Term' => '40', 'Comment' => '50'];
+foreach ($values as $name => $id) {
+	$GLOBALS['metaValues']['post'][7][$name] = [$id];
+}
+$tree = MetaGet::FromTree($values + ['nested' => $values, 'deep' => ['nested' => $values], 'list' => [$values]]);
+$readers = [MetaGet::FromPost(7), $tree, $tree->Nested('nested'), $tree->NestedPath('deep', 'nested'), $tree->NestedList('list')[0], $tree->Transform('nested', static fn (mixed $value): mixed => $value)];
+foreach ($readers as $reader) {
+	foreach ($values as $name => $id) {
+		$class = 'Meta' . $name;
+		$GLOBALS['derivedMetaCalls'] = [];
+		$data = $reader->$name($name, dataClass: $class);
+		$check($data instanceof $class && $data->Id === (int) $id && $data->Marker === 'derived', '派生Data: ' . $name);
+		$check($GLOBALS['derivedMetaCalls'] === [$name], 'initializeを一度実行: ' . $name);
+		$check($reader->$name('missing', dataClass: $class) === null && $GLOBALS['derivedMetaCalls'] === [$name], '欠損時は生成しない: ' . $name);
+		$wpMethod = 'Wp' . $name;
+		$check($reader->$wpMethod($name) === $GLOBALS[strtolower($name) === 'user' ? 'users' : (strtolower($name) === 'post' ? 'posts' : (strtolower($name) === 'term' ? 'terms' : 'comments'))][(int) $id], 'ネイティブ取得を維持: ' . $name);
+		foreach (['', 'MissingMetaDataClass', stdClass::class, 'AbstractMeta' . $name] as $badClass) {
+			foreach ([$name, 'missing'] as $key) {
+				$before = $GLOBALS['metaCalls'];
+				try {
+					$reader->$name($key, dataClass: $badClass);
+					$check(false, 'invalid class accepted');
+				} catch (InvalidArgumentException) {
+					$check($GLOBALS['metaCalls'] === $before, 'メタ取得前にクラス検証: ' . $name);
+				}
+			}
+		}
+		$GLOBALS['metaGenerationError'] = new LogicException('meta generation');
+		try {
+			$reader->$name($name, dataClass: 'ThrowingMeta' . $name);
+			$check(false, 'exception swallowed');
+		} catch (LogicException $error) {
+			$check($error === $GLOBALS['metaGenerationError'], '生成例外の同一性を維持: ' . $name);
+		}
+	}
+	$check($reader->Term('Term', dataClass: ExcludedMetaTerm::class) === null, 'Termのnull生成');
+	$check($reader->User('User', dataClass: ExcludedMetaUser::class) === null, 'Userのnull生成');
+}
+$check($tree->User('User', 48, MetaUser::class)->GetAvatar()?->Width === 48, 'Userの位置引数');
+$check($tree->Comment('Comment', 64, MetaComment::class)->GetAvatar()?->Width === 64, 'Commentの位置引数');
+$check($tree->User('User', avatarSize: 72, dataClass: MetaUser::class)->GetAvatar()?->Width === 72, 'Userの名前付き引数');
+$check($tree->Comment('Comment', avatarSize: 80, dataClass: MetaComment::class)->GetAvatar()?->Width === 80, 'Commentの名前付き引数');
+$check($tree->Term('Term', 'category', MetaTerm::class)->TaxonomyName === 'category', 'Termの位置引数');
+$check($GLOBALS['lastTermLookup'] === [40, 'category'], 'taxonomyを変更せず渡す');
+$tree->Term('Term', taxonomy: 'category', dataClass: MetaTerm::class);
+$check($GLOBALS['lastTermLookup'] === [40, 'category'], 'taxonomyの名前付き引数');
+$check($GLOBALS['lastUserLookup'] === ['id', 30], '従来のget_user_by経路を維持');
+$check($tree->NestedArray('nested') instanceof \WpTypeSafety\Core\Check\ArrayGet, 'NestedArrayはCore Readerのまま');
+
+$normalizerCalls = 0;
+$probeRules = ValueRules::Strict();
+$probeRules->IntNormalizer = static function (mixed $value) use (&$normalizerCalls): ?int {
+	$normalizerCalls++;
+	throw new LogicException('must validate class before normalizing');
+};
+$probeMeta = MetaGet::FromTree($values, $probeRules);
+foreach (array_keys($values) as $name) {
+	try {
+		$probeMeta->$name($name, dataClass: stdClass::class);
+		$check(false, 'invalid class accepted');
+	} catch (InvalidArgumentException) {
+		$check($normalizerCalls === 0, '値の正規化前にクラス検証: ' . $name);
+	}
+}
 
 echo "MetaGet: {$checks} checks passed.\n";
