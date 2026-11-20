@@ -21,7 +21,7 @@
 
 投稿タイプ・タクソノミーの登録定義には`PostTypeGet`・`TaxonomyGet`を使用します。両GetはDefinitionAdapterへ委譲し、対応するDataを返します。名前からの検索はByName()、取得済みWordPress定義オブジェクトからの変換は各DataのFrom()です。共通Propsの調整はDataのprotected static getProps()で行います。投稿タイプに紐づく分類名は保持したNameで内部Adapterから遅延取得し、他の定義情報は生成時のスナップショットとして保持します。
 
-各対象別Getは検索・コンテキスト取得を担当します。8種類のWordPress Dataはfinal public static Fromで、protected static getProps → final protectedコンストラクター → protected initialize →返却を固定します。派生initializeは親を先に呼びます。Get・Query・ACF参照のdataClassはclass-string<T>で、未知・別系統・abstractクラスは取得前にInvalidArgumentExceptionです。GetのFrom/Propsは廃止しました。Propsは値だけを保持し、Dataの個別readonlyプロパティへコピーします。関連DataはGetter・protected生成フックで拡張し、関連Adapterの内部Closureは維持します。
+各対象別Getは検索・コンテキスト取得を担当します。8種類のWordPress Dataは`final public static From()`で、`protected static getProps()`→`final protected`コンストラクター→`protected initialize()`→返却の順序を固定します。派生`initialize()`は親を先に呼びます。Get・Query・ACF参照の`dataClass`は`class-string<T>`で、未知・別系統・abstractクラスは取得前に`InvalidArgumentException`です。Propsは値だけを保持し、Dataの個別readonlyプロパティへコピーします。関連DataはGetter・protected生成フックで拡張し、関連Adapterの内部Closureは維持します。
 
 メニュー全体の取得は`MenuGet`、セットアップ済み項目の変換は`MenuNodeData::From`、取得済みツリーの探索は`MenuData`が担当します。`FindCurrent()`も取得時の`IsCurrent`を探索するだけで、WPコンテキストを再取得しません。メニューの静的ツリーキャッシュは持ちません。
 

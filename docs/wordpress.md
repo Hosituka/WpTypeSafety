@@ -7,7 +7,7 @@ WordPressの値は、取得元と必要な戻り値に合わせて次の入口�
 | 取得したいもの | 入口 | 主な操作 |
 |---|---|---|
 | 現在の表示対象・ループ投稿・ログインユーザー | `PostGet`・`TermGet`・`UserGet` | `Current()`・`Loop()`・`LoggedIn()` |
-| 取得済みのWordPressオブジェクトをDataへ変換 | 投稿は`PostData`、他は対象別の`*Get` | 投稿は`From()`、他は`From()`・`Props()` |
+| 取得済みのWordPressオブジェクトをDataへ変換 | 各`*Data` | `From()` |
 | ID・slug・path等から単体取得 | 対象別の`*Get` | `ById()`・`BySlug()`・`ByPath()`等 |
 | 元のメインクエリの投稿・ページ情報 | `MainQueryGet` | 投稿一覧・ページ番号・総ページ数・投稿総数 |
 | 投稿・ターム・ユーザー・コメントの一覧 | 各`*Query` | `Get()`・`From()` |
@@ -49,7 +49,7 @@ $archiveAuthor = UserGet::Current(avatarSize: 64);
 $projectPost = PostGet::Current(dataClass: ProjectPostData::class);
 ```
 
-投稿は`class-string<T>`のdataClass（既定値PostData::class）を指定し、そのクラスのFromを呼びます。未知・別系統・abstractクラスは検索前に`InvalidArgumentException`です。対象がない場合はFromを呼ばずnull、生成中の例外は伝播します。ターム・ユーザーの呼び出し単位Factoryは維持します。タームは`WP_Term`、ユーザーは`WP_User`とアバターサイズを受け取り、対応するDataまたは派生型を返します。対象がなければFactoryを呼ばず、nullや別型を返すと`UnexpectedValueException`、内部例外は伝播します。[Dataと派生クラス](data.md)も参照してください。
+派生Dataが必要な場合は、各取得口の`dataClass:`へ`class-string<T>`を指定します。取得口は指定クラスの`From()`を呼び、未知・別系統・abstractクラスは検索前に`InvalidArgumentException`とします。対象がなければ`From()`を呼ばず`null`、生成中の例外はそのまま伝播します。[Dataと派生クラス](data.md)も参照してください。
 
 これらはWordPressの値をDataへ取り込むAPIで、ログイン処理・権限判定・投稿の公開可否による除外・HTML生成は行いません。グローバルな投稿やクエリの置き換え、ループの進行、結果の独自キャッシュも行いません。変換時のURL等の取得やWordPress自身のログインユーザー初期化は通常どおり発生します。
 
@@ -115,7 +115,7 @@ dataClassは`class-string<T>`（既定値PostData::class）で、各投稿を指
 | `AttachmentGet::ImgFromId()` | 添付ID | `?ImgData` | `null` |
 | `AttachmentGet::FileFromId()` | 添付ID | `?FileData` | `null` |
 
-`From()`は既存オブジェクトの変換、`By*()`は識別子からの単体取得、`*Query::Get()`は条件による集合取得です。`PostGet::FromId()`は`ById()`へ改名しました。互換エイリアスはありません。
+`From()`は既存オブジェクトの変換、`By*()`は識別子からの単体取得、`*Query::Get()`は条件による集合取得です。
 
 単体取得のIDは0以下なら検索せず`null`です。未発見・WP側のエラー値・対象外の戻り値も`null`です。公開状態・承認状態・閲覧権限では除外しません。取得結果を表示してよいかは利用側で判断してください。
 
@@ -161,7 +161,7 @@ $comment = CommentGet::ById(123);
 
 ユーザーの`BySlug()`は`user_nicename`、`ByLogin()`はログイン名の検索で、相互のフォールバックは行いません。空の識別子は検索せず`null`を返します。
 
-投稿の単体取得はクラス名を指定し、他の単体取得は既存の任意Factoryで派生Dataの戻り値型を維持します。
+投稿・ターム・ユーザー・コメントの単体取得は、共通して`dataClass:`へ派生Dataのクラス名を指定できます。省略時は対象ごとの標準Dataです。
 
 ```php
 $article = PostGet::ById(
@@ -170,11 +170,11 @@ $article = PostGet::ById(
 );
 ```
 
-投稿以外のFactoryの引数はタームではネイティブオブジェクト1つ、ユーザー・コメントではネイティブオブジェクトと`avatarSize`（省略時96）です。ユーザー・コメントの取得口にも`avatarSize`を指定できます。取得失敗時はFactoryを呼ばず、呼ばれたFactoryは対応するDataを必ず返す必要があります。`null`や型違反は`UnexpectedValueException`、Factory内の例外はそのまま伝播します。Factoryを静的に登録・保持することはありません。
+ユーザー・コメントの取得口では、`avatarSize:`と`dataClass:`をそれぞれ指定できます。取得失敗時はDataを生成せず`null`を返し、nullableな`From()`が変換できない場合も`null`です。生成中の例外はそのまま伝播し、指定クラスを静的に登録・保持することはありません。
 
-全WordPress DataのProps取得・調整はprotected static getPropsで行います。GetのFrom/Propsは廃止しました。派生クラスはparent::getPropsの値を変更し、案件固有の追加値はinitializeで設定します。MenuNodeData::Fromはセットアップ済みのメニュー項目を対象とし、構築済みの子ノードを第2引数で受け取ります。
+全WordPress DataのProps取得・調整は`protected static getProps()`で行います。派生クラスは`parent::getProps()`の値を変更し、案件固有の追加値は`initialize()`で設定します。`MenuNodeData::From()`はセットアップ済みのメニュー項目を対象とし、構築済みの子ノードを第2引数で受け取ります。
 
-`PostData`では`createRelatedPost()`を上書きすると、親・子・前後投稿に案件固有の派生型を使用できます。著者は`GetAuthor()`を直接上書きします。`TermData`の親・子には`createRelatedTerm()`、`CommentData`の親・子には`createRelatedComment()`を使います。`CommentData`のユーザーと投稿は`GetUser()`・`GetPost()`を直接上書きします。これらはData内部の関連取得に使う拡張点で、上の呼び出し単位のFactoryとは役割が異なります。
+`PostData`では`createRelatedPost()`を上書きすると、親・子・前後投稿に案件固有の派生型を使用できます。著者は`GetAuthor()`を直接上書きします。`TermData`の親・子には`createRelatedTerm()`、`CommentData`の親・子には`createRelatedComment()`を使います。`CommentData`のユーザーと投稿は`GetUser()`・`GetPost()`を直接上書きします。これらはData内部の関連取得に使う拡張点で、公開取得口の`dataClass`とは独立しています。
 
 `PostData`・`TermData`・`CommentData`・`MenuNodeData`は関連Data型をジェネリクスとして保持します（PostPropsは値だけで型パラメーターを持ちません）。そのため、案件固有Dataの`@extends`へ関連型を指定すると、子・親・前後投稿・投稿者などを取得した後もPHPStanで派生型を維持できます。
 
@@ -191,7 +191,7 @@ final class ArticleData extends PostData
 	public function GetAuthor(): ?ProjectUserData
 	{
 		$user = $this->AuthorId > 0 ? get_userdata($this->AuthorId) : null;
-		return $user instanceof \WP_User ? ProjectUserData::FromWpUser($user) : null;
+		return $user instanceof \WP_User ? ProjectUserData::From($user) : null;
 	}
 
 }
@@ -262,7 +262,7 @@ $maxPageCount = $result->MaxPageCount;
 $currentPageNumber = $result->CurrentPageNumber;
 ```
 
-案件固有の派生Dataを一覧へ保持する場合、PostQueryはdataClass、他のQueryは既存Factoryを指定します。`PostQueryData`等の要素型も、指定した派生Dataとして静的解析できます。
+案件固有の派生Dataを一覧へ保持する場合は、すべてのQueryで`dataClass:`を指定します。`PostQueryData`等の要素型も、指定した派生Dataとして静的解析できます。
 
 ```php
 <?php
@@ -281,7 +281,7 @@ foreach ($result->Posts as $caseData) {
 }
 ```
 
-各Queryの生成指定と結果は次のとおりです。クラス名・Factoryは`Get()`と`From()`のどちらでも指定できます。
+各Queryの生成指定と結果は次のとおりです。`dataClass`は`Get()`と`From()`のどちらでも指定できます。
 
 | Query | 生成指定引数 | 結果Data | 要素プロパティ | ページ情報 |
 |---|---|---|---|---|
@@ -290,7 +290,7 @@ foreach ($result->Posts as $caseData) {
 | `CommentQuery` | `dataClass` | `CommentQueryData` | `Comments` | あり |
 | `TermQuery` | `dataClass` | `TermQueryData` | `Terms` | なし |
 
-ユーザーとコメントのFactoryには、第2引数として指定済みの`avatarSize`も渡します。生成処理はクエリ結果の各オブジェクトに対して対応するDataを必ず返し、`null`は返せません。Queryの絞り込みは生成処理ではなく、WordPressのクエリ引数で行ってください。Factory未指定時はWpTypeSafetyの共通Dataへ変換します。
+ユーザーとコメントでは、指定した`avatarSize`をData生成にも使用します。Queryの絞り込みはData生成ではなく、WordPressのクエリ引数で行ってください。`dataClass`省略時はWpTypeSafetyの標準Dataへ変換します。nullableな`From()`が変換できない結果はリストから除外します。
 
 投稿・ユーザー・コメントのページ情報には次の規則があります。
 
@@ -480,7 +480,7 @@ use WpTypeSafety\Wp\Get\TermGet;
 use WpTypeSafety\Wp\Data\TermData;
 
 $terms = TermGet::FromPost($postId, 'category');
-$roots = TermGet::Roots($terms, TermData::class);
+$roots = TermGet::Roots($terms, dataClass: TermData::class);
 $children = $roots !== [] ? $roots[0]->GetChildren() : [];
 ```
 
@@ -488,7 +488,7 @@ $children = $roots !== [] ? $roots[0]->GetChildren() : [];
 
 `TermGet::FromPost()`は`WP_Post | PostData | int`を受け取ります。`ArticlePostData`などの派生DTOも渡せます。オブジェクトから投稿IDを取り出して取得し、DTOの内容を更新したり作り直したりはしません。
 
-案件固有の派生`TermData`を使用する場合は、`dataClass`を指定します。`Deepest()`と`Shallowest()`は入力されたDataと同じインスタンスを選別するため派生型を維持します。Roots()はdataClassが必須です。親なしも含めて現在のWordPress階層からルートを取得し、指定クラスで新しく生成します。入力型と生成型は別でよく、結果は指定型のlist<T>だけになります。入力のインスタンスや編集済みPropsは引き継ぎません。
+案件固有の派生`TermData`を使用する場合は、`dataClass:`を指定します。`Deepest()`と`Shallowest()`は入力されたDataと同じインスタンスを選別するため派生型を維持します。`Roots()`だけは`dataClass`が必須です。親なしも含めて現在のWordPress階層からルートを取得し、指定クラスで新しく生成します。入力型と生成型は別でよく、結果は指定型の`list<T>`だけになります。入力のインスタンスや編集済みPropsは引き継ぎません。
 
 ```php
 <?php
@@ -505,9 +505,9 @@ $roots = TermGet::Roots(
 $deepest = TermGet::Deepest($areas);
 ```
 
-Factoryが呼ばれた場合は`TermData`の派生型を必ず返す必要があり、`null`による要素除外はできません。Factory未指定時は共通`TermData`を返します。
+`Roots()`は指定クラスのnullableな`From()`が`null`を返した要素を除外します。生成中の例外はそのまま伝播します。
 
-`Deepest()`・`Shallowest()`は各タームの祖先数を深さとして比較します。同じ深さのタームが複数ある場合はすべて入力順で返し、空入力は空配列です。Roots()は各タームの最上位祖先を取得し、同じタクソノミーとIDの重複を除きます。取得・変換失敗、参照切れなどでルートを解決できない要素は除外し、入力Dataへフォールバックしません。生成例外は伝播します。
+`Deepest()`・`Shallowest()`は各タームの祖先数を深さとして比較します。同じ深さのタームが複数ある場合はすべて入力順で返し、空入力は空配列です。`Roots()`は各タームの最上位祖先を取得し、同じタクソノミーとIDの重複を除きます。取得・変換失敗、参照切れなどでルートを解決できない要素は除外し、入力Dataへフォールバックしません。生成例外は伝播します。
 
 ## WordPressメニュー
 
@@ -579,13 +579,13 @@ MenuNodeData::Fromはnav_menu_item以外や未セットアップの項目ではn
 
 ### 現在位置の意味とスナップショット
 
-`FindCurrent()` は「現在のページから所属メニューを特定するAPI」ではなく、「このメニュー内に現在のページを直接指す項目があるか」を探索します。`MenuNodeGet::Current()` は提供しません。
+`FindCurrent()`は「現在のページから所属メニューを特定するAPI」ではなく、「取得したメニュー内に現在のページを直接指す項目があるか」を探索します。
 
 メニュー取得時にWordPressの `_wp_menu_item_classes_by_context()` で現在位置を判定し、`MenuNodeData::IsCurrent` に保持します。クエリ確定後に取得してください。クエリ未設定時は現在項目なしです。祖先しか存在しない場合は祖先へフォールバックせず `null` を返します。単独の `MenuNodeData::From()` は渡された項目の `current` をコピーするだけで、現在位置を計算しません。
 
 取得後にWPコンテキストが変わっても既存Dataの判定は変わりません。新しい状態が必要なら `MenuGet` で再取得します。ライブラリ独自の静的ツリーキャッシュは持たず、各取得呼び出しで新しいスナップショットを作ります。繰り返し使う場合は取得済みの `MenuData` を渡してください。
 
-旧 `MenuNodeGet::TreeFromLocation()` は `MenuGet::ByLocation()` に置き換え、`FindBy*()`・`PathTo*()` は `MenuData` のインスタンスメソッドへ移動しました。旧APIの互換エイリアスはありません。
+メニュー全体は`MenuGet::ByLocation()`・`ById()`・`BySlug()`で取得し、`FindBy*()`・`PathTo*()`は取得した`MenuData`から呼び出します。
 
 ## WordPressのコメント
 
@@ -634,7 +634,7 @@ $isCasesTaxonomy = $taxonomyData?->HasObjectType('cases') ?? false;
 | PostTypeGet::ByName | 登録投稿タイプ名・dataClass | TPostTypeまたはnull | PostTypeData::From(WP_Post_Type) |
 | TaxonomyGet::ByName | 登録タクソノミー名・dataClass | TTaxonomyまたはnull | TaxonomyData::From(WP_Taxonomy) |
 
-ByName()は登録名で検索し、未登録・空文字ならnullです。dataClassで派生Dataを指定できます。不正クラスは検索前にInvalidArgumentExceptionです。取得済みの定義はData::Fromで変換し、Propsは派生getPropsで調整します。旧FromNameは破壊的変更として削除し、互換エイリアスは残しません。登録・更新は行いません。
+`ByName()`は登録名で検索し、未登録・空文字なら`null`です。`dataClass:`で派生Dataを指定できます。不正クラスは検索前に`InvalidArgumentException`です。取得済みの定義は`Data::From()`で変換し、Propsは派生`getProps()`で調整します。登録・更新は行いません。
 
 共通プロパティは`Name`・`Label`・`SingularLabel`・`Description`・`IsPublic`・`IsPubliclyQueryable`・`IsHierarchical`です。文字列以外の表示名・説明は空文字、欠損または空の単数形ラベルは`Label`へフォールバックします。公開設定は登録上のbool値であり、現在の閲覧者の権限や記事単位の閲覧可否を保証しません。
 

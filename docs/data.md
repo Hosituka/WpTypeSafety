@@ -23,7 +23,7 @@ WordPress Dataは値だけのPropsから構築します。値の調整はProps�
 |---|---|---|
 | PostDataとその派生型 | 継承したfinal public static From。外部new不可 | protected static getPropsと、親を先に呼ぶprotected initialize |
 | Term・User・Comment・Menu・登録定義Data | final From・protectedコンストラクター | getProps・initialize・関連フック・Getter |
-| Core・ACFのData | 現行の直接new・Factoryを維持 | それぞれの既存契約。Postのライフサイクルを適用しない |
+| Core・ACFのData | Dataごとの公開コンストラクターまたは専用生成口 | それぞれの契約。WordPress Dataの生成ライフサイクルを一律適用しない |
 
 このライブラリの`Data`は、利用側のコードでひとまとまりとして扱う対象を表します。WordPress Dataは共通値を保持し、関連情報の標準取得を内部Adapterへ委譲します。`Get`は外部から得た値の取得・型確認・正規化を担当します。
 
@@ -53,11 +53,11 @@ URLプロパティは`string`で保持し、未設定・取得できないURLは
 | `CommentData` | `WebsiteUrl` | コメント投稿者のWebサイト | 空文字 |
 | `PostTypeData` | `ArchiveUrl` | 投稿タイプのアーカイブ | 空文字 |
 
-`WpUserData->Description` はWP標準の「プロフィール情報」（自己紹介文）です。Factoryが生成時に `WP_User->description` から取得します。未設定・文字列以外は空文字です。直接構築時は`UserProps`の`Description:`で指定でき、省略時は空文字です。HTML出力やエスケープは利用側で行い、Dataは値をそのまま保持します。
+`WpUserData->Description`はWP標準の「プロフィール情報」（自己紹介文）です。`From()`が`WP_User->description`から取得し、未設定・文字列以外は空文字へ正規化します。派生`getProps()`では`UserProps->Description`を調整できます。HTML出力やエスケープは利用側で行い、Dataは値をそのまま保持します。
 
-`WpUserData->ArchiveUrl` は投稿者一覧のURLです。Factoryが生成時に `get_author_posts_url()` で取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。Data内ではWP APIを呼びません。派生getPropsでUserPropsのArchiveUrlを調整できます。調整値の妥当性は派生側で確認してください。HTML出力時は利用側で `esc_url()` を適用してください。
+`WpUserData->ArchiveUrl`は投稿者一覧のURLです。`From()`の生成過程で`get_author_posts_url()`から取得し、HTTP(S)の有効なURLならDataに保持します。不正なURL・未設定・文字列以外は空文字です。生成後のDataはこの値を読むためにWP APIを再実行しません。派生`getProps()`で`UserProps->ArchiveUrl`を調整できます。調整値の妥当性は派生側で確認し、HTML出力時は`esc_url()`を適用してください。
 
-`WpUserData->WebsiteUrl` はユーザーに登録されたWebサイト（`WP_User->user_url`）です。FactoryではHTTP(S) URLを検証し、不正・未設定・文字列以外は空文字にします。著者一覧の`ArchiveUrl`とは独立した値です。直接構築時は`UserProps`の`WebsiteUrl:`で指定できます。
+`WpUserData->WebsiteUrl`はユーザーに登録されたWebサイト（`WP_User->user_url`）です。`From()`の生成過程でHTTP(S) URLを検証し、不正・未設定・文字列以外は空文字にします。著者一覧の`ArchiveUrl`とは独立した値で、派生`getProps()`では`UserProps->WebsiteUrl`を調整できます。
 
 公開Dataは、扱う概念によって次の領域に分かれます。
 
@@ -117,7 +117,7 @@ $image = new ImgData(
 | PostTypeData | PostTypeProps | From(WP_Post_Type): static |
 | TaxonomyData | TaxonomyProps | From(WP_Taxonomy): static |
 
-全種類でfinal public static From → protected static getProps → final protectedコンストラクター → protected initializeの順です。外部new・Get::From/Propsは廃止しました。Coreの値型・Query結果Dataの手動構築は維持します。
+全種類で`final public static From`→`protected static getProps`→`final protected`コンストラクター→`protected initialize`の順です。WordPress Dataは`From()`または対象別Get・Queryから生成します。Coreの値型・Query結果Dataは用途に応じて直接構築できます。
 
 Propsは変更可能な値の集合です。Dataは構築時の値をreadonlyプロパティへコピーします。元のPropsの後続変更は反映しません。Propsを再利用したい場合は変更前にcloneしてください。コンストラクターではWordPress・ACFへ問い合わせません。
 
@@ -200,7 +200,7 @@ Fromが保証するのは生成手順であり、全追加値の初期化完了�
 
 標準フックは基底Dataを生成します。投稿は`PostData::From($post)`を使い、一律にstatic::Fromへ変更しません。関連投稿は所有者とは別型でもよく、TRelatedPostとTAuthorは独立です。派生型を返す場合は生成フックを上書きしてください。関連Adapterへ渡す既存のClosureも維持します。nullは単一取得ではnull、リストでは要素の除外を意味します。順序を維持して再採番します。戻り値型違反はPHPのTypeError、フック内の例外はそのまま伝播します。前後投稿の処理では一時的なグローバルpostを例外時も復元します。
 
-一つのGetterだけの変更には、別のFactoryやフックを設けません。PostData::GetAuthor()、CommentData::GetUser()/GetPost()/GetAvatar()、TermData::GetTaxonomy()等を直接オーバーライドします。標準処理は内部static Adapterへ委譲します。Internalは公開拡張点ではありません。
+一つのGetterだけを変更する場合は、`PostData::GetAuthor()`、`CommentData::GetUser()`・`GetPost()`・`GetAvatar()`、`TermData::GetTaxonomy()`等を直接オーバーライドします。標準処理は内部static Adapterへ委譲します。Internalは公開拡張点ではありません。
 
 ## 保持値と呼び出し時点の情報
 
